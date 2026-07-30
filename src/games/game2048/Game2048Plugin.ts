@@ -1,0 +1,616 @@
+import { MiniGamePlugin } from '../core/GamePlugin';
+import { GameLaunchContext } from '../core/GameLaunchContext';
+
+export class Game2048Plugin implements MiniGamePlugin {
+  id = 'game_2048';
+  name = 'Recall 2048';
+  subtitle = 'Sliding tile consolidation & strategic thinking';
+  description = 'Slide grid tiles in any cardinal direction. Combine tiles of identical value to construct the ultimate 2048 core, training your strategic planning and rapid visual recognition.';
+  version = '1.0.0';
+  genre = 'Puzzle / Sliding Board';
+  estimatedSessionLength = '3–8 min';
+  category = 'Puzzle';
+  status: 'playable' = 'playable';
+  statusText = 'PLAYABLE NOW';
+  statusColor = 'rgba(16, 185, 129, 1)';
+  iconSvg = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; height: 24px;">
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <path d="M9 17v-4h6v4M9 13h6" />
+    </svg>
+  `;
+
+  private canvas: HTMLCanvasElement | null = null;
+  private ctx: CanvasRenderingContext2D | null = null;
+  private animationFrameId: number | null = null;
+  private isRunning = false;
+
+  // Board logic
+  private size = 4;
+  private board: number[][] = [];
+  private score = 0;
+  private highScore = 0;
+  private isGameOver = false;
+  private isVictory = false;
+  private hasWonTriggered = false;
+
+  // Undo history
+  private history: Array<{ board: number[][]; score: number }> = [];
+
+  // Tile slide animations state
+  private tiles: Array<{
+    r: number;
+    c: number;
+    targetR: number;
+    targetC: number;
+    val: number;
+    animProgress: number; // 0 to 1
+    isNew: boolean;
+    isMerged: boolean;
+  }> = [];
+
+  // Metrics
+  private boardSize = 0;
+  private cellSize = 0;
+  private cellGap = 12;
+  private startX = 0;
+  private startY = 0;
+
+  // Touch handlers
+  private touchStartX = 0;
+  private touchStartY = 0;
+
+  // Listeners
+  private boundKeyDown: any;
+  private boundTouchStart: any;
+  private boundTouchEnd: any;
+  private boundResize: any;
+
+  launch(context: GameLaunchContext): void {
+    if (window.setPanel) {
+      window.setPanel('game');
+    }
+
+    const overlay = document.getElementById('bb-menu-overlay');
+    if (overlay) overlay.style.display = 'none';
+
+    // Customize Header
+    const titleEl = document.getElementById('game-panel-title');
+    const subtitleEl = document.getElementById('game-panel-subtitle');
+    const iconEl = document.getElementById('game-panel-icon');
+    const scoreLabel = document.getElementById('game-panel-score-label');
+    const scoreVal = document.getElementById('bb-score-val');
+
+    if (titleEl) titleEl.textContent = this.name;
+    if (subtitleEl) subtitleEl.textContent = this.subtitle;
+    if (scoreLabel) scoreLabel.textContent = 'Score:';
+    if (scoreVal) scoreVal.textContent = '0';
+    if (iconEl) iconEl.innerHTML = this.iconSvg;
+
+    // Load High Score
+    const savedHighScore = localStorage.getItem('ftp-2048-highscore');
+    this.highScore = savedHighScore ? Number(savedHighScore) : 0;
+
+    // Canvas init
+    this.canvas = document.getElementById('game-canvas') as HTMLCanvasElement | null;
+    if (!this.canvas) return;
+
+    this.ctx = this.canvas.getContext('2d');
+    if (!this.ctx) return;
+
+    this.isRunning = true;
+    this.isGameOver = false;
+    this.isVictory = false;
+    this.hasWonTriggered = false;
+    this.score = 0;
+    this.history = [];
+
+    this.resizeCanvas();
+    this.initBoard();
+
+    // Event bindings
+    this.boundKeyDown = this.handleKeyDown.bind(this);
+    this.boundTouchStart = (e: TouchEvent) => {
+      this.touchStartX = e.touches[0].clientX;
+      this.touchStartY = e.touches[0].clientY;
+    };
+    this.boundTouchEnd = (e: TouchEvent) => {
+      if (e.changedTouches.length === 0) return;
+      const dx = e.changedTouches[0].clientX - this.touchStartX;
+      const dy = e.changedTouches[0].clientY - this.touchStartY;
+      const minDistance = 40;
+
+      if (Math.abs(dx) > Math.abs(dy)) {
+        if (dx > minDistance) this.move('right');
+        else if (dx < -minDistance) this.move('left');
+      } else {
+        if (dy > minDistance) this.move('down');
+        else if (dy < -minDistance) this.move('up');
+      }
+    };
+    this.boundResize = this.resizeCanvas.bind(this);
+
+    window.addEventListener('keydown', this.boundKeyDown);
+    if (this.canvas) {
+      this.canvas.style.touchAction = 'none';
+    }
+    this.canvas?.addEventListener('touchstart', this.boundTouchStart, { passive: true });
+    this.canvas?.addEventListener('touchend', this.boundTouchEnd, { passive: true });
+    window.addEventListener('resize', this.boundResize);
+
+    // Gameloop
+    this.tick();
+  }
+
+  private initBoard() {
+    this.board = Array(this.size).fill(0).map(() => Array(this.size).fill(0));
+    this.spawnTile();
+    this.spawnTile();
+  }
+
+  private spawnTile() {
+    const emptyCells: Array<{ r: number; c: number }> = [];
+    for (let r = 0; r < this.size; r++) {
+      for (let c = 0; c < this.size; c++) {
+        if (this.board[r][c] === 0) {
+          emptyCells.push({ r, c });
+        }
+      }
+    }
+
+    if (emptyCells.length > 0) {
+      const cell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+      // 90% chance of 2, 10% chance of 4
+      const val = Math.random() < 0.9 ? 2 : 4;
+      this.board[cell.r][cell.c] = val;
+    }
+  }
+
+  private resizeCanvas() {
+    if (!this.canvas) return;
+    const container = document.getElementById('game-canvas-container');
+    if (container) {
+      this.canvas.width = container.clientWidth;
+      this.canvas.height = container.clientHeight;
+    }
+
+    // Centered layout calculations
+    const width = this.canvas.width;
+    const height = this.canvas.height;
+
+    // Board sized at 70% of min dimension
+    this.boardSize = Math.min(width * 0.85, height * 0.7, 360);
+    this.startX = (width - this.boardSize) / 2;
+    this.startY = (height - this.boardSize) / 2 + 10;
+    this.cellGap = this.boardSize * 0.035;
+    this.cellSize = (this.boardSize - this.cellGap * (this.size + 1)) / this.size;
+  }
+
+  private handleKeyDown(e: KeyboardEvent) {
+    if (this.isGameOver) return;
+
+    if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+      e.preventDefault();
+      this.move('up');
+    } else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
+      e.preventDefault();
+      this.move('down');
+    } else if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+      e.preventDefault();
+      this.move('left');
+    } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+      e.preventDefault();
+      this.move('right');
+    } else if (e.key === 'u' || e.key === 'U' || (e.key === 'z' && e.ctrlKey)) {
+      e.preventDefault();
+      this.undo();
+    }
+  }
+
+  private saveState() {
+    // Keep max 5 history moves
+    if (this.history.length >= 5) {
+      this.history.shift();
+    }
+    const clonedBoard = this.board.map(row => [...row]);
+    this.history.push({ board: clonedBoard, score: this.score });
+  }
+
+  private undo() {
+    if (this.history.length === 0) return;
+    const previous = this.history.pop()!;
+    this.board = previous.board;
+    this.score = previous.score;
+    this.isGameOver = false;
+    this.isVictory = false;
+    const scoreVal = document.getElementById('bb-score-val');
+    if (scoreVal) scoreVal.textContent = String(this.score);
+    this.playSynthSFX('undo');
+  }
+
+  private move(dir: 'up' | 'down' | 'left' | 'right') {
+    let moved = false;
+    let scoreGained = 0;
+    
+    // Save state before move
+    this.saveState();
+
+    const cloneBefore = this.board.map(row => [...row]);
+
+    // Slide implementation
+    if (dir === 'left' || dir === 'right') {
+      for (let r = 0; r < this.size; r++) {
+        let row = cloneBefore[r].filter(val => val !== 0);
+        
+        if (dir === 'right') row.reverse();
+
+        // Combine
+        const newRow: number[] = [];
+        for (let i = 0; i < row.length; i++) {
+          if (i < row.length - 1 && row[i] === row[i + 1]) {
+            const mergedVal = row[i] * 2;
+            newRow.push(mergedVal);
+            scoreGained += mergedVal;
+            i++; // skip next tile
+          } else {
+            newRow.push(row[i]);
+          }
+        }
+
+        // Pad with zeros
+        while (newRow.length < this.size) {
+          newRow.push(0);
+        }
+
+        if (dir === 'right') newRow.reverse();
+
+        // Check if row changed
+        for (let c = 0; c < this.size; c++) {
+          if (this.board[r][c] !== newRow[c]) {
+            moved = true;
+          }
+          this.board[r][c] = newRow[c];
+        }
+      }
+    } else { // UP or DOWN
+      for (let c = 0; c < this.size; c++) {
+        let col: number[] = [];
+        for (let r = 0; r < this.size; r++) {
+          if (cloneBefore[r][c] !== 0) col.push(cloneBefore[r][c]);
+        }
+
+        if (dir === 'down') col.reverse();
+
+        const newCol: number[] = [];
+        for (let i = 0; i < col.length; i++) {
+          if (i < col.length - 1 && col[i] === col[i + 1]) {
+            const mergedVal = col[i] * 2;
+            newCol.push(mergedVal);
+            scoreGained += mergedVal;
+            i++;
+          } else {
+            newCol.push(col[i]);
+          }
+        }
+
+        while (newCol.length < this.size) {
+          newCol.push(0);
+        }
+
+        if (dir === 'down') newCol.reverse();
+
+        for (let r = 0; r < this.size; r++) {
+          if (this.board[r][c] !== newCol[r]) {
+            moved = true;
+          }
+          this.board[r][c] = newCol[r];
+        }
+      }
+    }
+
+    if (moved) {
+      this.score += scoreGained;
+      this.spawnTile();
+      this.updateHighscores();
+      this.checkGameOver();
+      
+      const scoreVal = document.getElementById('bb-score-val');
+      if (scoreVal) scoreVal.textContent = String(this.score);
+
+      // Audio feedback
+      if (scoreGained > 0) {
+        this.playSynthSFX('merge');
+      } else {
+        this.playSynthSFX('slide');
+      }
+    } else {
+      // Discard saved state if no movement actually happened
+      this.history.pop();
+    }
+  }
+
+  private updateHighscores() {
+    if (this.score > this.highScore) {
+      this.highScore = this.score;
+      localStorage.setItem('ftp-2048-highscore', String(this.highScore));
+    }
+  }
+
+  private checkGameOver() {
+    // 1. Check for 2048 tiles
+    for (let r = 0; r < this.size; r++) {
+      for (let c = 0; c < this.size; c++) {
+        if (this.board[r][c] === 2048 && !this.hasWonTriggered) {
+          this.isVictory = true;
+          this.hasWonTriggered = true;
+          this.playSynthSFX('victory');
+          return;
+        }
+      }
+    }
+
+    // 2. Check empty cells remaining
+    for (let r = 0; r < this.size; r++) {
+      for (let c = 0; c < this.size; c++) {
+        if (this.board[r][c] === 0) return;
+      }
+    }
+
+    // 3. Check for adjacencies
+    for (let r = 0; r < this.size; r++) {
+      for (let c = 0; c < this.size; c++) {
+        const val = this.board[r][c];
+        if (r < this.size - 1 && val === this.board[r + 1][c]) return;
+        if (c < this.size - 1 && val === this.board[r][c + 1]) return;
+      }
+    }
+
+    this.isGameOver = true;
+    this.playSynthSFX('gameover');
+  }
+
+  private playSynthSFX(type: 'slide' | 'merge' | 'undo' | 'gameover' | 'victory') {
+    try {
+      const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtxClass) return;
+      const ctx = new AudioCtxClass();
+
+      if (type === 'slide') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(261.63, ctx.currentTime); // C4
+        osc.frequency.exponentialRampToValueAtTime(329.63, ctx.currentTime + 0.05); // E4 slide up
+        gain.gain.setValueAtTime(0.04, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.06);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.06);
+      } else if (type === 'merge') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(440, ctx.currentTime); // A4 Chime
+        osc.frequency.setValueAtTime(554.37, ctx.currentTime + 0.04); // C#5 chord step
+        gain.gain.setValueAtTime(0.08, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.12);
+      } else if (type === 'undo') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(329.63, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(220, ctx.currentTime + 0.08);
+        gain.gain.setValueAtTime(0.06, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.1);
+      } else if (type === 'gameover') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(220, ctx.currentTime);
+        osc.frequency.setValueAtTime(146.83, ctx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.08, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.4);
+      } else if (type === 'victory') {
+        const freqs = [523.25, 659.25, 783.99, 1046.50, 1318.51]; // C5, E5, G5, C6, E6
+        freqs.forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.08);
+          gain.gain.setValueAtTime(0, ctx.currentTime);
+          gain.gain.setValueAtTime(0.05, ctx.currentTime + idx * 0.08);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.08 + 0.3);
+          osc.start(ctx.currentTime + idx * 0.08);
+          osc.stop(ctx.currentTime + idx * 0.08 + 0.3);
+        });
+      }
+    } catch(e) {}
+  }
+
+  private tick() {
+    if (!this.isRunning) return;
+
+    this.render();
+
+    this.animationFrameId = requestAnimationFrame(this.tick.bind(this));
+  }
+
+  private render() {
+    const ctx = this.ctx;
+    const canvas = this.canvas;
+    if (!ctx || !canvas) return;
+
+    // Dark cyberpunk backgrounds
+    ctx.fillStyle = '#0a0915';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // 1. Render Dashboard Top (Scores)
+    const headerY = this.startY - 35;
+    
+    // High Score Box
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(this.startX + this.boardSize - 120, headerY - 18, 120, 32, 6);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.font = '8px "Space Grotesk", sans-serif';
+    ctx.fillStyle = 'var(--text3)';
+    ctx.textAlign = 'center';
+    ctx.fillText('HIGH SCORE', this.startX + this.boardSize - 60, headerY - 6);
+
+    ctx.font = 'bold 13px "DM Mono", monospace';
+    ctx.fillStyle = '#0ea5e9';
+    ctx.fillText(String(this.highScore), this.startX + this.boardSize - 60, headerY + 8);
+
+    // Undo Helper Button indicator
+    ctx.font = '11px "Space Grotesk", sans-serif';
+    ctx.fillStyle = 'var(--text3)';
+    ctx.textAlign = 'left';
+    ctx.fillText('Press [U] to UNDO last move', this.startX, headerY + 4);
+
+    // 2. Render Board Outer Grid Container
+    ctx.fillStyle = '#14122d';
+    ctx.beginPath();
+    ctx.roundRect(this.startX, this.startY, this.boardSize, this.boardSize, 12);
+    ctx.fill();
+
+    // 3. Render Slots and Active Tiles
+    for (let r = 0; r < this.size; r++) {
+      for (let c = 0; c < this.size; c++) {
+        const val = this.board[r][c];
+        const cellX = this.startX + this.cellGap + c * (this.cellSize + this.cellGap);
+        const cellY = this.startY + this.cellGap + r * (this.cellSize + this.cellGap);
+
+        // Grid Background Placeholder Slots
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+        ctx.beginPath();
+        ctx.roundRect(cellX, cellY, this.cellSize, this.cellSize, 8);
+        ctx.fill();
+
+        if (val > 0) {
+          // Rich aesthetic tile styling
+          ctx.fillStyle = this.getTileColor(val);
+          ctx.beginPath();
+          ctx.roundRect(cellX, cellY, this.cellSize, this.cellSize, 8);
+          ctx.fill();
+
+          // Border outlines for bigger blocks (cyber tech theme)
+          if (val >= 256) {
+            ctx.strokeStyle = '#cda250';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+          }
+
+          // Tile text
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = val <= 4 ? 'var(--text)' : '#ffffff';
+
+          let fs = this.cellSize * 0.42;
+          if (val >= 100 && val < 1000) fs = this.cellSize * 0.36;
+          else if (val >= 1000) fs = this.cellSize * 0.28;
+
+          ctx.font = `bold ${fs}px "Space Grotesk", sans-serif`;
+          ctx.fillText(String(val), cellX + this.cellSize / 2, cellY + this.cellSize / 2);
+        }
+      }
+    }
+
+    // Overlays
+    if (this.isGameOver) {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.font = 'bold 24px "Fraunces", serif';
+      ctx.fillStyle = '#ef4444';
+      ctx.textAlign = 'center';
+      ctx.fillText('GRID EXHAUSTED', canvas.width / 2, this.startY + this.boardSize / 2 - 20);
+
+      ctx.font = '13px "Space Grotesk", sans-serif';
+      ctx.fillStyle = 'var(--text3)';
+      ctx.fillText('Press [U] to Undo, or click Exit / Restart.', canvas.width / 2, this.startY + this.boardSize / 2 + 15);
+    } else if (this.isVictory) {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.font = 'bold 26px "Fraunces", serif';
+      ctx.fillStyle = '#10b981';
+      ctx.textAlign = 'center';
+      ctx.fillText('CORE 2048 SYNTHESIZED!', canvas.width / 2, this.startY + this.boardSize / 2 - 20);
+
+      ctx.font = '13px "Space Grotesk", sans-serif';
+      ctx.fillStyle = 'var(--text2)';
+      ctx.fillText('You hit the target! Continue or play again.', canvas.width / 2, this.startY + this.boardSize / 2 + 15);
+    }
+  }
+
+  private getTileColor(val: number): string {
+    const palette: Record<number, string> = {
+      2: '#1e1b4b',    // deep purple/indigo
+      4: '#2e1065',    // dark fuchsia/grape
+      8: '#311042',    // violet glow
+      16: '#0f172a',   // dark steel
+      32: '#0ea5e9',   // bright cyan
+      64: '#0284c7',   // marine
+      128: '#3b82f6',  // neon blue
+      256: '#10b981',  // emerald
+      512: '#f59e0b',  // warning yellow
+      1024: '#ec4899', // rose pink
+      2048: '#e11d48'  // radiant ruby
+    };
+    return palette[val] || '#3f3f46';
+  }
+
+  destroy(): void {
+    this.isRunning = false;
+    if (this.animationFrameId) {
+      cancelAnimationFrame(this.animationFrameId);
+    }
+
+    // Unbind
+    window.removeEventListener('keydown', this.boundKeyDown);
+    if (this.canvas) {
+      this.canvas.removeEventListener('touchstart', this.boundTouchStart);
+      this.canvas.removeEventListener('touchend', this.boundTouchEnd);
+    }
+    window.removeEventListener('resize', this.boundResize);
+
+    // Restore original panel header attributes
+    const titleEl = document.getElementById('game-panel-title');
+    const subtitleEl = document.getElementById('game-panel-subtitle');
+    const scoreLabel = document.getElementById('game-panel-score-label');
+    const scoreVal = document.getElementById('bb-score-val');
+    const iconEl = document.getElementById('game-panel-icon');
+
+    if (titleEl) titleEl.textContent = 'Blade Bedlam';
+    if (subtitleEl) subtitleEl.textContent = 'Action Slasher Clone · Custom Coded';
+    if (scoreLabel) scoreLabel.textContent = 'Score:';
+    if (scoreVal) scoreVal.textContent = '0';
+    if (iconEl) {
+      iconEl.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 18px; height: 18px;">
+          <rect x="2" y="6" width="20" height="12" rx="2" />
+          <path d="M6 12h4M10 10v4M15 11h.01M18 13h.01" />
+        </svg>
+      `;
+    }
+  }
+}

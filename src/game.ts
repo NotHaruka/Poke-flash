@@ -170,6 +170,16 @@ function renderMenuOverlay(): void {
  * and boots up the Phaser 3 canvas engine instance.
  */
 function initGame(): void {
+  // Check if any other custom classic game is active, and reset/relaunch it
+  const registry = (window as any).GameRegistry?.getInstance?.();
+  const activeId = registry?.getActiveGameId?.();
+  if (activeId && activeId !== 'blade_bedlam') {
+    registry.launchGame(activeId, 'game-canvas', () => {
+      if (window.setPanel) window.setPanel('flash-games');
+    }).catch((err: any) => console.error('Failed to reset active game:', err));
+    return;
+  }
+
   logger.info('Initializing Blade Bedlam game entry point...');
   document.body.classList.remove('bb-gameplay-active');
 

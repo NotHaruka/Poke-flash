@@ -1755,6 +1755,34 @@
         </div>
       </div>
 
+      <!-- Quick Play recommendation dashboard -->
+      <div id="games-quickplay-container" style="background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--rs); padding: 14px 20px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 14px; min-width: 280px; flex: 1;">
+          <div style="width: 36px; height: 36px; background: var(--accent-dim); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--accent); flex-shrink: 0;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 16px; height: 16px;">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          </div>
+          <div>
+            <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--text);">Study Break Recommendation Engine</h4>
+            <p style="margin: 2px 0 0; font-size: 11px; color: var(--text3);">Select your available study break duration for a tailored game match.</p>
+          </div>
+        </div>
+        
+        <!-- Toggle buttons for duration -->
+        <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+          <button class="btn btn-b quickplay-duration-btn active" onclick="window.selectQuickPlayDuration('short')" id="qp-btn-short" style="font-size: 11px; height: 30px; padding: 0 12px; border-radius: 15px; border-color: var(--border);">1–3 min (Micro-Break)</button>
+          <button class="btn btn-b quickplay-duration-btn" onclick="window.selectQuickPlayDuration('medium')" id="qp-btn-medium" style="font-size: 11px; height: 30px; padding: 0 12px; border-radius: 15px; border-color: var(--border);">3–5 min (Standard)</button>
+          <button class="btn btn-b quickplay-duration-btn" onclick="window.selectQuickPlayDuration('long')" id="qp-btn-long" style="font-size: 11px; height: 30px; padding: 0 12px; border-radius: 15px; border-color: var(--border);">5+ min (Deep Relax)</button>
+        </div>
+
+        <!-- Recommendation Target Card -->
+        <div id="quickplay-recommendation-target" style="display: flex; align-items: center; gap: 12px;">
+          <!-- Populated from games.ts -->
+        </div>
+      </div>
+
       <!-- Games Bento Grid List -->
       <div id="games-list-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 20px; flex: 1;">
         <!-- Rendered dynamically by games.ts -->
@@ -1842,26 +1870,31 @@
       </div>
     </div>
 
+    <!-- RHYTHM GAME PANEL -->
+    <div class="panel" id="panel-rhythm-game" style="flex-direction: column; height: 100%; min-height: 500px; padding: 0;">
+      <div id="rhythm-game-root" style="flex: 1; position: relative; background: #080718; overflow: hidden; width: 100%; height: 100%;"></div>
+    </div>
+
     <div class="panel" id="panel-game" style="flex-direction: column; height: 100%; min-height: 500px; padding: 0;">
       <!-- Panel Header -->
       <div class="panel-header" style="flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; border-bottom: 1px solid var(--border); background: var(--surface);">
         <div style="display: flex; align-items: center; gap: 10px;">
-          <div style="width: 32px; height: 32px; background: var(--accent-dim); border-radius: var(--rs); display: flex; align-items: center; justify-content: center; color: var(--accent);">
+          <div id="game-panel-icon" style="width: 32px; height: 32px; background: var(--accent-dim); border-radius: var(--rs); display: flex; align-items: center; justify-content: center; color: var(--accent);">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 18px; height: 18px;">
               <rect x="2" y="6" width="20" height="12" rx="2" />
               <path d="M6 12h4M10 10v4M15 11h.01M18 13h.01" />
             </svg>
           </div>
           <div>
-            <h2 style="margin: 0; font-size: 16px; font-weight: 600; color: var(--text);">Blade Bedlam</h2>
-            <span style="font-size: 11px; color: var(--text3);">Action Slasher Clone · Custom Coded</span>
+            <h2 id="game-panel-title" style="margin: 0; font-size: 16px; font-weight: 600; color: var(--text);">Blade Bedlam</h2>
+            <span id="game-panel-subtitle" style="font-size: 11px; color: var(--text3);">Action Slasher Clone · Custom Coded</span>
           </div>
         </div>
         
         <!-- Score and Control Toggles -->
         <div style="display: flex; align-items: center; gap: 12px;">
-          <div style="background: var(--surface2); border: 1px solid var(--border); border-radius: var(--rs); padding: 4px 12px; display: flex; align-items: center; gap: 8px;">
-            <span style="font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase;">Score:</span>
+          <div id="game-panel-score-container" style="background: var(--surface2); border: 1px solid var(--border); border-radius: var(--rs); padding: 4px 12px; display: flex; align-items: center; gap: 8px;">
+            <span id="game-panel-score-label" style="font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase;">Score:</span>
             <span id="bb-score-val" style="font-family: 'DM Mono', monospace; font-size: 15px; font-weight: 700; color: var(--accent);">0</span>
           </div>
           

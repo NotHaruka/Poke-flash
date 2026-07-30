@@ -129,7 +129,11 @@ function showPanel(name, btn) {
   // Initialize or pause the custom Blade Bedlam game on panel transitions
   if (name === 'game') {
     document.body.classList.add('game-panel-active');
-    initGame();
+    const registry = (window as any).GameRegistry?.getInstance?.();
+    const activeId = registry?.getActiveGameId?.();
+    if (!activeId || activeId === 'blade_bedlam') {
+      initGame();
+    }
   } else {
     document.body.classList.remove('game-panel-active');
     pauseGame();

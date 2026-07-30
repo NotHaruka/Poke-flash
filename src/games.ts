@@ -1,9 +1,31 @@
 import { ScreenOrientation } from '@capacitor/screen-orientation';
 import { showPanel } from './sidebar.js';
 import { escH, toast } from './utils.js';
+import { GameRegistry } from './games/core/GameRegistry';
 
+// Import All Game Plugins
+import { BladeBedlamPlugin } from './games/bladebedlam/BladeBedlamPlugin';
+import { CyberflapPlugin } from './games/cyberflap/CyberflapPlugin';
+import { VoidSurvivorPlugin } from './games/voidsurvivor/VoidSurvivorPlugin';
+import { RhythmGamePlugin } from './games/rhythm/RhythmGamePlugin';
+import { ColosseumDuelPlugin } from './games/colosseumduel/ColosseumDuelPlugin';
+import { MinesweeperPlugin } from './games/minesweeper/MinesweeperPlugin';
+import { Game2048Plugin } from './games/game2048/Game2048Plugin';
+import { SnakePlugin } from './games/snake/SnakePlugin';
+import { TicTacToePlugin } from './games/tictactoe/TicTacToePlugin';
 
-
+// Initialize Game Registry and Register Plugins
+const registry = GameRegistry.getInstance();
+(window as any).GameRegistry = GameRegistry;
+registry.registerGame(new BladeBedlamPlugin());
+registry.registerGame(new CyberflapPlugin());
+registry.registerGame(new VoidSurvivorPlugin());
+registry.registerGame(new RhythmGamePlugin());
+registry.registerGame(new ColosseumDuelPlugin());
+registry.registerGame(new MinesweeperPlugin());
+registry.registerGame(new Game2048Plugin());
+registry.registerGame(new SnakePlugin());
+registry.registerGame(new TicTacToePlugin());
 
 interface GameDefinition {
   id: string;
@@ -13,109 +35,132 @@ interface GameDefinition {
   status: 'playable' | 'upcoming';
   statusText: string;
   statusColor: string;
-  icon: string;
   playText: string;
   category: string;
+  icon: string;
   action: () => void;
 }
 
 let activeGamesFilter: 'all' | 'playable' | 'upcoming' = 'all';
 let searchQuery: string = '';
 
-const GAMES: GameDefinition[] = [
-  {
-    id: 'blade_bedlam',
-    title: 'Blade Bedlam',
-    subtitle: 'Gladiatorial runner & recall action-slasher',
-    description: 'An intense colosseum combat runner. Time your aerial dashes and execute sweeping blade slashes to defeat mythical beasts and test your split-second reactions.',
-    status: 'playable',
-    statusText: 'PLAYABLE NOW',
-    statusColor: 'var(--accent)',
-    playText: 'Enter Arena',
-    category: 'Action Slasher',
-    icon: `
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; height: 24px;">
-        <path d="M14.5 17.5L3 6V3h3l11.5 11.5" />
-        <path d="M13 19l-2-2" />
-        <path d="M16 16l2 2" />
-        <path d="M19 13l2 2" />
-        <path d="M8.5 11.5L20 20v1h-1l-8.5-8.5" />
-      </svg>
-    `,
-    action: () => {
-      showPanel('game', null);
-      try { ScreenOrientation.lock({ orientation: 'landscape' }).catch((err) => console.warn("Orientation lock failed:", err)); } catch(e){}
-    }
-  },
-  {
-    id: 'cyberflap',
-    title: 'Cyberflap 2084',
-    subtitle: 'Retro-futuristic arcade glider',
-    description: 'Pilot your cyber-glider through endless obstacles in this retro-futuristic arcade game. Dodge pipes, collect power-ups, defeat the Shadow Chassis boss, and unlock new customizations in the garage.',
-    status: 'playable',
-    statusText: 'PLAYABLE NOW',
-    statusColor: 'var(--accent)',
-    playText: 'Launch Glider',
-    category: 'Arcade Glider',
-    icon: `
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; height: 24px;">
-        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-        <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-        <line x1="12" y1="22.08" x2="12" y2="12" />
-      </svg>
-    `,
-    action: () => {
-      showPanel('cyberflap', null);
-      try { ScreenOrientation.lock({ orientation: 'landscape' }).catch((err) => console.warn("Orientation lock failed:", err)); } catch(e){}
-    }
-  },
-  {
-    id: 'void_survivor',
-    title: 'Void Survivor',
-    subtitle: '3D Roguelite Survival Shooter',
-    description: 'Survive endless waves of enemies in this fast-paced 3D roguelite. Collect items, upgrade your stats, and defeat the bosses.',
-    status: 'playable',
-    statusText: 'PLAYABLE NOW',
-    statusColor: 'var(--accent)',
-    playText: 'Enter The Void',
-    category: 'Action Roguelite',
-    icon: `
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; height: 24px;">
-        <circle cx="12" cy="12" r="10" />
-        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-        <path d="M2 12h20" />
-      </svg>
-    `,
-    action: () => {
-      // Import the launcher dynamically so React isn't loaded unless needed
-      import('./launchVoidSurvivor.tsx').then(module => {
-        document.body.classList.add('void-survivor-active');
-        showPanel('void-survivor', null);
-        try { ScreenOrientation.lock({ orientation: 'landscape' }).catch((err) => console.warn("Orientation lock failed:", err)); } catch(e){}
-        module.mountVoidSurvivor('void-survivor-root');
-      });
-    }
-  },
-  {
-    id: 'colosseum_duel',
-    title: 'Colosseum Duel',
-    subtitle: 'Turn-based semantic card battle',
-    description: 'Duel your AI assistant or customized study guides in a cerebral card arena. Precision answers break down opponent guards, unlocking ultimate recall spells.',
-    status: 'upcoming',
-    statusText: 'AI LABS CONCEPT',
-    statusColor: 'var(--text3)',
-    playText: 'Concept Phase',
-    category: 'Turn-Based RPG',
-    icon: `
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; height: 24px;">
-        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-      </svg>
-    `,
-    action: () => {
-      toast('Colosseum Duel is currently an active concept in AI Labs!');
-    }
+// Map registered game plugins dynamically to UI-friendly definitions
+function getGAMES(): GameDefinition[] {
+  return registry.getGames().map(game => {
+    return {
+      id: game.id,
+      title: game.name,
+      subtitle: game.subtitle,
+      description: game.description,
+      status: game.status,
+      statusText: game.statusText,
+      statusColor: game.statusColor,
+      playText: game.status === 'playable' ? 'Play Game' : 'Upcoming',
+      category: game.category,
+      icon: game.iconSvg,
+      action: () => {
+        if (game.status !== 'playable') {
+          toast(`${game.name} is currently in concept development!`);
+          return;
+        }
+
+        // Setup container mappings based on game ID
+        let containerId = '';
+        if (game.id === 'void_survivor') {
+          containerId = 'void-survivor-root';
+        } else if (game.id === 'rhythm_game') {
+          containerId = 'rhythm-game-root';
+        }
+
+        // Exit handler to return to flash-games panel
+        const onExit = () => {
+          document.body.classList.remove('void-survivor-active');
+          document.body.classList.remove('cyberflap-active');
+          try { ScreenOrientation.unlock().catch(() => {}); } catch(e){}
+          showPanel('flash-games', null);
+        };
+
+        // Launch Game via centralized registry
+        registry.launchGame(game.id, containerId, onExit).then(() => {
+          // Additional panel activations if handled out-of-band
+          if (game.id === 'rhythm_game') {
+            showPanel('rhythm-game', null);
+          }
+          try { ScreenOrientation.lock({ orientation: 'landscape' }).catch((err) => console.warn("Orientation lock failed:", err)); } catch(e){}
+        }).catch(err => {
+          console.error(`Failed to launch game ${game.id}:`, err);
+          toast(`Error launching ${game.name}: ${err.message}`);
+        });
+      }
+    };
+  });
+}
+
+let quickPlayDuration: 'short' | 'medium' | 'long' = 'medium';
+
+function renderQuickPlayRecommendation(): void {
+  const target = document.getElementById('quickplay-recommendation-target');
+  if (!target) return;
+
+  const games = getGAMES().filter(g => g.status === 'playable');
+
+  // Match games based on duration
+  let recommendedGame = games[0];
+  if (quickPlayDuration === 'short') {
+    recommendedGame = games.find(g => g.id === 'tictactoe') || games[0];
+  } else if (quickPlayDuration === 'medium') {
+    recommendedGame = games.find(g => g.id === 'minesweeper' || g.id === 'snake' || g.id === 'cyberflap') || games[0];
+  } else {
+    recommendedGame = games.find(g => g.id === 'game_2048' || g.id === 'blade_bedlam' || g.id === 'void_survivor') || games[0];
   }
-];
+
+  if (!recommendedGame) {
+    target.innerHTML = `<span style="font-size: 11px; color: var(--text3);">No active games</span>`;
+    return;
+  }
+
+  target.innerHTML = `
+    <div style="display: flex; align-items: center; gap: 10px; background: var(--surface2); padding: 4px 12px; border-radius: 20px; border: 1.5px solid var(--border);">
+      <div style="width: 16px; height: 16px; color: var(--accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+        ${recommendedGame.icon}
+      </div>
+      <div style="display: flex; flex-direction: column;">
+        <span style="font-size: 11px; font-weight: 700; color: var(--text); line-height: 1.1;">${escH(recommendedGame.title)}</span>
+        <span style="font-size: 9px; color: var(--text3); line-height: 1.1;">Rec. Break Play</span>
+      </div>
+      <button class="btn btn-p" onclick="window.triggerGameAction('${recommendedGame.id}')" style="height: 22px; padding: 0 8px; font-size: 10px; border-radius: 11px; background: var(--accent); color: var(--surface); border: none; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 2px;">
+        <span>Launch</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="width: 8px; height: 8px;"><polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/></svg>
+      </button>
+    </div>
+  `;
+}
+
+function selectQuickPlayDuration(duration: 'short' | 'medium' | 'long'): void {
+  quickPlayDuration = duration;
+  (window as any).quickPlayDuration = duration;
+
+  // Toggle button styling
+  const buttons = ['short', 'medium', 'long'];
+  buttons.forEach(b => {
+    const el = document.getElementById(`qp-btn-${b}`);
+    if (el) {
+      if (b === duration) {
+        el.classList.add('active');
+        el.style.background = 'var(--accent-dim)';
+        el.style.borderColor = 'var(--accent)';
+        el.style.color = 'var(--accent)';
+      } else {
+        el.classList.remove('active');
+        el.style.background = 'transparent';
+        el.style.borderColor = 'var(--border)';
+        el.style.color = 'var(--text3)';
+      }
+    }
+  });
+
+  renderQuickPlayRecommendation();
+}
 
 function initGamesArcade(): void {
   const searchInp = document.getElementById('games-search-input');
@@ -125,6 +170,7 @@ function initGamesArcade(): void {
       renderGamesArcade();
     });
   }
+  selectQuickPlayDuration('medium');
 }
 
 function setGamesFilter(filter: 'all' | 'playable' | 'upcoming'): void {
@@ -141,6 +187,8 @@ function setGamesFilter(filter: 'all' | 'playable' | 'upcoming'): void {
 function renderGamesArcade(): void {
   const container = document.getElementById('games-list-container');
   if (!container) return;
+
+  const GAMES = getGAMES();
 
   // Filter games
   const filtered = GAMES.filter(g => {
@@ -160,6 +208,8 @@ function renderGamesArcade(): void {
   const playableCountEl = document.getElementById('games-stat-playable');
   if (totalCountEl) totalCountEl.textContent = GAMES.length.toString();
   if (playableCountEl) playableCountEl.textContent = GAMES.filter(g => g.status === 'playable').length.toString();
+
+  renderQuickPlayRecommendation();
 
   if (filtered.length === 0) {
     container.innerHTML = `
@@ -244,6 +294,7 @@ function renderGamesArcade(): void {
 }
 
 function triggerGameAction(id: string): void {
+  const GAMES = getGAMES();
   const g = GAMES.find(x => x.id === id);
   if (g) g.action();
 }
@@ -254,6 +305,8 @@ Object.assign(window, {
   setGamesFilter,
   renderGamesArcade,
   triggerGameAction,
+  selectQuickPlayDuration,
+  renderQuickPlayRecommendation,
   toggleCyberflapTheater: () => {
     const isActive = document.body.classList.toggle('cyberflap-active');
     const btn = document.getElementById('btn-cyberflap-theater');
@@ -270,14 +323,14 @@ Object.assign(window, {
     if (btn) {
       btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 14px; height: 14px;"><rect x="2" y="3" width="20" height="14" rx="2" ry="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" /></svg><span>Theater Mode</span>`;
     }
-    try { ScreenOrientation.unlock().catch((err) => console.warn("Orientation unlock failed:", err)); } catch(e){}
+    try { ScreenOrientation.unlock().catch(() => {}); } catch(e){}
     showPanel(name, null);
   }
 });
 
-
 // ─── ES module exports (auto-generated) ───
-export { GAMES, activeGamesFilter, initGamesArcade, renderGamesArcade, searchQuery, setGamesFilter, triggerGameAction };
+const GAMES_LIST = getGAMES();
+export { GAMES_LIST as GAMES, activeGamesFilter, initGamesArcade, renderGamesArcade, searchQuery, setGamesFilter, triggerGameAction, selectQuickPlayDuration, renderQuickPlayRecommendation };
 
 // Expose API for inline onclick="" handlers (auto-generated)
-Object.assign(window, { initGamesArcade, renderGamesArcade, setGamesFilter, triggerGameAction });
+Object.assign(window, { initGamesArcade, renderGamesArcade, setGamesFilter, triggerGameAction, selectQuickPlayDuration, renderQuickPlayRecommendation });

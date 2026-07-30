@@ -1,0 +1,137 @@
+.
+├── .github
+│   └── workflows
+│       └── main.yml
+├── .gitignore
+├── assets
+│   └── .aistudio
+│       └── .gitignore
+├── capacitor.config.ts
+├── firebase-applet-config.json
+├── firebase-blueprint.json
+├── firestore.rules
+├── metadata.json
+├── package.json
+├── responsive-audit.md
+├── src
+│   ├── App.tsx
+│   ├── ai-provider.ts
+│   ├── chat.ts
+│   ├── cloze.ts
+│   ├── components
+│   │   ├── GameHUD.tsx
+│   │   └── MainMenu.tsx
+│   ├── core
+│   │   ├── CollisionResolver.ts
+│   │   ├── Config.ts
+│   │   ├── Constants.ts
+│   │   ├── EventBus.ts
+│   │   ├── SceneManager.ts
+│   │   └── Upgrades.ts
+│   ├── deck-manager.ts
+│   ├── directors
+│   │   ├── CombatDirector.ts
+│   │   └── WaveDirector.ts
+│   ├── entities
+│   │   ├── BaseComponent.ts
+│   │   ├── BaseEntity.ts
+│   │   ├── BossEntity.ts
+│   │   ├── BossHealthComponent.ts
+│   │   ├── ColossusBossEntity.ts
+│   │   ├── HealthComponent.ts
+│   │   ├── PhysicsComponent.ts
+│   │   └── components
+│   │       ├── BossAIComponent.ts
+│   │       ├── BossAnimationController.ts
+│   │       ├── EliteComponent.ts
+│   │       ├── EnemyAIComponent.ts
+│   │       ├── ModifierComponent.ts
+│   │       ├── WeaponArtComponent.ts
+│   │       └── WeaponComponent.ts
+│   ├── firebase-sync.ts
+│   ├── firebase.ts
+│   ├── game
+│   │   ├── Characters.ts
+│   │   ├── EnemyAI.ts
+│   │   ├── GameEngine.ts
+│   │   ├── ItemSystem.ts
+│   │   ├── ParticleSystem.ts
+│   │   ├── PlayerController.ts
+│   │   ├── StageGenerator.ts
+│   │   └── Stages.ts
+│   ├── game.ts
+│   ├── games.ts
+│   ├── global.d.ts
+│   ├── index.css
+│   ├── init.ts
+│   ├── launchVoidSurvivor.tsx
+│   ├── library.ts
+│   ├── main.ts
+│   ├── managers
+│   │   ├── ArenaEffectsManager.ts
+│   │   ├── AssetManager.ts
+│   │   ├── AudioManager.ts
+│   │   ├── BossEncounterManager.ts
+│   │   ├── CameraEffectsManager.ts
+│   │   ├── EnvironmentalEffectsManager.ts
+│   │   ├── InputManager.ts
+│   │   ├── LootManager.ts
+│   │   ├── MinimapManager.ts
+│   │   ├── SaveManager.ts
+│   │   ├── SettingsManager.ts
+│   │   └── VFXManager.ts
+│   ├── notes.ts
+│   ├── qr-engine.ts
+│   ├── scenes
+│   │   ├── BootScene.ts
+│   │   ├── ColosseumOutpostScene.ts
+│   │   ├── DeveloperSandboxScene.ts
+│   │   ├── GameScene.ts
+│   │   ├── MainMenuScene.ts
+│   │   └── PreloadScene.ts
+│   ├── scratchpad.ts
+│   ├── settings.ts
+│   ├── sidebar.ts
+│   ├── srs.ts
+│   ├── stats.ts
+│   ├── storage.ts
+│   ├── study.ts
+│   ├── styles
+│   │   └── global.css
+│   ├── types.ts
+│   ├── utils
+│   │   ├── Logger.ts
+│   │   └── math.ts
+│   ├── utils.ts
+│   └── vite-env.d.ts
+├── tsconfig.json
+├── vite.config.ts
+└── www
+    ├── assets
+    │   ├── .ase
+    │   │   ├── Grass_tile.ase
+    │   │   ├── Ground_tile.ase
+    │   │   ├── Pipe_cap.ase
+    │   │   ├── alien_bird.ase
+    │   │   ├── angry_bird.ase
+    │   │   ├── cute_bird.ase
+    │   │   ├── default_bird.ase
+    │   │   ├── gold_bar.ase
+    │   │   ├── pipe_body.ase
+    │   │   └── robot_bird.ase
+    │   ├── audio
+    │   │   ├── chassis_ost1.wav
+    │   │   └── chassis_ost2.wav
+    │   ├── backgrounds
+    │   │   └── background.ase.txt
+    │   └── ui
+    │       └── assets.ase.txt
+    ├── cyberflap
+    │   ├── chassis_ost1.wav
+    │   ├── chassis_ost2.wav
+    │   ├── game.js
+    │   ├── index.html
+    │   └── style.css
+    ├── entry.ts
+    ├── global.d.ts
+    └── index.html
