@@ -1,0 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@source "./**/*.{ts,tsx}";
+@source "../src/**/*.{ts,tsx}";
+@source "src/**/*.{ts,tsx}";
+@source "../www/**/*.html";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-sage-50: #f4f7f5;
+  --color-sage-100: #e6ede9;
+  --color-sage-200: #cbdbd4;
+  --color-sage-300: #a2bebc;
+  --color-sage-400: #7b9f9c;
+  --color-sage-500: #5c827e;
+  --color-sage-600: #4a6a66;
+  --color-sage-700: #3d5653;
+  --color-sage-800: #324744;
+  --color-sage-900: #202e2c;
+}
+
+:root {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+.animate-fadeOut {
+  animation: fadeOut 6s forwards;
+}
+
+.animate-pulse-slow {
+  animation: pulseSlow 3s infinite;
+}
+
+@keyframes fadeOut {
+  0% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  80% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -10px) scale(0.95); visibility: hidden; }
+}
+
+@keyframes pulseSlow {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.6; }
+}
+

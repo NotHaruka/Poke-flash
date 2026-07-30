@@ -1,0 +1,90 @@
+{
+  "entities": {
+    "Deck": {
+      "title": "Deck",
+      "description": "A deck of flashcards.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the deck"
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the deck"
+        },
+        "createdAt": {
+          "type": "integer",
+          "description": "Creation timestamp in milliseconds"
+        },
+        "updatedAt": {
+          "type": "integer",
+          "description": "Last updated timestamp in milliseconds"
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "Owner UID of the deck"
+        }
+      },
+      "required": ["name", "createdAt", "updatedAt", "ownerId"]
+    },
+    "Card": {
+      "title": "Card",
+      "description": "A flashcard in a deck.",
+      "type": "object",
+      "properties": {
+        "front": {
+          "type": "string",
+          "description": "Question or front of the card"
+        },
+        "back": {
+          "type": "string",
+          "description": "Answer or back of the card"
+        },
+        "createdAt": {
+          "type": "integer",
+          "description": "Creation timestamp in milliseconds"
+        },
+        "updatedAt": {
+          "type": "integer",
+          "description": "Last updated timestamp in milliseconds"
+        }
+      },
+      "required": ["front", "back", "createdAt", "updatedAt"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "An immutable log of a review event for spaced repetition.",
+      "type": "object",
+      "properties": {
+        "quality": {
+          "type": "integer",
+          "description": "Grade from 0 to 5 (0: Again, 1: Hard, 2: Good, 3: Easy etc)"
+        },
+        "reviewedAt": {
+          "type": "integer",
+          "description": "Review timestamp in milliseconds"
+        },
+        "deviceId": {
+          "type": "string",
+          "description": "Identifier of the device making the review"
+        }
+      },
+      "required": ["quality", "reviewedAt", "deviceId"]
+    }
+  },
+  "firestore": {
+    "decks/{deckId}": {
+      "schema": "Deck",
+      "description": "The main collection of decks"
+    },
+    "decks/{deckId}/cards/{cardId}": {
+      "schema": "Card",
+      "description": "Cards within a deck"
+    },
+    "decks/{deckId}/cards/{cardId}/reviews/{reviewId}": {
+      "schema": "Review",
+      "description": "Reviews of a card, used to derive SM-2 state"
+    }
+  }
+}

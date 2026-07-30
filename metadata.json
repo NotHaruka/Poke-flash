@@ -1,0 +1,6 @@
+{
+  "name": "FlashTrainer Pro",
+  "description": "An intelligent active recall platform featuring spaced repetition flashcards, AI study assistant, Pomodoro focus timer, scratchpad, and adaptive gaming modules like Blade Bedlam and Cyberflap 2084.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

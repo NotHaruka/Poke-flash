@@ -1,0 +1,170 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Default Deny Catch-All
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- REUSABLE SECURITY PRIMITIVES ---
+    
+    // Check if the ID matches standard format to prevent ID-poisoning resource exhaustion
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Core auth check                   
+    function isMe() {
+      return request.auth != null;
+    }
+
+    // Helper functions for incoming and existing resources
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- ENTITY-SPECIFIC SCHEMAS (Validation Blueprints) ---
+    
+    // Strict schema blueprint for Decks supporting optional folderId
+    function isValidDeck(data) {
+      return data.keys().hasAll(['name', 'description', 'createdAt', 'updatedAt', 'ownerId'])
+        && data.name is string && data.name.size() >= 0 && data.name.size() <= 200
+        && data.description is string && data.description.size() <= 2000
+        && data.ownerId == request.auth.uid
+        && data.createdAt is number
+        && data.updatedAt is number
+        && (!data.keys().contains('folderId') || data.folderId is string || data.folderId == null);
+    }
+
+    // Strict schema blueprint for User Metadata
+    function isValidUser(data) {
+      return data.keys().hasAll(['folders', 'folderOrder', 'deckOrder', 'srsEnabled'])
+        && data.folders is map
+        && data.folderOrder is list
+        && data.deckOrder is list
+        && data.srsEnabled is bool
+        && (!data.keys().contains('apiUsage') || data.apiUsage is map || data.apiUsage == null);
+    }
+
+    // Strict schema blueprint for Notes
+    function isValidNote(data) {
+      return data.keys().hasAll(['title', 'content', 'updatedAt', 'ownerId', 'pin', 'color', 'tags'])
+        && data.title is string
+        && data.content is string
+        && data.updatedAt is number
+        && data.ownerId == request.auth.uid
+        && data.pin is bool
+        && data.color is string
+        && data.tags is list;
+    }
+
+    // Strict schema blueprint for Cards supporting denormalized SRS state, tags, and difficulty
+    function isValidCard(data) {
+      return data.keys().hasAll(['front', 'back', 'createdAt', 'updatedAt'])
+        && data.front is string && data.front.size() >= 0 && data.front.size() <= 5000
+        && data.back is string && data.back.size() >= 0 && data.back.size() <= 5000
+        && data.createdAt is number
+        && data.updatedAt is number
+        && (!data.keys().contains('tags') || data.tags is list)
+        && (!data.keys().contains('difficulty') || data.difficulty is string)
+        && (!data.keys().contains('srsState') || (
+             data.srsState is map
+             && data.srsState.keys().hasAll(['interval', 'easeFactor', 'repetitions', 'nextReviewDate'])
+             && data.srsState.interval is number
+             && (data.srsState.easeFactor is float || data.srsState.easeFactor is number)
+             && data.srsState.repetitions is number
+             && (data.srsState.nextReviewDate is number || data.srsState.nextReviewDate == null)
+            ));
+    }
+
+    // Strict schema blueprint for Reviews
+    function isValidReview(data) {
+      return data.keys().hasAll(['quality', 'reviewedAt', 'deviceId'])
+        && data.keys().size() == 3
+        && data.quality is number && data.quality >= 0 && data.quality <= 5
+        && data.reviewedAt is number
+        && data.deviceId is string && data.deviceId.size() > 0 && data.deviceId.size() <= 100;
+    }
+
+    // Helper to check deck ownership
+    function getDeckOwner(deckId) {
+      return get(/databases/$(database)/documents/decks/$(deckId)).data.ownerId;
+    }
+
+    // Helper to check deck ownership after the request completes (for writes and batches)
+    function getDeckOwnerAfter(deckId) {
+      return getAfter(/databases/$(database)/documents/decks/$(deckId)).data.ownerId;
+    }
+
+    // --- COLLECTION RULES ---
+
+    // Users collection
+    match /users/{userId} {
+      allow get: if isMe() && userId == request.auth.uid;
+      allow create, update: if isMe() && userId == request.auth.uid && isValidUser(incoming());
+      allow delete: if isMe() && userId == request.auth.uid;
+    }
+
+    // Notes collection
+    match /notes/{noteId} {
+      allow get, delete: if isMe() && existing().ownerId == request.auth.uid;
+      allow list: if isMe() && resource.data.ownerId == request.auth.uid;
+      allow create: if isMe() && isValidId(noteId) && incoming().ownerId == request.auth.uid && isValidNote(incoming());
+      allow update: if isMe() && incoming().ownerId == request.auth.uid && existing().ownerId == request.auth.uid && isValidNote(incoming());
+    }
+
+    // Decks collection
+    match /decks/{deckId} {
+      allow get: if isMe() && existing().ownerId == request.auth.uid;
+      allow list: if isMe() && resource.data.ownerId == request.auth.uid;
+      
+      allow create: if isMe() 
+        && isValidId(deckId) 
+        && isValidDeck(incoming());
+        
+      allow update: if isMe()
+        && isValidDeck(incoming())
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt; // Immutability of creation timestamp and owner
+        
+      allow delete: if isMe() && existing().ownerId == request.auth.uid;
+
+      // Cards subcollection
+      match /cards/{cardId} {
+        allow get: if isMe() && getDeckOwner(deckId) == request.auth.uid;
+        allow list: if isMe() && getDeckOwner(deckId) == request.auth.uid;
+        
+        allow create: if isMe()
+          && isValidId(cardId)
+          && isValidCard(incoming())
+          && getDeckOwnerAfter(deckId) == request.auth.uid;
+          
+        allow update: if isMe()
+          && isValidCard(incoming())
+          && getDeckOwnerAfter(deckId) == request.auth.uid
+          && incoming().createdAt == existing().createdAt; // Immutability of creation timestamp
+          
+        allow delete: if isMe() && getDeckOwner(deckId) == request.auth.uid;
+
+        // Reviews subcollection (Append-Only)
+        match /reviews/{reviewId} {
+          allow get: if isMe() && getDeckOwner(deckId) == request.auth.uid;
+          allow list: if isMe() && getDeckOwner(deckId) == request.auth.uid;
+          
+          allow create: if isMe()
+            && isValidId(reviewId)
+            && isValidReview(incoming())
+            && getDeckOwnerAfter(deckId) == request.auth.uid;
+            
+          // Strict block on update and delete to preserve review history integrity
+          allow update, delete: if false;
+        }
+      }
+    }
+  }
+}
