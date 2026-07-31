@@ -5,7 +5,7 @@ export abstract class BossEntity extends BaseEntity {
   public bossName: string;
   public totalPhases: number = 3;
   public isFlashingDamage: boolean = false;
-  protected currentPhase: number = 1;
+  public currentPhase: number = 1;
   protected isInvulnerable: boolean = false;
   protected enrageThreshold: number = 0.25; // Enrage at 25% HP
   protected isEnragedState: boolean = false;

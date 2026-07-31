@@ -318,8 +318,7 @@ export class ColosseumOutpostScene extends GameScene {
       fontFamily: '"Space Grotesk", sans-serif',
       fontSize: '11px',
       color: '#ef4444',
-      fontStyle: 'bold',
-      letterSpacing: '1px'
+      fontStyle: 'bold'
     }).setOrigin(0.5);
 
 

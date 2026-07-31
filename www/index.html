@@ -1732,16 +1732,31 @@
 
       <!-- Filters & Search Toolbar -->
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; gap: 16px; flex-wrap: wrap;">
-        <!-- Filter Tabs -->
-        <div style="display: flex; background: var(--surface3); border: 1.5px solid var(--border); padding: 3px; border-radius: 20px; gap: 4px;">
-          <button class="game-tab active" data-filter="all" onclick="window.setGamesFilter('all')" style="border: none; background: none; font-size: 12px; font-weight: 700; padding: 6px 16px; border-radius: 16px; color: var(--text3); cursor: pointer; transition: all 0.15s ease;">
+        <!-- Filter Tabs & Category Pills -->
+        <div style="display: flex; background: var(--surface3); border: 1.5px solid var(--border); padding: 3px; border-radius: 20px; gap: 4px; overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch;">
+          <button class="game-tab active" data-filter="all" onclick="window.setGamesFilter('all')" style="border: none; background: none; font-size: 11.5px; font-weight: 700; padding: 6px 14px; border-radius: 16px; color: var(--text3); cursor: pointer; transition: all 0.15s ease; white-space: nowrap;">
             All Games
           </button>
-          <button class="game-tab" data-filter="playable" onclick="window.setGamesFilter('playable')" style="border: none; background: none; font-size: 12px; font-weight: 700; padding: 6px 16px; border-radius: 16px; color: var(--text3); cursor: pointer; transition: all 0.15s ease;">
-            Playable
+          <button class="game-tab" data-filter="Quick Play" onclick="window.setGamesFilter('Quick Play')" style="border: none; background: none; font-size: 11.5px; font-weight: 700; padding: 6px 14px; border-radius: 16px; color: var(--text3); cursor: pointer; transition: all 0.15s ease; white-space: nowrap;">
+            Quick Play
           </button>
-          <button class="game-tab" data-filter="upcoming" onclick="window.setGamesFilter('upcoming')" style="border: none; background: none; font-size: 12px; font-weight: 700; padding: 6px 16px; border-radius: 16px; color: var(--text3); cursor: pointer; transition: all 0.15s ease;">
-            Upcoming
+          <button class="game-tab" data-filter="Board & Strategy" onclick="window.setGamesFilter('Board & Strategy')" style="border: none; background: none; font-size: 11.5px; font-weight: 700; padding: 6px 14px; border-radius: 16px; color: var(--text3); cursor: pointer; transition: all 0.15s ease; white-space: nowrap;">
+            Board & Strategy
+          </button>
+          <button class="game-tab" data-filter="Puzzle" onclick="window.setGamesFilter('Puzzle')" style="border: none; background: none; font-size: 11.5px; font-weight: 700; padding: 6px 14px; border-radius: 16px; color: var(--text3); cursor: pointer; transition: all 0.15s ease; white-space: nowrap;">
+            Puzzle
+          </button>
+          <button class="game-tab" data-filter="Cards" onclick="window.setGamesFilter('Cards')" style="border: none; background: none; font-size: 11.5px; font-weight: 700; padding: 6px 14px; border-radius: 16px; color: var(--text3); cursor: pointer; transition: all 0.15s ease; white-space: nowrap;">
+            Cards
+          </button>
+          <button class="game-tab" data-filter="Arcade" onclick="window.setGamesFilter('Arcade')" style="border: none; background: none; font-size: 11.5px; font-weight: 700; padding: 6px 14px; border-radius: 16px; color: var(--text3); cursor: pointer; transition: all 0.15s ease; white-space: nowrap;">
+            Arcade
+          </button>
+          <button class="game-tab" data-filter="Action" onclick="window.setGamesFilter('Action')" style="border: none; background: none; font-size: 11.5px; font-weight: 700; padding: 6px 14px; border-radius: 16px; color: var(--text3); cursor: pointer; transition: all 0.15s ease; white-space: nowrap;">
+            Action
+          </button>
+          <button class="game-tab" data-filter="Rhythm" onclick="window.setGamesFilter('Rhythm')" style="border: none; background: none; font-size: 11.5px; font-weight: 700; padding: 6px 14px; border-radius: 16px; color: var(--text3); cursor: pointer; transition: all 0.15s ease; white-space: nowrap;">
+            Rhythm
           </button>
         </div>
 
@@ -1792,41 +1807,41 @@
     <!-- CYBERFLAP 2084 PANEL -->
     <div class="panel" id="panel-cyberflap" style="flex-direction: column; height: 100%; min-height: 500px; padding: 0;">
       <!-- Panel Header -->
-      <div class="panel-header" style="flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; border-bottom: 1px solid var(--border); background: var(--surface);">
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <div style="width: 32px; height: 32px; background: rgba(16, 185, 129, 0.15); border-radius: var(--rs); display: flex; align-items: center; justify-content: center; color: #10b981;">
+      <div class="panel-header game-panel-header" style="flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--surface); margin-bottom: 0;">
+        <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+          <div style="width: 32px; height: 32px; background: rgba(0, 243, 255, 0.15); border-radius: var(--rs); display: flex; align-items: center; justify-content: center; color: #00f3ff; flex-shrink: 0;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 18px; height: 18px;">
               <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
               <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
               <line x1="12" y1="22.08" x2="12" y2="12" />
             </svg>
           </div>
-          <div>
-            <h2 style="margin: 0; font-size: 16px; font-weight: 600; color: var(--text);">Cyberflap 2084</h2>
-            <span style="font-size: 11px; color: var(--text3);">Retro-futuristic arcade glider · Roster: Cyberflap 2084</span>
+          <div style="min-width: 0; overflow: hidden;">
+            <h2 style="margin: 0; font-size: 15px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Cyberflap 2084</h2>
+            <span style="font-size: 11px; color: var(--text3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;">Arcade Glider</span>
           </div>
         </div>
 
-        <div style="display: flex; align-items: center; gap: 12px;">
-          <button class="btn btn-g" onclick="document.getElementById('cyberflap-iframe').contentWindow.location.reload()" style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; height: 34px;">
+        <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+          <button class="btn btn-g" onclick="document.getElementById('cyberflap-iframe').contentWindow.location.reload()" style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; height: 32px; padding: 0 10px;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 14px; height: 14px;">
               <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
             </svg>
-            <span>Reset Game</span>
+            <span>Reset</span>
           </button>
-          <button class="btn btn-b" id="btn-cyberflap-theater" onclick="window.toggleCyberflapTheater()" style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; height: 34px;">
+          <button class="btn btn-b" id="btn-cyberflap-theater" onclick="window.toggleCyberflapTheater()" style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; height: 32px; padding: 0 10px;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 14px; height: 14px;">
               <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
               <line x1="8" y1="21" x2="16" y2="21" />
               <line x1="12" y1="17" x2="12" y2="21" />
             </svg>
-            <span>Theater Mode</span>
+            <span>Theater</span>
           </button>
-          <button class="btn btn-b" onclick="window.setPanel('flash-games')" style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; height: 34px;">
+          <button class="btn btn-b" onclick="window.setPanel('flash-games')" style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; height: 32px; padding: 0 10px;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 14px; height: 14px;">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
             </svg>
-            <span>Exit Game</span>
+            <span>Exit</span>
           </button>
         </div>
       </div>
@@ -1840,27 +1855,27 @@
     <!-- VOID SURVIVOR PANEL -->
     <div class="panel" id="panel-void-survivor" style="flex-direction: column; height: 100%; min-height: 500px; padding: 0;">
       <!-- Panel Header -->
-      <div class="panel-header" style="flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; border-bottom: 1px solid var(--border); background: var(--surface);">
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <div style="width: 32px; height: 32px; background: rgba(16, 185, 129, 0.15); border-radius: var(--rs); display: flex; align-items: center; justify-content: center; color: #10b981;">
+      <div class="panel-header game-panel-header" style="flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--surface); margin-bottom: 0;">
+        <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+          <div style="width: 32px; height: 32px; background: rgba(16, 185, 129, 0.15); border-radius: var(--rs); display: flex; align-items: center; justify-content: center; color: #10b981; flex-shrink: 0;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 18px; height: 18px;">
               <circle cx="12" cy="12" r="10" />
               <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
               <path d="M2 12h20" />
             </svg>
           </div>
-          <div>
-            <h2 style="margin: 0; font-size: 16px; font-weight: 600; color: var(--text);">Void Survivor</h2>
-            <span style="font-size: 11px; color: var(--text3);">3D Roguelite Survival Shooter</span>
+          <div style="min-width: 0; overflow: hidden;">
+            <h2 style="margin: 0; font-size: 15px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Void Survivor</h2>
+            <span style="font-size: 11px; color: var(--text3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;">3D Roguelite Shooter</span>
           </div>
         </div>
 
-        <div style="display: flex; align-items: center; gap: 12px;">
-          <button class="btn btn-b" onclick="document.body.classList.remove('void-survivor-active'); window.setPanel('flash-games'); if(window.unmountVoidSurvivor) window.unmountVoidSurvivor();" style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; height: 34px;">
+        <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+          <button class="btn btn-b" onclick="document.body.classList.remove('void-survivor-active'); window.setPanel('flash-games'); if(window.unmountVoidSurvivor) window.unmountVoidSurvivor();" style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; height: 32px; padding: 0 10px;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 14px; height: 14px;">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
             </svg>
-            <span>Exit Game</span>
+            <span>Exit</span>
           </button>
         </div>
       </div>
@@ -1877,40 +1892,47 @@
 
     <div class="panel" id="panel-game" style="flex-direction: column; height: 100%; min-height: 500px; padding: 0;">
       <!-- Panel Header -->
-      <div class="panel-header" style="flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; border-bottom: 1px solid var(--border); background: var(--surface);">
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <div id="game-panel-icon" style="width: 32px; height: 32px; background: var(--accent-dim); border-radius: var(--rs); display: flex; align-items: center; justify-content: center; color: var(--accent);">
+      <div class="panel-header game-panel-header" style="flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--surface); margin-bottom: 0;">
+        <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+          <div id="game-panel-icon" style="width: 32px; height: 32px; background: var(--accent-dim); border-radius: var(--rs); display: flex; align-items: center; justify-content: center; color: var(--accent); flex-shrink: 0;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 18px; height: 18px;">
               <rect x="2" y="6" width="20" height="12" rx="2" />
               <path d="M6 12h4M10 10v4M15 11h.01M18 13h.01" />
             </svg>
           </div>
-          <div>
-            <h2 id="game-panel-title" style="margin: 0; font-size: 16px; font-weight: 600; color: var(--text);">Blade Bedlam</h2>
-            <span id="game-panel-subtitle" style="font-size: 11px; color: var(--text3);">Action Slasher Clone · Custom Coded</span>
+          <div style="min-width: 0; overflow: hidden;">
+            <h2 id="game-panel-title" style="margin: 0; font-size: 15px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Blade Bedlam</h2>
+            <span id="game-panel-subtitle" style="font-size: 11px; color: var(--text3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;">Action Slasher</span>
           </div>
         </div>
         
         <!-- Score and Control Toggles -->
-        <div style="display: flex; align-items: center; gap: 12px;">
-          <div id="game-panel-score-container" style="background: var(--surface2); border: 1px solid var(--border); border-radius: var(--rs); padding: 4px 12px; display: flex; align-items: center; gap: 8px;">
-            <span id="game-panel-score-label" style="font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase;">Score:</span>
-            <span id="bb-score-val" style="font-family: 'DM Mono', monospace; font-size: 15px; font-weight: 700; color: var(--accent);">0</span>
+        <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+          <div id="game-panel-score-container" style="background: var(--surface2); border: 1px solid var(--border); border-radius: var(--rs); padding: 2px 10px; display: flex; align-items: center; gap: 6px; height: 32px;">
+            <span id="game-panel-score-label" style="font-size: 10px; font-weight: 600; color: var(--text3); text-transform: uppercase;">Score:</span>
+            <span id="bb-score-val" style="font-family: 'DM Mono', monospace; font-size: 14px; font-weight: 700; color: var(--accent);">0</span>
           </div>
           
-          <button class="btn btn-b" id="bb-btn-sound" onclick="window.toggleGameSound(this)" style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; height: 34px;">
+          <button class="btn btn-b" id="bb-btn-sound" onclick="window.toggleGameSound(this)" style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; height: 32px; padding: 0 10px;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 14px; height: 14px;">
               <path d="M11 5L6 9H2v6h4l5 4V5z"/>
-              <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+              <path d="M19.07 4.93a10 10 0 1 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
             </svg>
-            <span>Sound: On</span>
+            <span>Sound</span>
           </button>
 
-          <button class="btn btn-g" onclick="window.initGame()" style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; height: 34px;">
+          <button class="btn btn-g" onclick="window.initGame()" style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; height: 32px; padding: 0 10px;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 14px; height: 14px;">
               <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
             </svg>
             <span>Reset</span>
+          </button>
+
+          <button class="btn btn-b" onclick="window.setPanel('flash-games')" style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; height: 32px; padding: 0 10px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 14px; height: 14px;">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
+            </svg>
+            <span>Exit</span>
           </button>
         </div>
       </div>

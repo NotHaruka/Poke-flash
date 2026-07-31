@@ -18,10 +18,10 @@ export class PhysicsComponent extends BaseComponent {
   public accelerationRate: number = 14.0; // Interpolation rate for accelerating
   public decelerationRate: number = 18.0; // Interpolation rate for slowing down/stopping
 
-  private minX: number = 20;
-  private maxX: number = 1004;
-  private minY: number = 20;
-  private maxY: number = 556;
+  public minX: number = 20;
+  public maxX: number = 1004;
+  public minY: number = 20;
+  public maxY: number = 556;
 
   constructor(owner: BaseEntity, speed: number) {
     super(owner);

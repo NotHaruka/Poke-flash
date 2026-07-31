@@ -1,5 +1,6 @@
 import { MiniGamePlugin } from '../core/GamePlugin';
 import { GameLaunchContext } from '../core/GameLaunchContext';
+import { destroyPhaserGame, initGame } from '../../game.js';
 
 export class BladeBedlamPlugin implements MiniGamePlugin {
   id = 'blade_bedlam';
@@ -8,6 +9,7 @@ export class BladeBedlamPlugin implements MiniGamePlugin {
   description = 'An intense colosseum combat runner. Time your aerial dashes and execute sweeping blade slashes to defeat mythical beasts and test your split-second reactions.';
   version = '1.0.0';
   genre = 'Action Slasher';
+  preferredOrientation: 'portrait' | 'landscape' | 'any' = 'landscape';
   estimatedSessionLength = '3–5 min';
   category = 'Action Slasher';
   status: 'playable' = 'playable';
@@ -27,7 +29,10 @@ export class BladeBedlamPlugin implements MiniGamePlugin {
     if (window.setPanel) {
       window.setPanel('game');
     }
+    initGame();
   }
 
-  destroy(): void {}
+  destroy(): void {
+    destroyPhaserGame();
+  }
 }

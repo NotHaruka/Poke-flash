@@ -8,6 +8,7 @@ export class CyberflapPlugin implements MiniGamePlugin {
   description = 'Pilot your cyber-glider through endless obstacles in this retro-futuristic arcade game. Dodge pipes, collect power-ups, defeat the Shadow Chassis boss, and unlock new customizations in the garage.';
   version = '1.2.0';
   genre = 'Arcade Glider';
+  preferredOrientation: 'portrait' | 'landscape' | 'any' = 'portrait';
   estimatedSessionLength = '3–5 min';
   category = 'Arcade Glider';
   status: 'playable' = 'playable';

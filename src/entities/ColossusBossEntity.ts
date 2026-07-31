@@ -15,9 +15,9 @@ import { ArenaEffectsManager } from '../managers/ArenaEffectsManager.js';
 import { EnvironmentalEffectsManager } from '../managers/EnvironmentalEffectsManager.js';
 
 export class ColossusBossEntity extends BossEntity {
-  private aiComponent!: BossAIComponent;
-  private physicsComponent!: PhysicsComponent;
-  private healthComponent!: BossHealthComponent;
+  public aiComponent!: BossAIComponent;
+  public physicsComponent!: PhysicsComponent;
+  public healthComponent!: BossHealthComponent;
   private scene: Phaser.Scene & any;
 
   // Procedural visual components

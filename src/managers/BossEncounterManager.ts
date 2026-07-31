@@ -179,7 +179,7 @@ export class BossEncounterManager {
       }
       
       // Instantly position sword sprite
-      const weapon = player.getComponent<any>('weapon');
+      const weapon = (player as any).getComponent('weapon');
       if (weapon && this.scene.swordSprite) {
         const currentAngle = weapon.getAngle();
         const handleOffset = weapon.handleOffset;

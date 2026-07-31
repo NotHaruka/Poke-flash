@@ -1,5 +1,8 @@
 import { MiniGamePlugin } from '../core/GamePlugin';
 import { GameLaunchContext } from '../core/GameLaunchContext';
+import { resetGameCanvas } from '../../game.js';
+import { GameOverlayManager } from '../core/GameOverlayManager';
+import { GameAudioEngine } from '../core/GameAudioEngine';
 
 export class MinesweeperPlugin implements MiniGamePlugin {
   id = 'minesweeper';
@@ -8,6 +11,7 @@ export class MinesweeperPlugin implements MiniGamePlugin {
   description = 'Deduce the locations of hidden mines across a retro-cyber grid. Test your recognition speeds and logical reasoning under time pressure with audio-synthesized sweeps and explosions.';
   version = '1.0.0';
   genre = 'Puzzle / Logic';
+  preferredOrientation: 'portrait' | 'landscape' | 'any' = 'any';
   estimatedSessionLength = '2–5 min';
   category = 'Puzzle';
   status: 'playable' = 'playable';
@@ -24,6 +28,9 @@ export class MinesweeperPlugin implements MiniGamePlugin {
   private ctx: CanvasRenderingContext2D | null = null;
   private animationFrameId: number | null = null;
   private isRunning = false;
+  private isPaused = false;
+  private overlayManager: GameOverlayManager | null = null;
+  private context: GameLaunchContext | null = null;
 
   // Game configuration
   private cols = 9;
@@ -72,10 +79,12 @@ export class MinesweeperPlugin implements MiniGamePlugin {
   private boundTouchStart: any;
   private boundContextMenu: any;
   private boundResize: any;
+  private boundKeyDown: any;
 
   private mobileFlagMode = false;
 
   launch(context: GameLaunchContext): void {
+    this.context = context;
     // 1. Swap panel to 'game'
     if (window.setPanel) {
       window.setPanel('game');
@@ -103,6 +112,7 @@ export class MinesweeperPlugin implements MiniGamePlugin {
     if (soundBtn) soundBtn.style.display = 'none';
 
     // 3. Initialize Canvas
+    resetGameCanvas();
     this.canvas = document.getElementById('game-canvas') as HTMLCanvasElement | null;
     if (!this.canvas) return;
 
@@ -110,6 +120,7 @@ export class MinesweeperPlugin implements MiniGamePlugin {
     if (!this.ctx) return;
 
     this.isRunning = true;
+    this.isPaused = false;
     this.firstClick = true;
     this.gameOver = false;
     this.victory = false;
@@ -127,6 +138,25 @@ export class MinesweeperPlugin implements MiniGamePlugin {
       this.cols = 11; this.rows = 11; this.minesCount = 18;
     }
     this.minesRemaining = this.minesCount;
+
+    // Initialize GameOverlayManager
+    this.overlayManager = new GameOverlayManager('game-canvas-container', {
+      onPause: () => {
+        this.isPaused = true;
+      },
+      onResume: () => {
+        this.isPaused = false;
+      },
+      onRestart: () => {
+        this.restartGame();
+      },
+      onShowInstructions: () => {
+        this.showHelpOverlay();
+      },
+      onExit: () => {
+        if (this.context?.onExit) this.context.onExit();
+      }
+    });
 
     this.resizeCanvas();
     this.initGrid();
@@ -184,14 +214,99 @@ export class MinesweeperPlugin implements MiniGamePlugin {
     this.boundTouchStart = this.handleTouchStart.bind(this);
     this.boundContextMenu = (e: MouseEvent) => e.preventDefault();
     this.boundResize = this.resizeCanvas.bind(this);
+    this.boundKeyDown = this.handleKeyDown.bind(this);
 
     this.canvas.addEventListener('mousedown', this.boundMouseDown);
     this.canvas.addEventListener('touchstart', this.boundTouchStart, { passive: false });
     this.canvas.addEventListener('contextmenu', this.boundContextMenu);
     window.addEventListener('resize', this.boundResize);
+    window.addEventListener('keydown', this.boundKeyDown);
+
+    this.showHelpOverlay();
 
     // Start gameloop
     this.tick();
+  }
+
+  private showHelpOverlay() {
+    this.isPaused = true;
+    this.overlayManager?.showInstructions({
+      title: 'RECALL MINESWEEPER',
+      subtitle: 'Cyber Logic Grid Deduction',
+      description: 'Analyze neighbors and sweep safe sectors to flag down hidden mines across the retro cybernetic board.',
+      objective: 'Sweep all safe cells without triggering any hidden mine explosions.',
+      controls: [
+        { key: 'Left Click', action: 'Sweep / Reveal safe cell' },
+        { key: 'Right Click', action: 'Flag hidden mine' },
+        { key: 'Mobile Mode', action: 'Toggle Dig/Flag buttons at the bottom' },
+        { key: 'P / Esc', action: 'Pause or resume session' }
+      ],
+      rules: [
+        'Numbers denote the count of neighboring mines around a revealed cell.',
+        'The first click is always 100% safe and opens up a clear pocket.',
+        'Flag suspected mines using right-clicks or mobile Flag Mode.'
+      ],
+      options: {
+        difficulties: ['easy', 'normal', 'hard'],
+        currentDifficulty: this.context?.settings.difficulty || 'normal',
+        onSelectDifficulty: (diff) => {
+          if (this.context) this.context.settings.difficulty = diff as any;
+          if (diff === 'easy') {
+            this.cols = 8; this.rows = 8; this.minesCount = 10;
+          } else if (diff === 'hard') {
+            this.cols = 16; this.rows = 16; this.minesCount = 40;
+          } else {
+            this.cols = 11; this.rows = 11; this.minesCount = 18;
+          }
+          this.minesRemaining = this.minesCount;
+          this.restartGame();
+          GameAudioEngine.getInstance().playSFX('select');
+        }
+      },
+      onStart: () => {
+        this.overlayManager?.hideInstructions();
+        this.overlayManager?.setupHUD([
+          { label: 'Mines Left', value: this.minesRemaining, id: 'minesRemaining' },
+          { label: 'Time', value: '0s', id: 'timer' }
+        ]);
+        this.isPaused = false;
+        this.restartGame();
+        GameAudioEngine.getInstance().playSFX('click');
+      }
+    });
+  }
+
+  private handleKeyDown(e: KeyboardEvent) {
+    if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
+      if (!this.gameOver && !this.victory && this.overlayManager) {
+        this.isPaused = !this.isPaused;
+        if (this.isPaused) {
+          this.overlayManager.pause();
+        } else {
+          this.overlayManager.resume();
+        }
+      }
+    }
+  }
+
+  private restartGame() {
+    this.overlayManager?.hideResults();
+    this.overlayManager?.resume();
+    this.firstClick = true;
+    this.gameOver = false;
+    this.victory = false;
+    this.particles = [];
+    this.timeElapsed = 0;
+    this.faceState = 'smile';
+    this.minesRemaining = this.minesCount;
+    this.isPaused = false;
+    this.overlayManager?.updateStat('minesRemaining', this.minesRemaining);
+    this.overlayManager?.updateStat('timer', '0s');
+
+    const scoreVal = document.getElementById('bb-score-val');
+    if (scoreVal) scoreVal.textContent = String(this.minesRemaining);
+    this.resizeCanvas();
+    this.initGrid();
   }
 
   private initGrid() {
@@ -295,7 +410,7 @@ export class MinesweeperPlugin implements MiniGamePlugin {
   }
 
   private processInputAt(mx: number, my: number, button: number) {
-    if (!this.canvas) return;
+    if (!this.canvas || this.isPaused) return;
 
     // Check click on face/reset button at top (Always active, even during gameover/victory!)
     const faceX = this.canvas.width / 2;
@@ -303,16 +418,7 @@ export class MinesweeperPlugin implements MiniGamePlugin {
     const faceSize = 24; // larger click target for mobile
     if (Math.abs(mx - faceX) <= faceSize && Math.abs(my - faceY) <= faceSize) {
       this.playSynthSFX('click');
-      this.firstClick = true;
-      this.gameOver = false;
-      this.victory = false;
-      this.particles = [];
-      this.timeElapsed = 0;
-      this.faceState = 'smile';
-      this.minesRemaining = this.minesCount;
-      const scoreVal = document.getElementById('bb-score-val');
-      if (scoreVal) scoreVal.textContent = String(this.minesRemaining);
-      this.initGrid();
+      this.restartGame();
       return;
     }
 
@@ -341,6 +447,7 @@ export class MinesweeperPlugin implements MiniGamePlugin {
         if (cell.revealed) return;
         cell.flagged = !cell.flagged;
         this.minesRemaining += cell.flagged ? -1 : 1;
+        this.overlayManager?.updateStat('minesRemaining', this.minesRemaining);
         const scoreVal = document.getElementById('bb-score-val');
         if (scoreVal) scoreVal.textContent = String(this.minesRemaining);
         this.playSynthSFX('flag');
@@ -398,9 +505,28 @@ export class MinesweeperPlugin implements MiniGamePlugin {
       this.victory = true;
       this.faceState = 'glasses';
       this.minesRemaining = 0;
+      this.overlayManager?.updateStat('minesRemaining', 0);
       const scoreVal = document.getElementById('bb-score-val');
       if (scoreVal) scoreVal.textContent = '0';
       this.playSynthSFX('victory');
+
+      this.overlayManager?.showResults({
+        title: 'VICTORY',
+        subtitle: 'Cyber logic grid fully cleared!',
+        isWin: true,
+        score: this.timeElapsed,
+        stats: [
+          { label: 'Time Spent', value: `${this.timeElapsed}s` },
+          { label: 'Total Mines Safe', value: this.minesCount },
+          { label: 'Grid Dimensions', value: `${this.cols} x ${this.rows}` }
+        ],
+        onRestart: () => {
+          this.restartGame();
+        },
+        onExit: () => {
+          if (this.context?.onExit) this.context.onExit();
+        }
+      });
     } else if (this.faceState === 'shock') {
       setTimeout(() => { if (!this.gameOver && !this.victory) this.faceState = 'smile'; }, 150);
     }
@@ -430,6 +556,24 @@ export class MinesweeperPlugin implements MiniGamePlugin {
         }
       }
     }
+
+    this.overlayManager?.showResults({
+      title: 'DETONATED',
+      subtitle: 'A logical sweep triggered a hidden mine!',
+      isWin: false,
+      score: this.timeElapsed,
+      stats: [
+        { label: 'Survival Time', value: `${this.timeElapsed}s` },
+        { label: 'Mines Remaining', value: this.minesRemaining },
+        { label: 'Grid Size', value: `${this.cols} x ${this.rows}` }
+      ],
+      onRestart: () => {
+        this.restartGame();
+      },
+      onExit: () => {
+        if (this.context?.onExit) this.context.onExit();
+      }
+    });
   }
 
   private createExplosionParticles(x: number, y: number) {
@@ -540,8 +684,9 @@ export class MinesweeperPlugin implements MiniGamePlugin {
   private tick() {
     if (!this.isRunning) return;
 
-    if (!this.gameOver && !this.victory && !this.firstClick) {
+    if (!this.gameOver && !this.victory && !this.firstClick && !this.isPaused) {
       this.timeElapsed = Math.floor((Date.now() - this.startTime) / 1000);
+      this.overlayManager?.updateStat('timer', `${this.timeElapsed}s`);
     }
 
     this.update();
@@ -755,6 +900,12 @@ export class MinesweeperPlugin implements MiniGamePlugin {
       cancelAnimationFrame(this.animationFrameId);
     }
 
+    // Destroy overlay
+    if (this.overlayManager) {
+      this.overlayManager.destroy();
+      this.overlayManager = null;
+    }
+
     // Remove dynamic mobile controls
     const controls = document.getElementById('minesweeper-mobile-controls');
     if (controls) {
@@ -768,6 +919,7 @@ export class MinesweeperPlugin implements MiniGamePlugin {
       this.canvas.removeEventListener('contextmenu', this.boundContextMenu);
     }
     window.removeEventListener('resize', this.boundResize);
+    window.removeEventListener('keydown', this.boundKeyDown);
 
     // Restore original panel header attributes back to default Blade Bedlam
     const titleEl = document.getElementById('game-panel-title');

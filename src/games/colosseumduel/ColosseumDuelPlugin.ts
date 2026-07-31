@@ -8,6 +8,7 @@ export class ColosseumDuelPlugin implements MiniGamePlugin {
   description = 'Duel your AI assistant or customized study guides in a cerebral card arena. Precision answers break down opponent guards, unlocking ultimate recall spells.';
   version = '0.5.0';
   genre = 'Turn-Based RPG';
+  preferredOrientation: 'portrait' | 'landscape' | 'any' = 'any';
   estimatedSessionLength = '5–10 min';
   category = 'Turn-Based RPG';
   status: 'upcoming' = 'upcoming';

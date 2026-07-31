@@ -14,9 +14,38 @@ import { Game2048Plugin } from './games/game2048/Game2048Plugin';
 import { SnakePlugin } from './games/snake/SnakePlugin';
 import { TicTacToePlugin } from './games/tictactoe/TicTacToePlugin';
 
+// Import New Mini Game Plugins
+import { ChessPlugin } from './games/chess/ChessPlugin';
+import { CheckersPlugin } from './games/checkers/CheckersPlugin';
+import { ConnectFourPlugin } from './games/connectfour/ConnectFourPlugin';
+import { ReversiPlugin } from './games/reversi/ReversiPlugin';
+import { SudokuPlugin } from './games/sudoku/SudokuPlugin';
+import { SolitairePlugin } from './games/solitaire/SolitairePlugin';
+import { MemoryMatchPlugin } from './games/memorymatch/MemoryMatchPlugin';
+import { TetrisPlugin } from './games/tetris/TetrisPlugin';
+import { BreakoutPlugin } from './games/breakout/BreakoutPlugin';
+import { PongPlugin } from './games/pong/PongPlugin';
+
+// Wave 2 & 3 Game Plugins
+import { GomokuPlugin } from './games/gomoku/GomokuPlugin';
+import { BattleshipPlugin } from './games/battleship/BattleshipPlugin';
+import { MancalaPlugin } from './games/mancala/MancalaPlugin';
+import { NonogramPlugin } from './games/nonogram/NonogramPlugin';
+import { SokobanPlugin } from './games/sokoban/SokobanPlugin';
+import { WaterSortPlugin } from './games/watersort/WaterSortPlugin';
+import { LightsOutPlugin } from './games/lightsout/LightsOutPlugin';
+import { Match3Plugin } from './games/match3/Match3Plugin';
+import { FreeCellPlugin } from './games/freecell/FreeCellPlugin';
+import { AsteroidsPlugin } from './games/asteroids/AsteroidsPlugin';
+import { WhackAMolePlugin } from './games/whackamole/WhackAMolePlugin';
+import { ZenGardenPlugin } from './games/zengarden/ZenGardenPlugin';
+import { PixelArtStudioPlugin } from './games/pixelart/PixelArtStudioPlugin';
+
 // Initialize Game Registry and Register Plugins
 const registry = GameRegistry.getInstance();
 (window as any).GameRegistry = GameRegistry;
+
+// Core Arcade Games
 registry.registerGame(new BladeBedlamPlugin());
 registry.registerGame(new CyberflapPlugin());
 registry.registerGame(new VoidSurvivorPlugin());
@@ -26,6 +55,33 @@ registry.registerGame(new MinesweeperPlugin());
 registry.registerGame(new Game2048Plugin());
 registry.registerGame(new SnakePlugin());
 registry.registerGame(new TicTacToePlugin());
+
+// Extended Mini Game Library
+registry.registerGame(new ChessPlugin());
+registry.registerGame(new CheckersPlugin());
+registry.registerGame(new ConnectFourPlugin());
+registry.registerGame(new ReversiPlugin());
+registry.registerGame(new SudokuPlugin());
+registry.registerGame(new SolitairePlugin());
+registry.registerGame(new MemoryMatchPlugin());
+registry.registerGame(new TetrisPlugin());
+registry.registerGame(new BreakoutPlugin());
+registry.registerGame(new PongPlugin());
+
+// Newly Registered Games
+registry.registerGame(new GomokuPlugin());
+registry.registerGame(new BattleshipPlugin());
+registry.registerGame(new MancalaPlugin());
+registry.registerGame(new NonogramPlugin());
+registry.registerGame(new SokobanPlugin());
+registry.registerGame(new WaterSortPlugin());
+registry.registerGame(new LightsOutPlugin());
+registry.registerGame(new Match3Plugin());
+registry.registerGame(new FreeCellPlugin());
+registry.registerGame(new AsteroidsPlugin());
+registry.registerGame(new WhackAMolePlugin());
+registry.registerGame(new ZenGardenPlugin());
+registry.registerGame(new PixelArtStudioPlugin());
 
 interface GameDefinition {
   id: string;
@@ -41,7 +97,7 @@ interface GameDefinition {
   action: () => void;
 }
 
-let activeGamesFilter: 'all' | 'playable' | 'upcoming' = 'all';
+let activeGamesFilter: string = 'all';
 let searchQuery: string = '';
 
 // Map registered game plugins dynamically to UI-friendly definitions
@@ -86,7 +142,14 @@ function getGAMES(): GameDefinition[] {
           if (game.id === 'rhythm_game') {
             showPanel('rhythm-game', null);
           }
-          try { ScreenOrientation.lock({ orientation: 'landscape' }).catch((err) => console.warn("Orientation lock failed:", err)); } catch(e){}
+          const orientation = game.preferredOrientation || 'any';
+          if (orientation === 'landscape') {
+            try { ScreenOrientation.lock({ orientation: 'landscape' }).catch((err) => console.warn("Orientation lock failed:", err)); } catch(e){}
+          } else if (orientation === 'portrait') {
+            try { ScreenOrientation.lock({ orientation: 'portrait' }).catch((err) => console.warn("Orientation lock failed:", err)); } catch(e){}
+          } else {
+            try { ScreenOrientation.unlock().catch(() => {}); } catch(e){}
+          }
         }).catch(err => {
           console.error(`Failed to launch game ${game.id}:`, err);
           toast(`Error launching ${game.name}: ${err.message}`);
@@ -104,15 +167,20 @@ function renderQuickPlayRecommendation(): void {
 
   const games = getGAMES().filter(g => g.status === 'playable');
 
-  // Match games based on duration
-  let recommendedGame = games[0];
+  // Match games based on break duration
+  let recommendedGames: GameDefinition[] = [];
   if (quickPlayDuration === 'short') {
-    recommendedGame = games.find(g => g.id === 'tictactoe') || games[0];
+    recommendedGames = games.filter(g => ['tictactoe', 'memory_match', 'pong', 'connect_four', 'cyberflap'].includes(g.id));
   } else if (quickPlayDuration === 'medium') {
-    recommendedGame = games.find(g => g.id === 'minesweeper' || g.id === 'snake' || g.id === 'cyberflap') || games[0];
+    recommendedGames = games.filter(g => ['snake', 'minesweeper', 'reversi', 'checkers', 'sudoku', 'breakout', 'tetris'].includes(g.id));
   } else {
-    recommendedGame = games.find(g => g.id === 'game_2048' || g.id === 'blade_bedlam' || g.id === 'void_survivor') || games[0];
+    recommendedGames = games.filter(g => ['chess', 'solitaire', 'game_2048', 'blade_bedlam', 'void_survivor', 'rhythm_game'].includes(g.id));
   }
+
+  // Fallback if no matching game
+  const recommendedGame = recommendedGames.length > 0 
+    ? recommendedGames[Math.floor(Math.random() * recommendedGames.length)] 
+    : games[0];
 
   if (!recommendedGame) {
     target.innerHTML = `<span style="font-size: 11px; color: var(--text3);">No active games</span>`;
@@ -173,7 +241,7 @@ function initGamesArcade(): void {
   selectQuickPlayDuration('medium');
 }
 
-function setGamesFilter(filter: 'all' | 'playable' | 'upcoming'): void {
+function setGamesFilter(filter: string): void {
   activeGamesFilter = filter;
   
   // Update UI tabs
@@ -200,6 +268,9 @@ function renderGamesArcade(): void {
     if (!matchesSearch) return false;
     if (activeGamesFilter === 'playable') return g.status === 'playable';
     if (activeGamesFilter === 'upcoming') return g.status === 'upcoming';
+    if (activeGamesFilter !== 'all') {
+      return g.category.toLowerCase() === activeGamesFilter.toLowerCase();
+    }
     return true;
   });
 

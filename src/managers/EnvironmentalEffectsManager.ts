@@ -228,7 +228,7 @@ export class EnvironmentalEffectsManager {
     if (!player || !player.gameObject) return;
 
     const sprite = player.gameObject as Phaser.GameObjects.Sprite;
-    const originalTint = sprite.tintHex;
+    const originalTint = (sprite as any).tintTopLeft || 0xffffff;
 
     for (let i = 0; i < 3; i++) {
       this.scene.time.delayedCall(i * 60, () => {

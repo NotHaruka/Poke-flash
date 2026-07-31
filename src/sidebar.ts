@@ -2,7 +2,7 @@ import { populateDeckSelector } from './chat.js';
 import { StudySession, renderCardsList } from './deck-manager.js';
 import { app } from './firebase.js';
 import { syncCreateDeck, syncDeleteDeck, syncMoveDeckToFolder, syncRenameDeck } from './firebase-sync.js';
-import { initGame, pauseGame } from './game.js';
+import { destroyPhaserGame, initGame, pauseGame } from './game.js';
 import { renderGamesArcade } from './games.js';
 import { renderLibrary } from './library.js';
 import { S } from './main.js';
@@ -126,7 +126,7 @@ function showPanel(name, btn) {
 
 
 
-  // Initialize or pause the custom Blade Bedlam game on panel transitions
+  // Initialize or pause/destroy the custom Blade Bedlam game on panel transitions
   if (name === 'game') {
     document.body.classList.add('game-panel-active');
     const registry = (window as any).GameRegistry?.getInstance?.();
@@ -136,7 +136,13 @@ function showPanel(name, btn) {
     }
   } else {
     document.body.classList.remove('game-panel-active');
-    pauseGame();
+    const registry = (window as any).GameRegistry?.getInstance?.();
+    const activeId = registry?.getActiveGameId?.();
+    if (activeId === 'blade_bedlam') {
+      destroyPhaserGame();
+    } else {
+      pauseGame();
+    }
   }
 
   // Handle Cyberflap panel active state cleanup

@@ -1,7 +1,7 @@
 import { BaseEntity } from './BaseEntity.js';
 
 export abstract class BaseComponent {
-  protected owner: BaseEntity;
+  public owner: BaseEntity;
   private active: boolean = true;
 
   constructor(owner: BaseEntity) {

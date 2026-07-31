@@ -1,5 +1,8 @@
 import { MiniGamePlugin } from '../core/GamePlugin';
 import { GameLaunchContext } from '../core/GameLaunchContext';
+import { resetGameCanvas } from '../../game.js';
+import { GameOverlayManager } from '../core/GameOverlayManager';
+import { GameAudioEngine } from '../core/GameAudioEngine';
 
 export class SnakePlugin implements MiniGamePlugin {
   id = 'snake';
@@ -8,6 +11,7 @@ export class SnakePlugin implements MiniGamePlugin {
   description = 'Steer a data packet snake through a memory bank grid. Collect memory nodes to expand your database while avoiding collision with boundaries and your own trail, testing quick spatial awareness.';
   version = '1.0.0';
   genre = 'Arcade / Reflex';
+  preferredOrientation: 'portrait' | 'landscape' | 'any' = 'any';
   estimatedSessionLength = '2–5 min';
   category = 'Arcade';
   status: 'playable' = 'playable';
@@ -23,6 +27,10 @@ export class SnakePlugin implements MiniGamePlugin {
   private ctx: CanvasRenderingContext2D | null = null;
   private animationFrameId: number | null = null;
   private isRunning = false;
+  private isPaused = false;
+  private overlayManager: GameOverlayManager | null = null;
+  private context: GameLaunchContext | null = null;
+  private difficulty: 'easy' | 'normal' | 'hard' = 'normal';
 
   // Snake Logic variables
   private gridWidth = 24;
@@ -59,6 +67,7 @@ export class SnakePlugin implements MiniGamePlugin {
   private boundResize: any;
 
   launch(context: GameLaunchContext): void {
+    this.context = context;
     if (window.setPanel) {
       window.setPanel('game');
     }
@@ -83,6 +92,7 @@ export class SnakePlugin implements MiniGamePlugin {
     this.highScore = savedHighScore ? Number(savedHighScore) : 0;
 
     // Canvas init
+    resetGameCanvas();
     this.canvas = document.getElementById('game-canvas') as HTMLCanvasElement | null;
     if (!this.canvas) return;
 
@@ -90,6 +100,7 @@ export class SnakePlugin implements MiniGamePlugin {
     if (!this.ctx) return;
 
     this.isRunning = true;
+    this.isPaused = false;
     this.isGameOver = false;
     this.score = 0;
     this.direction = 'right';
@@ -105,6 +116,14 @@ export class SnakePlugin implements MiniGamePlugin {
 
     this.lastTickTime = performance.now();
 
+    // Init Overlay Manager
+    this.overlayManager = new GameOverlayManager('game-canvas-container', {
+      onPause: () => { this.isPaused = true; },
+      onResume: () => { this.isPaused = false; },
+      onRestart: () => { this.restartGame(); },
+      onExit: () => { if (this.context?.onExit) this.context.onExit(); }
+    });
+
     // Event bindings
     this.boundKeyDown = this.handleKeyDown.bind(this);
     this.boundTouchStart = (e: TouchEvent) => {
@@ -112,14 +131,11 @@ export class SnakePlugin implements MiniGamePlugin {
       this.touchStartY = e.touches[0].clientY;
     };
     this.boundTouchEnd = (e: TouchEvent) => {
-      if (this.isGameOver) {
-        this.restartGame();
-        return;
-      }
+      if (this.isGameOver) return;
       if (e.changedTouches.length === 0) return;
       const dx = e.changedTouches[0].clientX - this.touchStartX;
       const dy = e.changedTouches[0].clientY - this.touchStartY;
-      const minDistance = 30;
+      const minDistance = 25;
 
       if (Math.abs(dx) > Math.abs(dy)) {
         if (dx > minDistance && this.direction !== 'left') this.nextDirection = 'right';
@@ -134,13 +150,44 @@ export class SnakePlugin implements MiniGamePlugin {
     window.addEventListener('keydown', this.boundKeyDown);
     if (this.canvas) {
       this.canvas.style.touchAction = 'none';
+      this.canvas.addEventListener('touchstart', this.boundTouchStart, { passive: true });
+      this.canvas.addEventListener('touchend', this.boundTouchEnd, { passive: true });
     }
-    this.canvas?.addEventListener('touchstart', this.boundTouchStart, { passive: true });
-    this.canvas?.addEventListener('touchend', this.boundTouchEnd, { passive: true });
     window.addEventListener('resize', this.boundResize);
 
-    // Gameloop
-    this.tick();
+    // Show Instructions First
+    this.overlayManager.showInstructions({
+      title: this.name,
+      subtitle: this.subtitle,
+      description: this.description,
+      objective: 'Steer the snake to consume memory nodes and grow as long as possible without hitting walls or your own trail.',
+      controls: [
+        { key: 'Arrow Keys / WASD', action: 'Steer Snake' },
+        { key: 'Swipe (Touch)', action: 'Steer on Touchscreens' },
+        { key: 'P / ESC', action: 'Pause Game' }
+      ],
+      options: {
+        difficulties: ['Easy', 'Normal', 'Hard'],
+        currentDifficulty: 'Normal',
+        onSelectDifficulty: (diff) => {
+          this.difficulty = diff.toLowerCase() as any;
+          if (this.difficulty === 'easy') this.baseSpeedMs = 180;
+          else if (this.difficulty === 'hard') this.baseSpeedMs = 100;
+          else this.baseSpeedMs = 140;
+          this.speedMs = this.baseSpeedMs;
+        }
+      },
+      onStart: () => {
+        this.overlayManager?.hideInstructions();
+        this.overlayManager?.setupHUD([
+          { label: 'Score', value: 0, id: 'score' },
+          { label: 'High Score', value: this.highScore, id: 'high' }
+        ]);
+        GameAudioEngine.getInstance().playSFX('click');
+        this.lastTickTime = performance.now();
+        this.tick();
+      }
+    });
   }
 
   private resizeCanvas() {
@@ -168,12 +215,19 @@ export class SnakePlugin implements MiniGamePlugin {
   }
 
   private handleKeyDown(e: KeyboardEvent) {
-    if (this.isGameOver) {
-      if (e.key === ' ' || e.key === 'Enter') {
-        this.restartGame();
+    if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
+      if (!this.isGameOver && this.overlayManager) {
+        this.isPaused = !this.isPaused;
+        if (this.isPaused) {
+          this.overlayManager.pause();
+        } else {
+          this.overlayManager.resume();
+        }
       }
       return;
     }
+
+    if (this.isGameOver || this.isPaused) return;
 
     if ((e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') && this.direction !== 'down') {
       e.preventDefault();
@@ -191,7 +245,10 @@ export class SnakePlugin implements MiniGamePlugin {
   }
 
   private restartGame() {
+    this.overlayManager?.hideResults();
+    this.overlayManager?.resume();
     this.isGameOver = false;
+    this.isPaused = false;
     this.score = 0;
     this.direction = 'right';
     this.nextDirection = 'right';
@@ -204,7 +261,10 @@ export class SnakePlugin implements MiniGamePlugin {
     this.spawnFood();
     const scoreVal = document.getElementById('bb-score-val');
     if (scoreVal) scoreVal.textContent = '0';
-    this.playSynthSFX('restart');
+    this.overlayManager?.updateStat('score', 0);
+    this.overlayManager?.updateStat('high', this.highScore);
+    GameAudioEngine.getInstance().playSFX('click');
+    this.lastTickTime = performance.now();
   }
 
   private spawnFood() {
@@ -258,11 +318,13 @@ export class SnakePlugin implements MiniGamePlugin {
 
       const scoreVal = document.getElementById('bb-score-val');
       if (scoreVal) scoreVal.textContent = String(this.score);
+      this.overlayManager?.updateStat('score', this.score);
+      this.overlayManager?.updateStat('high', this.highScore);
 
       // Speed up game gradually
       this.speedMs = Math.max(65, this.baseSpeedMs - Math.floor(this.score / 150) * 4);
 
-      this.playSynthSFX(isSuper ? 'superFood' : 'eat');
+      GameAudioEngine.getInstance().playSFX(isSuper ? 'powerup' : 'eat');
       this.spawnFood();
     } else {
       // Pop tail segment to maintain length
@@ -272,7 +334,25 @@ export class SnakePlugin implements MiniGamePlugin {
 
   private triggerGameOver() {
     this.isGameOver = true;
-    this.playSynthSFX('gameover');
+    GameAudioEngine.getInstance().playSFX('gameover');
+
+    this.overlayManager?.showResults({
+      title: 'GAME OVER',
+      subtitle: 'The snake crashed into an obstacle!',
+      isWin: false,
+      score: this.score,
+      highScore: this.highScore,
+      stats: [
+        { label: 'Snake Length', value: this.snake.length },
+        { label: 'Difficulty', value: this.difficulty.toUpperCase() }
+      ],
+      onRestart: () => {
+        this.restartGame();
+      },
+      onExit: () => {
+        if (this.context?.onExit) this.context.onExit();
+      }
+    });
   }
 
   private updateHighscores() {
@@ -470,6 +550,11 @@ export class SnakePlugin implements MiniGamePlugin {
     this.isRunning = false;
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
+    }
+
+    if (this.overlayManager) {
+      this.overlayManager.destroy();
+      this.overlayManager = null;
     }
 
     // Unbind listeners

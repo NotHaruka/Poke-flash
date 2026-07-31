@@ -115,9 +115,8 @@ export class BossAnimationController {
 
     // Phase-based visual evolution (obsidian cracks, white-hot core, eye flares, hand styling)
     if (this.bossEntity.isFlashingDamage) {
-      this.sprite.setTint(0xff0000).setTintMode(Phaser.TintModes.FILL);
+      this.sprite.setTint(0xff0000);
     } else {
-      this.sprite.setTintMode(Phaser.TintModes.COLOR);
       if (phase === 1) {
         this.sprite.setTint(0x0a0a0f); // Pure dark obsidian base
         this.moltenCore.setFillStyle(0xaa1100); // Deep red core

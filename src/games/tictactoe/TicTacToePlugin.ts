@@ -1,5 +1,8 @@
 import { MiniGamePlugin } from '../core/GamePlugin';
 import { GameLaunchContext } from '../core/GameLaunchContext';
+import { resetGameCanvas } from '../../game.js';
+import { GameOverlayManager } from '../core/GameOverlayManager';
+import { GameAudioEngine } from '../core/GameAudioEngine';
 
 export class TicTacToePlugin implements MiniGamePlugin {
   id = 'tictactoe';
@@ -8,6 +11,7 @@ export class TicTacToePlugin implements MiniGamePlugin {
   description = 'Engage in a quick tactical grid-alignment match. Battle an unbeatable minimax AI or play pass-and-play local multiplayer to test recognition and defensive blocking strategies.';
   version = '1.0.0';
   genre = 'Board / Strategy';
+  preferredOrientation: 'portrait' | 'landscape' | 'any' = 'any';
   estimatedSessionLength = '1–3 min';
   category = 'Board';
   status: 'playable' = 'playable';
@@ -26,6 +30,9 @@ export class TicTacToePlugin implements MiniGamePlugin {
   private ctx: CanvasRenderingContext2D | null = null;
   private animationFrameId: number | null = null;
   private isRunning = false;
+  private isPaused = false;
+  private overlayManager: GameOverlayManager | null = null;
+  private context: GameLaunchContext | null = null;
 
   // Board variables
   private board: Array<'X' | 'O' | null> = Array(9).fill(null);
@@ -51,8 +58,10 @@ export class TicTacToePlugin implements MiniGamePlugin {
   private boundMouseDown: any;
   private boundTouchStart: any;
   private boundResize: any;
+  private boundKeyDown: any;
 
   launch(context: GameLaunchContext): void {
+    this.context = context;
     if (window.setPanel) {
       window.setPanel('game');
     }
@@ -75,6 +84,7 @@ export class TicTacToePlugin implements MiniGamePlugin {
 
     this.difficulty = context.settings.difficulty === 'hard' ? 'impossible' : 'easy';
 
+    resetGameCanvas();
     this.canvas = document.getElementById('game-canvas') as HTMLCanvasElement | null;
     if (!this.canvas) return;
 
@@ -82,14 +92,36 @@ export class TicTacToePlugin implements MiniGamePlugin {
     if (!this.ctx) return;
 
     this.isRunning = true;
-    this.resetBoard();
+    this.isPaused = false;
+    this.isMatchOver = false;
 
+    // Initialize GameOverlayManager
+    this.overlayManager = new GameOverlayManager('game-canvas-container', {
+      onPause: () => {
+        this.isPaused = true;
+      },
+      onResume: () => {
+        this.isPaused = false;
+      },
+      onRestart: () => {
+        this.restartGame();
+      },
+      onShowInstructions: () => {
+        this.showHelpOverlay();
+      },
+      onExit: () => {
+        if (this.context?.onExit) this.context.onExit();
+      }
+    });
+
+    this.resetBoard();
     this.resizeCanvas();
 
     // Event bindings
     this.boundMouseDown = this.handleMouseDown.bind(this);
     this.boundTouchStart = this.handleTouchStart.bind(this);
     this.boundResize = this.resizeCanvas.bind(this);
+    this.boundKeyDown = this.handleKeyDown.bind(this);
 
     if (this.canvas) {
       this.canvas.style.touchAction = 'none';
@@ -97,9 +129,81 @@ export class TicTacToePlugin implements MiniGamePlugin {
       this.canvas.addEventListener('touchstart', this.boundTouchStart, { passive: false });
     }
     window.addEventListener('resize', this.boundResize);
+    window.addEventListener('keydown', this.boundKeyDown);
+
+    this.showHelpOverlay();
 
     // Gameloop
     this.tick();
+  }
+
+  private showHelpOverlay() {
+    this.isPaused = true;
+    this.overlayManager?.showInstructions({
+      title: 'RECALL TIC-TAC-TOE',
+      subtitle: 'Grid Alignment & Minimax Tactical Defense',
+      description: 'Engage in a quick tactical grid-alignment match. Battle our smart Minimax AI or play Local Multiplayer to test your grid defense and strategic pattern locks.',
+      objective: 'Align three marks (X) in a row, column, or diagonal line.',
+      controls: [
+        { key: 'Mouse / Touch', action: 'Tap/Click square to make a move' },
+        { key: 'P / Esc', action: 'Pause / Resume session' }
+      ],
+      rules: [
+        'Players take turns placing their marks (X or O).',
+        'X always plays first.',
+        'Try to align 3 symbols in a row or block the opponent from doing so.'
+      ],
+      options: {
+        modes: ['vsAI', 'local'],
+        currentMode: this.gameMode,
+        onSelectMode: (mode) => {
+          this.gameMode = mode as 'vsAI' | 'local';
+          this.resetStats();
+          this.resetBoard();
+          GameAudioEngine.getInstance().playSFX('select');
+        },
+        difficulties: ['easy', 'impossible'],
+        currentDifficulty: this.difficulty,
+        onSelectDifficulty: (diff) => {
+          this.difficulty = diff as 'easy' | 'impossible';
+          this.resetStats();
+          this.resetBoard();
+          GameAudioEngine.getInstance().playSFX('select');
+        }
+      },
+      onStart: () => {
+        this.overlayManager?.hideInstructions();
+        this.overlayManager?.setupHUD([
+          { label: 'Wins (X)', value: this.winsX, id: 'winsX' },
+          { label: 'Losses (O)', value: this.winsO, id: 'winsO' },
+          { label: 'Ties', value: this.ties, id: 'ties' }
+        ]);
+        this.isPaused = false;
+        this.resetBoard();
+        GameAudioEngine.getInstance().playSFX('click');
+      }
+    });
+  }
+
+  private handleKeyDown(e: KeyboardEvent) {
+    if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
+      if (!this.isMatchOver && this.overlayManager) {
+        this.isPaused = !this.isPaused;
+        if (this.isPaused) {
+          this.overlayManager.pause();
+        } else {
+          this.overlayManager.resume();
+        }
+      }
+    }
+  }
+
+  private restartGame() {
+    this.overlayManager?.hideResults();
+    this.overlayManager?.resume();
+    this.isMatchOver = false;
+    this.isPaused = false;
+    this.resetBoard();
   }
 
   private resizeCanvas() {
@@ -142,41 +246,7 @@ export class TicTacToePlugin implements MiniGamePlugin {
   }
 
   private processInputAt(mx: number, my: number) {
-    if (!this.canvas) return;
-
-    // Check click on mode selectors at the bottom
-    const btnY = this.startY + this.boardSize + 30;
-    const btnW = 90;
-    const btnH = 26;
-    const midX = this.canvas.width / 2;
-
-    // Vs AI Button
-    if (Math.abs(mx - (midX - 55)) <= btnW/2 && Math.abs(my - btnY) <= btnH/2) {
-      this.gameMode = 'vsAI';
-      this.playSynthSFX('click');
-      this.resetStats();
-      this.resetBoard();
-      return;
-    }
-
-    // Local PvP Button
-    if (Math.abs(mx - (midX + 55)) <= btnW/2 && Math.abs(my - btnY) <= btnH/2) {
-      this.gameMode = 'local';
-      this.playSynthSFX('click');
-      this.resetStats();
-      this.resetBoard();
-      return;
-    }
-
-    // Reset Match on Game Over
-    if (this.isMatchOver) {
-      const gOverY = this.startY + this.boardSize / 2;
-      if (Math.abs(mx - midX) <= 120 && Math.abs(my - (gOverY + 35)) <= 20) {
-        this.resetBoard();
-        this.playSynthSFX('click');
-      }
-      return;
-    }
+    if (!this.canvas || this.isPaused || this.isMatchOver) return;
 
     // Grid click
     const col = Math.floor((mx - this.startX) / this.cellSize);
@@ -191,6 +261,7 @@ export class TicTacToePlugin implements MiniGamePlugin {
   }
 
   private makeMove(index: number) {
+    if (this.isPaused || this.isMatchOver) return;
     this.board[index] = this.currentPlayer;
     this.playSynthSFX(this.currentPlayer === 'X' ? 'drawX' : 'drawO');
 
@@ -214,7 +285,7 @@ export class TicTacToePlugin implements MiniGamePlugin {
   }
 
   private makeAIMove() {
-    if (this.isMatchOver || !this.isRunning) return;
+    if (this.isMatchOver || !this.isRunning || this.isPaused) return;
 
     let moveIndex = -1;
     if (this.difficulty === 'impossible') {
@@ -326,8 +397,31 @@ export class TicTacToePlugin implements MiniGamePlugin {
       this.playSynthSFX('drawMatch');
     }
 
+    this.overlayManager?.updateStat('winsX', this.winsX);
+    this.overlayManager?.updateStat('winsO', this.winsO);
+    this.overlayManager?.updateStat('ties', this.ties);
+
     const scoreVal = document.getElementById('bb-score-val');
     if (scoreVal) scoreVal.textContent = String(this.winsX);
+
+    this.overlayManager?.showResults({
+      title: winner === 'draw' ? 'TIE MATCH' : (winner === 'X' ? 'VICTORY' : 'DEFEAT'),
+      subtitle: winner === 'draw' ? 'A well-matched defensive alignment.' : (winner === 'X' ? 'You outmaneuvered the opponent!' : 'The AI has completed a three-in-a-row.'),
+      isWin: winner === 'X',
+      score: this.winsX,
+      stats: [
+        { label: 'Player X Wins', value: this.winsX },
+        { label: 'Player O Wins', value: this.winsO },
+        { label: 'Tie Matches', value: this.ties },
+        { label: 'Game Mode', value: this.gameMode === 'vsAI' ? 'VS Assistant' : 'Local PvP' }
+      ],
+      onRestart: () => {
+        this.restartGame();
+      },
+      onExit: () => {
+        if (this.context?.onExit) this.context.onExit();
+      }
+    });
   }
 
   private resetBoard() {
@@ -545,62 +639,9 @@ export class TicTacToePlugin implements MiniGamePlugin {
       ctx.shadowBlur = 0;
     }
 
-    // 5. Render mode buttons
-    const btnY = this.startY + this.boardSize + 30;
-    const btnW = 90;
-    const btnH = 26;
-    const midX = canvas.width / 2;
-
-    // VS AI Button Card
-    ctx.fillStyle = this.gameMode === 'vsAI' ? '#10b981' : 'rgba(255, 255, 255, 0.03)';
-    ctx.strokeStyle = this.gameMode === 'vsAI' ? '#10b981' : '#2d2c4e';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.roundRect(midX - 100, btnY - btnH/2, btnW, btnH, 6);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.font = 'bold 11px "Space Grotesk", sans-serif';
-    ctx.fillStyle = this.gameMode === 'vsAI' ? '#000000' : 'var(--text3)';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('VS ASSISTANT', midX - 55, btnY);
-
-    // Pass and Play local Button Card
-    ctx.fillStyle = this.gameMode === 'local' ? '#10b981' : 'rgba(255, 255, 255, 0.03)';
-    ctx.strokeStyle = this.gameMode === 'local' ? '#10b981' : '#2d2c4e';
-    ctx.beginPath();
-    ctx.roundRect(midX + 10, btnY - btnH/2, btnW, btnH, 6);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = this.gameMode === 'local' ? '#000000' : 'var(--text3)';
-    ctx.fillText('LOCAL PvP', midX + 55, btnY);
-
-    // 6. End Match Pop Overlay
-    if (this.isMatchOver) {
-      const gOverY = this.startY + this.boardSize / 2;
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
-      ctx.beginPath();
-      ctx.roundRect(midX - 130, gOverY - 45, 260, 100, 10);
-      ctx.fill();
-      ctx.strokeStyle = '#2d2c4e';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-
-      ctx.font = 'bold 15px "Fraunces", serif';
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText(this.statusMessage, midX, gOverY - 15);
-
-      // Play Again Button inside card
-      ctx.fillStyle = '#cda250';
-      ctx.beginPath();
-      ctx.roundRect(midX - 70, gOverY + 15, 140, 26, 13);
-      ctx.fill();
-
-      ctx.font = 'bold 11px "Space Grotesk", sans-serif';
-      ctx.fillStyle = '#000000';
-      ctx.fillText('PLAY AGAIN', midX, gOverY + 28);
+    if (this.isPaused && !this.isMatchOver) {
+      ctx.fillStyle = 'rgba(8, 9, 18, 0.5)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
   }
 
@@ -610,12 +651,18 @@ export class TicTacToePlugin implements MiniGamePlugin {
       cancelAnimationFrame(this.animationFrameId);
     }
 
+    if (this.overlayManager) {
+      this.overlayManager.destroy();
+      this.overlayManager = null;
+    }
+
     // Unbind listeners
     if (this.canvas) {
       this.canvas.removeEventListener('mousedown', this.boundMouseDown);
       this.canvas.removeEventListener('touchstart', this.boundTouchStart);
     }
     window.removeEventListener('resize', this.boundResize);
+    window.removeEventListener('keydown', this.boundKeyDown);
 
     // Restore original panel header attributes
     const titleEl = document.getElementById('game-panel-title');

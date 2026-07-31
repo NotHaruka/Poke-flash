@@ -66,6 +66,7 @@ export class RhythmGamePlugin implements MiniGamePlugin {
   description = 'Hit precision beats and flick notes synchronized to retro synthwave. Calibrate your timing, adjust your speed, and achieve an S-Rank in this highly responsive arcade mode.';
   version = '1.0.0';
   genre = 'Rhythm / Music';
+  preferredOrientation: 'portrait' | 'landscape' | 'any' = 'portrait';
   estimatedSessionLength = '3–5 min';
   category = 'Rhythm & Sync';
   status: 'playable' = 'playable';
@@ -141,19 +142,24 @@ export class RhythmGamePlugin implements MiniGamePlugin {
       <div class="rhythm-game-wrapper" style="width: 100%; height: 100%; display: flex; flex-direction: column; background: #080718; color: #fff; font-family: 'Space Grotesk', sans-serif; overflow-y: auto;">
         
         <!-- Header -->
-        <div style="flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); background: #0b0924;">
-          <div style="display: flex; align-items: center; gap: 12px;">
-            <div style="width: 36px; height: 36px; background: rgba(14, 165, 233, 0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #0ea5e9;">
+        <div class="panel-header game-panel-header" style="flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--surface); margin-bottom: 0;">
+          <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+            <div style="width: 32px; height: 32px; background: rgba(14, 165, 233, 0.15); border-radius: var(--rs); display: flex; align-items: center; justify-content: center; color: #0ea5e9; flex-shrink: 0;">
               ${this.iconSvg}
             </div>
-            <div>
-              <h2 style="margin: 0; font-size: 18px; font-weight: 700; tracking-tight: -0.02em;">RECALL RHYTHM</h2>
-              <span style="font-size: 11px; color: rgba(255, 255, 255, 0.45);">Recreational Beats Engine</span>
+            <div style="min-width: 0; overflow: hidden;">
+              <h2 style="margin: 0; font-size: 15px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Recall Rhythm</h2>
+              <span style="font-size: 11px; color: var(--text3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;">Rhythm & Sync</span>
             </div>
           </div>
-          <button class="btn" id="rhythm-exit-btn" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: #94a3b8; font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 20px; cursor: pointer;">
-            Exit Arcade
-          </button>
+          <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+            <button class="btn btn-b" id="rhythm-exit-btn" style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; height: 32px; padding: 0 10px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 14px; height: 14px;">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
+              </svg>
+              <span>Exit</span>
+            </button>
+          </div>
         </div>
 
         <!-- Main Body -->

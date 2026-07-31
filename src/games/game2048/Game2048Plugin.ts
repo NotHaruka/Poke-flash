@@ -1,5 +1,6 @@
 import { MiniGamePlugin } from '../core/GamePlugin';
 import { GameLaunchContext } from '../core/GameLaunchContext';
+import { resetGameCanvas } from '../../game.js';
 
 export class Game2048Plugin implements MiniGamePlugin {
   id = 'game_2048';
@@ -8,6 +9,7 @@ export class Game2048Plugin implements MiniGamePlugin {
   description = 'Slide grid tiles in any cardinal direction. Combine tiles of identical value to construct the ultimate 2048 core, training your strategic planning and rapid visual recognition.';
   version = '1.0.0';
   genre = 'Puzzle / Sliding Board';
+  preferredOrientation: 'portrait' | 'landscape' | 'any' = 'any';
   estimatedSessionLength = '3–8 min';
   category = 'Puzzle';
   status: 'playable' = 'playable';
@@ -111,6 +113,7 @@ export class Game2048Plugin implements MiniGamePlugin {
     }
 
     // Canvas init
+    resetGameCanvas();
     this.canvas = document.getElementById('game-canvas') as HTMLCanvasElement | null;
     if (!this.canvas) return;
 

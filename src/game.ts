@@ -212,21 +212,11 @@ function initGame(): void {
     logger.warn('Failed to cleanly destroy SceneManager or EventBus:', e);
   }
 
-  // 2. Now get or recreate the canvas element (since phaserGame.destroy(true) removes it from the DOM!)
-  let canvas = document.getElementById('game-canvas') as HTMLCanvasElement | null;
+  // 2. Now get or recreate the canvas element
+  const canvas = resetGameCanvas();
   if (!canvas) {
-    const container = document.getElementById('game-canvas-container');
-    if (container) {
-      logger.info('Game canvas missing, recreating it inside game-canvas-container...');
-      canvas = document.createElement('canvas');
-      canvas.id = 'game-canvas';
-      canvas.style.display = 'block';
-      canvas.style.background = '#090b15';
-      container.insertBefore(canvas, container.firstChild);
-    } else {
-      logger.error('Target HTML game canvas container not found!');
-      return;
-    }
+    logger.error('Target HTML game canvas container not found!');
+    return;
   }
 
   // 3. Render character selection cards and reset overlays
@@ -374,6 +364,60 @@ function startGame(): void {
       phaserGame.scale.refresh();
     }
   }, 100);
+}
+
+/**
+ * Utility to replace the game canvas element with a fresh, clean element,
+ * clearing any attached WebGL / 2D contexts or stale state.
+ */
+function resetGameCanvas(): HTMLCanvasElement | null {
+  const container = document.getElementById('game-canvas-container');
+  if (!container) return null;
+
+  let canvas = document.getElementById('game-canvas') as HTMLCanvasElement | null;
+  if (canvas) {
+    canvas.remove();
+  }
+
+  canvas = document.createElement('canvas');
+  canvas.id = 'game-canvas';
+  canvas.style.display = 'block';
+  canvas.style.width = '100%';
+  canvas.style.height = '100%';
+  canvas.style.background = '#090b15';
+
+  container.insertBefore(canvas, container.firstChild);
+  return canvas;
+}
+
+/**
+ * Fully tears down and destroys the Phaser 3 WebGL engine, releasing WebGL context
+ * and unbinding global event listeners so other 2D mini-games function properly.
+ */
+function destroyPhaserGame(): void {
+  logger.info('Destroying Phaser game instance and resetting game canvas...');
+  document.body.classList.remove('bb-gameplay-active');
+
+  if (phaserGame) {
+    try {
+      SceneManager.getInstance().destroy();
+      EventBus.getInstance().destroy();
+      phaserGame.destroy(true, false);
+    } catch (e) {
+      logger.warn('Error destroying Phaser game instance:', e);
+    }
+    phaserGame = null;
+  }
+
+  if ((window as any).gameResizeObserver) {
+    try {
+      (window as any).gameResizeObserver.disconnect();
+    } catch (e) {}
+    (window as any).gameResizeObserver = null;
+  }
+
+  pauseGame();
+  resetGameCanvas();
 }
 
 /**
@@ -538,6 +582,8 @@ Object.assign(window, {
   initGame,
   startGame,
   pauseGame,
+  destroyPhaserGame,
+  resetGameCanvas,
   selectGameBird,
   toggleGameSound,
   isDevelopmentBuild,
@@ -551,7 +597,7 @@ Object.assign(window, {
 
 
 // ─── ES module exports (auto-generated) ───
-export { closeDeveloperMenu, currentMenuStep, initGame, isDevelopmentBuild, logger, openDeveloperMenu, pauseGame, phaserGame, renderMenuOverlay, resetOverlaysAndCards, selectGameBird, selectWeaponClass, selectedGladiatorIndex, selectedWeaponId, setMenuStep, startGame, startSandbox, toggleGameSound };
+export { closeDeveloperMenu, currentMenuStep, destroyPhaserGame, initGame, isDevelopmentBuild, logger, openDeveloperMenu, pauseGame, phaserGame, renderMenuOverlay, resetGameCanvas, resetOverlaysAndCards, selectGameBird, selectWeaponClass, selectedGladiatorIndex, selectedWeaponId, setMenuStep, startGame, startSandbox, toggleGameSound };
 
 // Expose API for inline onclick="" handlers (auto-generated)
-Object.assign(window, { closeDeveloperMenu, initGame, isDevelopmentBuild, openDeveloperMenu, pauseGame, renderMenuOverlay, resetOverlaysAndCards, selectGameBird, selectWeaponClass, setMenuStep, startGame, startSandbox, toggleGameSound });
+Object.assign(window, { closeDeveloperMenu, destroyPhaserGame, initGame, isDevelopmentBuild, openDeveloperMenu, pauseGame, renderMenuOverlay, resetGameCanvas, resetOverlaysAndCards, selectGameBird, selectWeaponClass, setMenuStep, startGame, startSandbox, toggleGameSound });

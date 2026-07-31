@@ -8,6 +8,7 @@ export class VoidSurvivorPlugin implements MiniGamePlugin {
   description = 'Survive endless waves of alien entities in this intense 3D survival shooter. Gather gold, level up, unlock items, upgrade your character mechanics, and defeat powerful monolith titans.';
   version = '2.0.4';
   genre = 'Action / Roguelite';
+  preferredOrientation: 'portrait' | 'landscape' | 'any' = 'landscape';
   estimatedSessionLength = '10–20 min';
   category = 'Action Roguelite';
   status: 'playable' = 'playable';

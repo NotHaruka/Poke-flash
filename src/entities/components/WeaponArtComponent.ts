@@ -381,7 +381,7 @@ export class WeaponArtComponent extends BaseComponent {
       if (this.currentWeaponClass === 'warhammer') {
         // Restore player sprite jump scaling
         if (this.owner.gameObject) {
-          this.owner.gameObject.setScale(1);
+          (this.owner.gameObject as any).setScale(1);
         }
       }
       if (this.currentWeaponClass === 'battle_axe' && weapon) {

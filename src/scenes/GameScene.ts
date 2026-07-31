@@ -48,7 +48,7 @@ class AstralBladeEntity extends BaseEntity {
     if (name === 'modifiers') {
       return this.playerModifiers as T;
     }
-    return super.getComponent(name);
+    return super.getComponent(name) as T | undefined;
   }
 }
 
@@ -68,8 +68,8 @@ export class GameScene extends Phaser.Scene {
   private offhandSwordSprite?: Phaser.GameObjects.Sprite;
   private offhand2SwordSprite?: Phaser.GameObjects.Sprite;
   private offhand3SwordSprite?: Phaser.GameObjects.Sprite;
-  private activeBurns: Map<string, { entity: BaseEntity, nextDamageTime: number, expiresAt: number, stacks: { expiresAt: number }[] }> = new Map();
-  private activeAshFields: { circle: Phaser.GameObjects.Circle, border: Phaser.GameObjects.Graphics, x: number, y: number, radius: number, expiresAt: number, nextDamageTime: number }[] = [];
+  private activeBurns: Map<string, { entity: BaseEntity, nextDamageTime: number, expiresAt: number, stacks: { expiresAt: number, damage?: number }[] }> = new Map();
+  private activeAshFields: { circle: Phaser.GameObjects.Arc, border: Phaser.GameObjects.Graphics, x: number, y: number, radius: number, expiresAt: number, nextDamageTime: number }[] = [];
   private slashTrailGraphics!: Phaser.GameObjects.Graphics;
 
   // Dodge State variables
@@ -139,7 +139,7 @@ export class GameScene extends Phaser.Scene {
 
   // 6. Void Rift
   private voidRiftKills: number = 0;
-  private activeVoidRifts: { circle: Phaser.GameObjects.Circle, gravityGraphics: Phaser.GameObjects.Graphics, x: number, y: number, expiresAt: number, nextDamageTime: number }[] = [];
+  private activeVoidRifts: { circle: Phaser.GameObjects.Arc, gravityGraphics: Phaser.GameObjects.Graphics, x: number, y: number, expiresAt: number, nextDamageTime: number }[] = [];
 
   // 12. Elite Modifiers
   private activeElitePuddles: { circle: Phaser.GameObjects.Arc, border?: Phaser.GameObjects.Graphics, type: 'fire' | 'ice', x: number, y: number, radius: number, expiresAt: number, nextDamageTime: number, isExploding?: boolean }[] = [];
@@ -165,7 +165,8 @@ export class GameScene extends Phaser.Scene {
   private boomerangGroup!: Phaser.GameObjects.Group;
 
   // Lists
-  private enemies: BaseEntity[] = [];
+  protected enemies: BaseEntity[] = [];
+  protected isUpgradeOverlayActive: boolean = false;
   
   
   
@@ -211,8 +212,8 @@ export class GameScene extends Phaser.Scene {
   private deadZoneRadius: number = 25;      // Pixel tolerance radius
   private cameraImpulseX: number = 0;       // Strike impulses
   private cameraImpulseY: number = 0;
-  private arenaWidth: number = 1600;        // Large physical colosseum bounds
-  private arenaHeight: number = 1000;
+  protected arenaWidth: number = 1600;        // Large physical colosseum bounds
+  protected arenaHeight: number = 1000;
   private arenaGridGraphics!: Phaser.GameObjects.Graphics;
 
   // Debugger overlays (Phase 2)
@@ -1260,7 +1261,7 @@ export class GameScene extends Phaser.Scene {
     EventBus.getInstance().emit(EventTopic.BOSS_STARTED, { boss });
   }
 
-  private createArenaGrid(width: number, height: number): void {
+  protected createArenaGrid(width: number, height: number): void {
     if (this.arenaGridGraphics) {
       this.arenaGridGraphics.destroy();
     }
@@ -1420,7 +1421,7 @@ export class GameScene extends Phaser.Scene {
 
     bus.on(EventTopic.PLAYER_DIED, () => {
       if (this.isSandboxMode) {
-        this.playerHealth.heal(this.playerHealth.maxHealth);
+        this.playerHealth.heal(this.playerHealth.getMaxHp());
         this.vfxManager.addFloatingWorldText(this.player.x, this.player.y - 40, "SANDBOX AUTO-HEAL ON DEATH", "#ff3366");
         return;
       }
@@ -3059,7 +3060,7 @@ export class GameScene extends Phaser.Scene {
     this.upgradeKeysActive = true;
   }
 
-  private applyDirectUpgrade(choice: UpgradeDefinition): void {
+  protected applyDirectUpgrade(choice: UpgradeDefinition): void {
     // Handle blessing fallbacks directly without adding them to build lists or excludeds
     if (choice.id === 'fallback_gold') {
       this.collectedGold += 100;
@@ -3078,7 +3079,7 @@ export class GameScene extends Phaser.Scene {
         modifiers.addModifier({
           id: 'fallback_damage_buff_' + Date.now(),
           stat: 'damage',
-          type: 'multiplier',
+          type: 'multiply',
           value: 0.10
         });
       }
@@ -3751,7 +3752,7 @@ export class GameScene extends Phaser.Scene {
     this.updateHUDValues();
   }
 
-  private calculateUpgradePrice(rarity: UpgradeRarity, currentTier: number): number {
+  protected calculateUpgradePrice(rarity: UpgradeRarity, currentTier: number): number {
     const multiplier = 1.6;
     if (rarity === UpgradeRarity.COMMON) {
       const basePrice = 30;
@@ -4337,7 +4338,7 @@ export class GameScene extends Phaser.Scene {
 
     // 4. Update basic stats
     if (this.playerPhysics) {
-      this.playerPhysics.baseSpeed = preset.baseSpeed;
+      this.playerPhysics.speed = preset.baseSpeed;
     }
     if (this.playerHealth) {
       this.playerHealth.setMaxHp(preset.baseHp);
@@ -4651,7 +4652,7 @@ export class GameScene extends Phaser.Scene {
     });
     this.activeElitePuddles = [];
     this.activeEliteProjectiles = [];
-    if (this.sentinelSprite) this.sentinelSprite.destroy();
+    if (this.sentinelSprites.length > 0) this.sentinelSprites.forEach(s => s.destroy());
     
     if (this.offhandSwordSprite) this.offhandSwordSprite.destroy();
     if (this.offhand2SwordSprite) this.offhand2SwordSprite.destroy();
@@ -5170,7 +5171,7 @@ export class GameScene extends Phaser.Scene {
          // Map linear velocity to simulated angular velocity
          const linearSpeed = Math.sqrt(phys.vx * phys.vx + phys.vy * phys.vy);
          const virtualAngularVel = 3.0 + Phaser.Math.Clamp(linearSpeed / 650, 0, 1.0) * 12.0;
-         weapon.customAngularVelocity = virtualAngularVel;
+         (weapon as any).customAngularVelocity = virtualAngularVel;
 
          weapon.overrideTargetX = overrideWeaponTargetX;
          weapon.overrideTargetY = overrideWeaponTargetY;
@@ -5268,7 +5269,7 @@ export class GameScene extends Phaser.Scene {
       // Render aura
       if (!this.bloodMoonAuraGraphics) {
         this.bloodMoonAuraGraphics = this.add.graphics();
-        this.bloodMoonAuraGraphics.setDepth(this.player.depth - 1);
+        this.bloodMoonAuraGraphics.setDepth(((this.player as any).depth || 0) - 1);
       }
       this.bloodMoonAuraGraphics.clear();
       const pulse = 1.0 + 0.15 * Math.sin(time / 150);
@@ -5302,7 +5303,7 @@ export class GameScene extends Phaser.Scene {
       // Render spinning blades
       if (!this.bladeCycloneGraphics) {
         this.bladeCycloneGraphics = this.add.graphics();
-        this.bladeCycloneGraphics.setDepth(this.player.depth + 1);
+        this.bladeCycloneGraphics.setDepth(((this.player as any).depth || 0) + 1);
       }
       this.bladeCycloneGraphics.clear();
 
@@ -5654,7 +5655,7 @@ export class GameScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-H', () => {
       const health = this.playerHealth;
       if (health) {
-        health.heal(health.maxHealth);
+        health.heal(health.getMaxHp());
         this.vfxManager.addFloatingWorldText(this.player.x, this.player.y - 40, "HEALED TO FULL HP", "#00ff66");
       }
     });
@@ -5675,7 +5676,7 @@ export class GameScene extends Phaser.Scene {
       this.enemies.forEach(e => {
         const health = e.getComponent<HealthComponent>('health');
         if (health) {
-          health.damage(999999);
+          health.takeDamage(999999);
         }
       });
       this.vfxManager.addFloatingWorldText(this.player.x, this.player.y - 40, "CLEARED ARENA", "#ef4444");
@@ -5802,7 +5803,7 @@ export class GameScene extends Phaser.Scene {
         }
       } else if (p.type === 'blood_orb') {
         if (p.owner && p.owner.active) {
-          const ai = p.owner.getComponent<EnemyAIComponent>('ai');
+          const ai = (p.owner as any).getComponent('ai') as EnemyAIComponent;
           if (ai && ai.getCurrentState() !== EnemyState.DEAD) {
             const angleToOwner = Phaser.Math.Angle.Between(p.sprite.x, p.sprite.y, p.owner.x, p.owner.y);
             p.vx = Math.cos(angleToOwner) * 120;
@@ -5810,7 +5811,7 @@ export class GameScene extends Phaser.Scene {
             
             const distToOwner = Phaser.Math.Distance.Between(p.owner.x, p.owner.y, p.sprite.x, p.sprite.y);
             if (distToOwner < 24) {
-              const hpComp = p.owner.getComponent<HealthComponent>('health');
+              const hpComp = (p.owner as any).getComponent('health') as HealthComponent;
               if (hpComp) {
                 hpComp.heal(Math.round(hpComp.getMaxHp() * 0.12));
                 this.vfxManager.spawnSparks(p.owner.x, p.owner.y, 0x10b981, 6);

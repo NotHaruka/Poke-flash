@@ -71,8 +71,8 @@ export class EliteComponent extends BaseComponent {
       return;
     }
 
-    const enemyPhysics = this.owner.getComponent<PhysicsComponent>('physics');
-    const playerPhysics = scene.player.getComponent<PhysicsComponent>('physics');
+    const enemyPhysics = (this.owner as any).getComponent('physics') as PhysicsComponent;
+    const playerPhysics = (scene.player as any).getComponent('physics') as PhysicsComponent;
     if (!enemyPhysics || !playerPhysics) return;
 
     // 1. Process movement trails (passive mechanics)

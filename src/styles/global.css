@@ -564,6 +564,29 @@ body.game-panel-active #panel-game {
     justify-content: space-between;
   }
 }
+
+/* ─── GAME PANEL HEADERS OVERRIDE ────────────────────────────────────── */
+.game-panel-header {
+  margin-bottom: 0 !important;
+  flex-wrap: nowrap !important;
+  gap: 8px !important;
+  padding: 10px 16px !important;
+  border-bottom: 1px solid var(--border) !important;
+  background: var(--surface) !important;
+}
+.game-panel-header h2 {
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em !important;
+  min-width: 0 !important;
+  flex: none !important;
+  color: var(--text) !important;
+  margin: 0 !important;
+}
+.game-panel-header > div {
+  width: auto !important;
+  justify-content: flex-start !important;
+}
 .study-header{display:flex;align-items:center;gap:10px;margin-bottom:24px;flex-wrap:wrap}
 .study-header h2{font-size:22px;font-weight:600;flex:1;letter-spacing:-.02em}
 
@@ -1605,8 +1628,8 @@ body.dark .stab-bar {
   border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow-sm)}
 .exam-breakdown-hdr{padding:13px 18px;font-size:11px;font-weight:700;color:var(--text2);
   text-transform:uppercase;letter-spacing:.07em;border-bottom:1px solid var(--border);
-  display:flex;gap:10px;align-items:center}
-.exam-breakdown-filter{display:flex;gap:6px;margin-left:auto}
+  display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.exam-breakdown-filter{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap}
 .exam-filter-btn{background:none;border:1px solid var(--border);border-radius:20px;
   color:var(--text3);font-size:11px;padding:3px 12px;cursor:pointer;
   font-family:inherit;transition:all .15s}
@@ -6279,10 +6302,43 @@ select:active {
 }
 
 @media (max-width: 480px) {
-  /* On very small screens, hide text labels in game header buttons to prevent clipping */
-  #panel-cyberflap .panel-header .btn span,
-  #panel-void-survivor .panel-header .btn span {
+  /* On small screens, hide text labels in game header buttons to keep header clean and prevent clipping */
+  .game-panel-header .btn span {
     display: none !important;
   }
 }
 
+/* ─── ROTATE-DEVICE FALLBACK ─────────────────────────────────────────────
+   ScreenOrientation.lock() only actually rotates the screen inside the
+   native Capacitor app; in a normal mobile browser tab it silently fails,
+   so games that are genuinely built for a wide/landscape canvas (Blade
+   Bedlam, Void Survivor) would otherwise render squeezed into portrait
+   with no explanation. Show a clear "rotate your device" prompt instead
+   of leaving the player to stumble onto landscape mode by accident.     */
+@media (orientation: portrait) and (max-width: 900px) {
+  body.bb-gameplay-active::before,
+  body.void-survivor-active::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    background: #05060a;
+  }
+  body.bb-gameplay-active::after,
+  body.void-survivor-active::after {
+    content: "⟳  Rotate your device to landscape to play";
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 0 40px;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    line-height: 1.5;
+  }
+}
