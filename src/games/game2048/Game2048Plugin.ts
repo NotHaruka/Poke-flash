@@ -1,6 +1,8 @@
 import { MiniGamePlugin } from '../core/GamePlugin';
 import { GameLaunchContext } from '../core/GameLaunchContext';
 import { resetGameCanvas } from '../../game.js';
+import { GameOverlayManager } from '../core/GameOverlayManager';
+import { GameAudioEngine } from '../core/GameAudioEngine';
 
 export class Game2048Plugin implements MiniGamePlugin {
   id = 'game_2048';
@@ -26,6 +28,9 @@ export class Game2048Plugin implements MiniGamePlugin {
   private ctx: CanvasRenderingContext2D | null = null;
   private animationFrameId: number | null = null;
   private isRunning = false;
+  private isPaused = false;
+  private overlayManager: GameOverlayManager | null = null;
+  private context: GameLaunchContext | null = null;
 
   // Board logic
   private size = 4;
@@ -69,6 +74,7 @@ export class Game2048Plugin implements MiniGamePlugin {
   private boundResize: any;
 
   launch(context: GameLaunchContext): void {
+    this.context = context;
     if (window.setPanel) {
       window.setPanel('game');
     }
@@ -100,7 +106,7 @@ export class Game2048Plugin implements MiniGamePlugin {
       ctrlBar.id = 'g2048-mobile-bar';
       ctrlBar.style.cssText = 'position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; z-index: 20;';
       ctrlBar.innerHTML = `
-        <button id="g2048-undo-btn" class="btn" style="padding: 8px 18px; font-size: 13px; font-weight: 700; border-radius: 20px; background: var(--surface2); color: var(--text); border: 1.5px solid var(--border2); box-shadow: var(--shadow-md);">
+        <button id="g2048-undo-btn" class="btn" style="padding: 8px 18px; font-size: 13px; font-weight: 700; border-radius: 20px; background: rgba(255, 255, 255, 0.08); color: var(--text); border: 1.5px solid var(--border2); box-shadow: var(--shadow-md);">
           ↩ Undo Move
         </button>
       `;
@@ -121,6 +127,7 @@ export class Game2048Plugin implements MiniGamePlugin {
     if (!this.ctx) return;
 
     this.isRunning = true;
+    this.isPaused = false;
     this.isGameOver = false;
     this.isVictory = false;
     this.hasWonTriggered = false;
@@ -130,6 +137,15 @@ export class Game2048Plugin implements MiniGamePlugin {
     this.resizeCanvas();
     this.initBoard();
 
+    // Initialize GameOverlayManager
+    this.overlayManager = new GameOverlayManager('game-canvas-container', {
+      onPause: () => { this.isPaused = true; },
+      onResume: () => { this.isPaused = false; },
+      onRestart: () => { this.restartGame(); },
+      onShowInstructions: () => { this.showHelpOverlay(); },
+      onExit: () => { if (this.context?.onExit) this.context.onExit(); }
+    });
+
     // Event bindings
     this.boundKeyDown = this.handleKeyDown.bind(this);
     this.boundTouchStart = (e: TouchEvent) => {
@@ -137,6 +153,7 @@ export class Game2048Plugin implements MiniGamePlugin {
       this.touchStartY = e.touches[0].clientY;
     };
     this.boundTouchEnd = (e: TouchEvent) => {
+      if (this.isGameOver || this.isPaused) return;
       if (e.changedTouches.length === 0) return;
       const dx = e.changedTouches[0].clientX - this.touchStartX;
       const dy = e.changedTouches[0].clientY - this.touchStartY;
@@ -160,8 +177,52 @@ export class Game2048Plugin implements MiniGamePlugin {
     this.canvas?.addEventListener('touchend', this.boundTouchEnd, { passive: true });
     window.addEventListener('resize', this.boundResize);
 
+    // Show Instructions First
+    this.showHelpOverlay();
+
     // Gameloop
     this.tick();
+  }
+
+  private showHelpOverlay() {
+    this.isPaused = true;
+    this.overlayManager?.showInstructions({
+      title: this.name,
+      subtitle: this.subtitle,
+      description: this.description,
+      objective: 'Merge tiles with identical values to synthesize the ultimate 2048 core.',
+      controls: [
+        { key: 'Arrow Keys / WASD', action: 'Slide Tiles' },
+        { key: 'Swipe (Touch)', action: 'Slide on Touchscreens' },
+        { key: 'U', action: 'Undo Last Move' },
+        { key: 'P / ESC', action: 'Pause Game' }
+      ],
+      onStart: () => {
+        this.overlayManager?.hideInstructions();
+        this.overlayManager?.setupHUD([
+          { label: 'Score', value: this.score, id: 'score' },
+          { label: 'High Score', value: this.highScore, id: 'high' }
+        ]);
+        GameAudioEngine.getInstance().playSFX('click');
+        this.isPaused = false;
+      }
+    });
+  }
+
+  private restartGame() {
+    this.overlayManager?.hideResults();
+    this.overlayManager?.resume();
+    this.isGameOver = false;
+    this.isVictory = false;
+    this.hasWonTriggered = false;
+    this.score = 0;
+    this.history = [];
+    this.initBoard();
+    const scoreVal = document.getElementById('bb-score-val');
+    if (scoreVal) scoreVal.textContent = '0';
+    this.overlayManager?.updateStat('score', 0);
+    this.overlayManager?.updateStat('high', this.highScore);
+    GameAudioEngine.getInstance().playSFX('click');
   }
 
   private initBoard() {
@@ -209,7 +270,19 @@ export class Game2048Plugin implements MiniGamePlugin {
   }
 
   private handleKeyDown(e: KeyboardEvent) {
-    if (this.isGameOver) return;
+    if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
+      if (!this.isGameOver && this.overlayManager) {
+        this.isPaused = !this.isPaused;
+        if (this.isPaused) {
+          this.overlayManager.pause();
+        } else {
+          this.overlayManager.resume();
+        }
+      }
+      return;
+    }
+
+    if (this.isGameOver || this.isPaused) return;
 
     if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
       e.preventDefault();
@@ -239,7 +312,7 @@ export class Game2048Plugin implements MiniGamePlugin {
   }
 
   private undo() {
-    if (this.history.length === 0) return;
+    if (this.history.length === 0 || this.isPaused) return;
     const previous = this.history.pop()!;
     this.board = previous.board;
     this.score = previous.score;
@@ -247,7 +320,9 @@ export class Game2048Plugin implements MiniGamePlugin {
     this.isVictory = false;
     const scoreVal = document.getElementById('bb-score-val');
     if (scoreVal) scoreVal.textContent = String(this.score);
-    this.playSynthSFX('undo');
+    this.overlayManager?.updateStat('score', this.score);
+    this.overlayManager?.updateStat('high', this.highScore);
+    GameAudioEngine.getInstance().playSFX('click');
   }
 
   private move(dir: 'up' | 'down' | 'left' | 'right') {
@@ -338,12 +413,14 @@ export class Game2048Plugin implements MiniGamePlugin {
       
       const scoreVal = document.getElementById('bb-score-val');
       if (scoreVal) scoreVal.textContent = String(this.score);
+      this.overlayManager?.updateStat('score', this.score);
+      this.overlayManager?.updateStat('high', this.highScore);
 
       // Audio feedback
       if (scoreGained > 0) {
-        this.playSynthSFX('merge');
+        GameAudioEngine.getInstance().playSFX('powerup');
       } else {
-        this.playSynthSFX('slide');
+        GameAudioEngine.getInstance().playSFX('step');
       }
     } else {
       // Discard saved state if no movement actually happened
@@ -365,7 +442,7 @@ export class Game2048Plugin implements MiniGamePlugin {
         if (this.board[r][c] === 2048 && !this.hasWonTriggered) {
           this.isVictory = true;
           this.hasWonTriggered = true;
-          this.playSynthSFX('victory');
+          this.triggerResults(true);
           return;
         }
       }
@@ -388,7 +465,32 @@ export class Game2048Plugin implements MiniGamePlugin {
     }
 
     this.isGameOver = true;
-    this.playSynthSFX('gameover');
+    this.triggerResults(false);
+  }
+
+  private triggerResults(won: boolean) {
+    if (won) {
+      GameAudioEngine.getInstance().playSFX('win');
+    } else {
+      GameAudioEngine.getInstance().playSFX('lose');
+    }
+
+    this.overlayManager?.showResults({
+      title: won ? 'CORE SYNTHESIZED' : 'GRID EXHAUSTED',
+      subtitle: won ? 'You created a 2048 core!' : 'No more valid sliding moves exist.',
+      isWin: won,
+      score: this.score,
+      highScore: this.highScore,
+      stats: [
+        { label: 'Max Value', value: Math.max(...this.board.map(row => Math.max(...row))) }
+      ],
+      onRestart: () => {
+        this.restartGame();
+      },
+      onExit: () => {
+        if (this.context?.onExit) this.context.onExit();
+      }
+    });
   }
 
   private playSynthSFX(type: 'slide' | 'merge' | 'undo' | 'gameover' | 'victory') {
@@ -557,30 +659,9 @@ export class Game2048Plugin implements MiniGamePlugin {
     }
 
     // Overlays
-    if (this.isGameOver) {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      ctx.font = 'bold 24px "Fraunces", serif';
-      ctx.fillStyle = '#ef4444';
-      ctx.textAlign = 'center';
-      ctx.fillText('GRID EXHAUSTED', canvas.width / 2, this.startY + this.boardSize / 2 - 20);
-
-      ctx.font = '13px "Space Grotesk", sans-serif';
-      ctx.fillStyle = 'var(--text3)';
-      ctx.fillText('Press [U] to Undo, or click Exit / Restart.', canvas.width / 2, this.startY + this.boardSize / 2 + 15);
-    } else if (this.isVictory) {
+    if (this.isPaused) {
       ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      ctx.font = 'bold 26px "Fraunces", serif';
-      ctx.fillStyle = '#10b981';
-      ctx.textAlign = 'center';
-      ctx.fillText('CORE 2048 SYNTHESIZED!', canvas.width / 2, this.startY + this.boardSize / 2 - 20);
-
-      ctx.font = '13px "Space Grotesk", sans-serif';
-      ctx.fillStyle = 'var(--text2)';
-      ctx.fillText('You hit the target! Continue or play again.', canvas.width / 2, this.startY + this.boardSize / 2 + 15);
     }
   }
 
@@ -606,6 +687,8 @@ export class Game2048Plugin implements MiniGamePlugin {
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
     }
+
+    this.overlayManager?.destroy();
 
     // Unbind
     window.removeEventListener('keydown', this.boundKeyDown);

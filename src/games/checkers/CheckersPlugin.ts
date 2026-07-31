@@ -1,6 +1,8 @@
 import { MiniGamePlugin } from '../core/GamePlugin';
 import { GameLaunchContext } from '../core/GameLaunchContext';
 import { resetGameCanvas } from '../../game.js';
+import { GameOverlayManager } from '../core/GameOverlayManager';
+import { GameAudioEngine } from '../core/GameAudioEngine';
 
 interface CheckerPiece {
   player: 'red' | 'black'; // 'red' moves UP, 'black' moves DOWN
@@ -52,6 +54,9 @@ export class CheckersPlugin implements MiniGamePlugin {
   private board: (CheckerPiece | null)[][] = [];
   private currentPlayer: 'red' | 'black' = 'red'; // Red starts (player)
   private gameMode: 'vsAI' | 'local' = 'vsAI';
+  private isPaused = false;
+  private overlayManager: GameOverlayManager | null = null;
+  private context: GameLaunchContext | null = null;
   private difficulty: 'easy' | 'medium' | 'hard' = 'medium';
 
   private selectedSquare: { r: number; c: number } | null = null;
@@ -76,6 +81,7 @@ export class CheckersPlugin implements MiniGamePlugin {
   private boundResize: any;
 
   launch(context: GameLaunchContext): void {
+    this.context = context;
     if (window.setPanel) {
       window.setPanel('game');
     }
@@ -108,7 +114,27 @@ export class CheckersPlugin implements MiniGamePlugin {
     if (!this.ctx) return;
 
     this.isRunning = true;
-    this.resetBoard();
+    this.isPaused = false;
+    this.isGameOver = false;
+
+    this.overlayManager = new GameOverlayManager('game-canvas-container', {
+      onPause: () => {
+        this.isPaused = true;
+      },
+      onResume: () => {
+        this.isPaused = false;
+      },
+      onRestart: () => {
+        this.restartGame();
+      },
+      onShowInstructions: () => {
+        this.showHelpOverlay();
+      },
+      onExit: () => {
+        if (this.context?.onExit) this.context.onExit();
+      }
+    });
+
     this.resizeCanvas();
 
     this.boundMouseDown = this.handleMouseDown.bind(this);
@@ -122,7 +148,48 @@ export class CheckersPlugin implements MiniGamePlugin {
     }
     window.addEventListener('resize', this.boundResize);
 
+    this.resetBoard();
+    this.showHelpOverlay();
     this.tick();
+  }
+
+  private showHelpOverlay() {
+    this.isPaused = true;
+    this.overlayManager?.showInstructions({
+      title: 'CROWN CHECKERS',
+      subtitle: 'Diagonal Tactics & Multi-Captures',
+      description: 'Engage in classical Checkers with forced multi-jump combos and king promotion mechanics. Battle an aggressive AI or challenge a friend in local matches.',
+      objective: 'Capture all of the opponent\'s checkers or trap them so they have no legal moves remaining.',
+      controls: [
+        { key: 'Tap / Click checker', action: 'Select player checker' },
+        { key: 'Tap green diagonal square', action: 'Move checker or capture opponent' },
+        { key: 'Red Highlighted jumps', action: 'Indicates mandatory jump move' }
+      ],
+      rules: [
+        'Diagonal moves only. Basic pieces move forward; Kings move both forward and backward.',
+        'If a jump/capture is available, it MUST be taken.',
+        'Red is Red (Player 1), Black is Black (Player 2 or AI).'
+      ],
+      onStart: () => {
+        this.overlayManager?.hideInstructions();
+        this.overlayManager?.setupHUD([
+          { label: 'Mode', value: this.gameMode === 'vsAI' ? 'VS AI' : 'Local PvP', id: 'mode' },
+          { label: 'Status', value: 'Red Turn', id: 'status' },
+          { label: 'Captured', value: '0', id: 'captured' }
+        ]);
+        this.isPaused = false;
+        this.resetBoard();
+        GameAudioEngine.getInstance().playSFX('click');
+      }
+    });
+  }
+
+  private restartGame() {
+    this.overlayManager?.hideResults();
+    this.overlayManager?.resume();
+    this.isGameOver = false;
+    this.isPaused = false;
+    this.resetBoard();
   }
 
   private resizeCanvas() {
@@ -154,6 +221,7 @@ export class CheckersPlugin implements MiniGamePlugin {
     this.validJumps = [];
     this.mustJumpSequence = null;
     this.isGameOver = false;
+    this.updateHUD();
 
     // Place Black pieces (top 3 rows on dark squares)
     for (let r = 0; r < 3; r++) {
@@ -419,17 +487,48 @@ export class CheckersPlugin implements MiniGamePlugin {
     if (this.redCount === 0 || (this.currentPlayer === 'red' && allJumps.length === 0 && !hasSimpleMoves)) {
       this.statusMessage = "BLACK WINS!";
       this.isGameOver = true;
+      this.updateHUD();
       this.playSFX('lose');
+      this.overlayManager?.showResults({
+        title: 'GAME OVER',
+        score: 0,
+        metrics: [
+          { label: 'Winner', value: 'Black' },
+          { label: 'Checkers Captured', value: String(12 - this.blackCount) }
+        ],
+        onRestart: () => this.restartGame()
+      });
     } else if (this.blackCount === 0 || (this.currentPlayer === 'black' && allJumps.length === 0 && !hasSimpleMoves)) {
       this.statusMessage = "RED WINS!";
       this.isGameOver = true;
+      this.updateHUD();
       this.playSFX('win');
+      this.overlayManager?.showResults({
+        title: 'VICTORY!',
+        score: 1000 + (this.redCount * 100),
+        metrics: [
+          { label: 'Winner', value: 'Red (Player)' },
+          { label: 'Checkers Remaining', value: String(this.redCount) }
+        ],
+        onRestart: () => this.restartGame()
+      });
     } else {
       this.statusMessage = this.currentPlayer === 'red' ? "Your Turn (Red)" : "Opponent Turn (Black)";
+      this.updateHUD();
       if (this.gameMode === 'vsAI' && this.currentPlayer === 'black' && !this.isGameOver) {
         setTimeout(() => this.makeAIMove(), 350);
       }
     }
+  }
+
+  private updateHUD() {
+    const turnStr = this.currentPlayer === 'red' ? 'Red Turn' : 'Black Turn';
+    const capStr = String(12 - this.blackCount);
+    this.overlayManager?.updateHUD([
+      { id: 'mode', value: this.gameMode === 'vsAI' ? `VS AI (${this.difficulty.toUpperCase()})` : 'Local PvP' },
+      { id: 'status', value: this.isGameOver ? 'Game Over' : turnStr },
+      { id: 'captured', value: capStr }
+    ]);
   }
 
   private updatePieceCounts() {
@@ -448,6 +547,7 @@ export class CheckersPlugin implements MiniGamePlugin {
     const capturedByRed = 12 - b;
     const scoreVal = document.getElementById('bb-score-val');
     if (scoreVal) scoreVal.textContent = String(capturedByRed);
+    this.updateHUD();
   }
 
   private makeAIMove() {
@@ -480,66 +580,31 @@ export class CheckersPlugin implements MiniGamePlugin {
   }
 
   private playSFX(type: 'select' | 'move' | 'capture' | 'king' | 'win' | 'lose' | 'click') {
-    try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      const now = ctx.currentTime;
-
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      if (type === 'select') {
-        osc.frequency.setValueAtTime(400, now);
-        gain.gain.setValueAtTime(0.03, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
-        osc.start(now);
-        osc.stop(now + 0.04);
-      } else if (type === 'move') {
-        osc.frequency.setValueAtTime(280, now);
-        gain.gain.setValueAtTime(0.04, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
-        osc.start(now);
-        osc.stop(now + 0.06);
-      } else if (type === 'capture') {
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(180, now);
-        osc.frequency.exponentialRampToValueAtTime(480, now + 0.1);
-        gain.gain.setValueAtTime(0.07, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-        osc.start(now);
-        osc.stop(now + 0.1);
-      } else if (type === 'king') {
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(523.25, now);
-        osc.frequency.setValueAtTime(659.25, now + 0.08);
-        gain.gain.setValueAtTime(0.06, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-        osc.start(now);
-        osc.stop(now + 0.2);
-      } else if (type === 'click') {
-        osc.frequency.setValueAtTime(440, now);
-        gain.gain.setValueAtTime(0.03, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
-        osc.start(now);
-        osc.stop(now + 0.04);
-      } else if (type === 'win') {
-        const freqs = [392, 523.25, 659.25];
-        freqs.forEach((f, i) => {
-          const o = ctx.createOscillator();
-          const g = ctx.createGain();
-          o.connect(g);
-          g.connect(ctx.destination);
-          o.frequency.setValueAtTime(f, now + i * 0.08);
-          g.gain.setValueAtTime(0.05, now + i * 0.08);
-          g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.2);
-          o.start(now + i * 0.08);
-          o.stop(now + i * 0.08 + 0.2);
-        });
-      }
-    } catch (e) {}
+    const engine = GameAudioEngine.getInstance();
+    switch (type) {
+      case 'select':
+        engine.playSFX('click');
+        break;
+      case 'move':
+        engine.playSFX('step');
+        break;
+      case 'capture':
+        engine.playSFX('hit');
+        break;
+      case 'king':
+        engine.playSFX('win');
+        break;
+      case 'win':
+        engine.playSFX('win');
+        break;
+      case 'lose':
+        engine.playSFX('lose');
+        break;
+      case 'click':
+      default:
+        engine.playSFX('click');
+        break;
+    }
   }
 
   private tick() {
@@ -611,8 +676,8 @@ export class CheckersPlugin implements MiniGamePlugin {
 
     // Draw Checker Pieces
     for (let r = 0; r < 8; r++) {
-      for (let c = 0; c < 8; c++) {
-        const piece = this.board[r][c];
+       for (let c = 0; c < 8; c++) {
+         const piece = this.board[r]?.[c];
         if (piece) {
           const cx = this.startX + c * this.cellSize + this.cellSize / 2;
           const cy = this.startY + r * this.cellSize + this.cellSize / 2;
@@ -690,6 +755,8 @@ export class CheckersPlugin implements MiniGamePlugin {
       this.canvas.removeEventListener('touchstart', this.boundTouchStart);
     }
     window.removeEventListener('resize', this.boundResize);
+
+    this.overlayManager?.destroy();
 
     const titleEl = document.getElementById('game-panel-title');
     const subtitleEl = document.getElementById('game-panel-subtitle');

@@ -121,6 +121,7 @@ export class SnakePlugin implements MiniGamePlugin {
       onPause: () => { this.isPaused = true; },
       onResume: () => { this.isPaused = false; },
       onRestart: () => { this.restartGame(); },
+      onShowInstructions: () => { this.showHelpOverlay(); },
       onExit: () => { if (this.context?.onExit) this.context.onExit(); }
     });
 
@@ -131,7 +132,7 @@ export class SnakePlugin implements MiniGamePlugin {
       this.touchStartY = e.touches[0].clientY;
     };
     this.boundTouchEnd = (e: TouchEvent) => {
-      if (this.isGameOver) return;
+      if (this.isGameOver || this.isPaused) return;
       if (e.changedTouches.length === 0) return;
       const dx = e.changedTouches[0].clientX - this.touchStartX;
       const dy = e.changedTouches[0].clientY - this.touchStartY;
@@ -156,7 +157,12 @@ export class SnakePlugin implements MiniGamePlugin {
     window.addEventListener('resize', this.boundResize);
 
     // Show Instructions First
-    this.overlayManager.showInstructions({
+    this.showHelpOverlay();
+  }
+
+  private showHelpOverlay() {
+    this.isPaused = true;
+    this.overlayManager?.showInstructions({
       title: this.name,
       subtitle: this.subtitle,
       description: this.description,
@@ -168,13 +174,14 @@ export class SnakePlugin implements MiniGamePlugin {
       ],
       options: {
         difficulties: ['Easy', 'Normal', 'Hard'],
-        currentDifficulty: 'Normal',
+        currentDifficulty: this.difficulty.charAt(0).toUpperCase() + this.difficulty.slice(1),
         onSelectDifficulty: (diff) => {
           this.difficulty = diff.toLowerCase() as any;
           if (this.difficulty === 'easy') this.baseSpeedMs = 180;
           else if (this.difficulty === 'hard') this.baseSpeedMs = 100;
           else this.baseSpeedMs = 140;
           this.speedMs = this.baseSpeedMs;
+          this.restartGame();
         }
       },
       onStart: () => {
@@ -184,7 +191,8 @@ export class SnakePlugin implements MiniGamePlugin {
           { label: 'High Score', value: this.highScore, id: 'high' }
         ]);
         GameAudioEngine.getInstance().playSFX('click');
-        this.lastTickTime = performance.now();
+        this.isPaused = false;
+        this.restartGame();
         this.tick();
       }
     });
@@ -426,7 +434,7 @@ export class SnakePlugin implements MiniGamePlugin {
     if (!this.isRunning) return;
 
     const now = performance.now();
-    if (!this.isGameOver && now - this.lastTickTime >= this.speedMs) {
+    if (!this.isGameOver && !this.isPaused && now - this.lastTickTime >= this.speedMs) {
       this.moveSnake();
       this.lastTickTime = now;
     }
@@ -530,19 +538,10 @@ export class SnakePlugin implements MiniGamePlugin {
     ctx.fill();
     ctx.shadowBlur = 0; // reset shadow
 
-    // 5. Game Over overlay
-    if (this.isGameOver) {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    // 5. Dark Overlay on Game Over or Pause
+    if (this.isGameOver || this.isPaused) {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      ctx.font = 'bold 24px "Fraunces", serif';
-      ctx.fillStyle = '#ef4444';
-      ctx.textAlign = 'center';
-      ctx.fillText('MEMORY CRASH DETECTED', canvas.width / 2, this.startY + this.boardPixelHeight / 2 - 10);
-
-      ctx.font = '13px "Space Grotesk", sans-serif';
-      ctx.fillStyle = 'var(--text3)';
-      ctx.fillText('Press SPACE / ENTER or tap screen to reboot snake.', canvas.width / 2, this.startY + this.boardPixelHeight / 2 + 15);
     }
   }
 

@@ -30,8 +30,9 @@ export interface ResultsConfig {
   score?: number;
   highScore?: number;
   stats?: Array<{ label: string; value: string | number }>;
+  metrics?: Array<{ label: string; value: string | number }>;
   onRestart: () => void;
-  onExit: () => void;
+  onExit?: () => void;
 }
 
 export interface OverlayCallbacks {
@@ -266,6 +267,12 @@ export class GameOverlayManager {
     }
   }
 
+  public updateHUD(stats: Array<{ id: string; value: string | number }>): void {
+    stats.forEach(stat => {
+      this.updateStat(stat.id, stat.value);
+    });
+  }
+
   // --- INSTRUCTIONS / HOW TO PLAY MODAL ---
   public showInstructions(config: InstructionsConfig): void {
     if (!this.instructionsElement) return;
@@ -497,8 +504,9 @@ export class GameOverlayManager {
     const titleColor = config.isWin !== false ? '#10b981' : '#ef4444';
     const tagText = config.isWin !== false ? 'VICTORY ACHIEVED' : 'GAME OVER';
 
-    const statsHTML = config.stats
-      ? config.stats
+    const statsToUse = config.stats || config.metrics;
+    const statsHTML = statsToUse
+      ? statsToUse
           .map(
             s => `
         <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); padding: 8px 12px; border-radius: 8px; text-align: center; flex: 1; min-width: 90px;">
@@ -563,7 +571,11 @@ export class GameOverlayManager {
       btnExit.addEventListener('click', () => {
         this.audio.playSFX('click');
         this.hideResults();
-        config.onExit();
+        if (config.onExit) {
+          config.onExit();
+        } else if (this.callbacks.onExit) {
+          this.callbacks.onExit();
+        }
       });
     }
   }

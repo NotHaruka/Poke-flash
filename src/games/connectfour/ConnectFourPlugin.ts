@@ -1,6 +1,8 @@
 import { MiniGamePlugin } from '../core/GamePlugin';
 import { GameLaunchContext } from '../core/GameLaunchContext';
 import { resetGameCanvas } from '../../game.js';
+import { GameOverlayManager } from '../core/GameOverlayManager';
+import { GameAudioEngine } from '../core/GameAudioEngine';
 
 type Player = 'yellow' | 'red';
 
@@ -53,6 +55,9 @@ export class ConnectFourPlugin implements MiniGamePlugin {
   private hoverCol: number | null = null;
   private droppingDisc: DroppingDisc | null = null;
   private winningCells: { r: number; c: number }[] | null = null;
+  private isPaused = false;
+  private overlayManager: GameOverlayManager | null = null;
+  private context: GameLaunchContext | null = null;
 
   private winsYellow = 0;
   private winsRed = 0;
@@ -73,6 +78,7 @@ export class ConnectFourPlugin implements MiniGamePlugin {
   private boundResize: any;
 
   launch(context: GameLaunchContext): void {
+    this.context = context;
     if (window.setPanel) {
       window.setPanel('game');
     }
@@ -105,7 +111,27 @@ export class ConnectFourPlugin implements MiniGamePlugin {
     if (!this.ctx) return;
 
     this.isRunning = true;
-    this.resetBoard();
+    this.isPaused = false;
+    this.isGameOver = false;
+
+    this.overlayManager = new GameOverlayManager('game-canvas-container', {
+      onPause: () => {
+        this.isPaused = true;
+      },
+      onResume: () => {
+        this.isPaused = false;
+      },
+      onRestart: () => {
+        this.restartGame();
+      },
+      onShowInstructions: () => {
+        this.showHelpOverlay();
+      },
+      onExit: () => {
+        if (this.context?.onExit) this.context.onExit();
+      }
+    });
+
     this.resizeCanvas();
 
     this.boundMouseDown = this.handleMouseDown.bind(this);
@@ -121,7 +147,46 @@ export class ConnectFourPlugin implements MiniGamePlugin {
     }
     window.addEventListener('resize', this.boundResize);
 
+    this.showHelpOverlay();
     this.tick();
+  }
+
+  private showHelpOverlay() {
+    this.isPaused = true;
+    this.overlayManager?.showInstructions({
+      title: 'CONNECT FOUR',
+      subtitle: 'Gravity Grid Alignment',
+      description: 'Drop colored discs into a suspended grid to form an unbroken sequence of four discs of your own color.',
+      objective: 'Be the first player to form a horizontal, vertical, or diagonal line of four consecutive discs.',
+      controls: [
+        { key: 'Mouse Move / Touch', action: 'Move disk preview above column' },
+        { key: 'Tap / Click grid', action: 'Drop disk into column' }
+      ],
+      rules: [
+        'Discs fall directly to the lowest unoccupied space in the selected column.',
+        'Yellow is the player; Red is the opponent (AI or Local Player 2).',
+        'Matches end on check alignment or full grid draws.'
+      ],
+      onStart: () => {
+        this.overlayManager?.hideInstructions();
+        this.overlayManager?.setupHUD([
+          { label: 'Mode', value: this.gameMode === 'vsAI' ? 'VS AI' : 'Local PvP', id: 'mode' },
+          { label: 'Status', value: 'Yellow Turn', id: 'status' },
+          { label: 'Wins', value: '0', id: 'wins' }
+        ]);
+        this.isPaused = false;
+        this.resetBoard();
+        GameAudioEngine.getInstance().playSFX('click');
+      }
+    });
+  }
+
+  private restartGame() {
+    this.overlayManager?.hideResults();
+    this.overlayManager?.resume();
+    this.isGameOver = false;
+    this.isPaused = false;
+    this.resetBoard();
   }
 
   private resizeCanvas() {
@@ -155,6 +220,16 @@ export class ConnectFourPlugin implements MiniGamePlugin {
     this.winningCells = null;
     this.isGameOver = false;
     this.statusMessage = "Your Turn (Yellow)";
+    this.updateHUD();
+  }
+
+  private updateHUD() {
+    const turnStr = this.currentPlayer === 'yellow' ? 'Yellow Turn' : 'Red Turn';
+    this.overlayManager?.updateHUD([
+      { id: 'mode', value: this.gameMode === 'vsAI' ? `VS AI (${this.difficulty.toUpperCase()})` : 'Local PvP' },
+      { id: 'status', value: this.isGameOver ? 'Game Over' : turnStr },
+      { id: 'wins', value: String(this.winsYellow) }
+    ]);
   }
 
   private handleMouseMove(e: MouseEvent) {
@@ -265,11 +340,31 @@ export class ConnectFourPlugin implements MiniGamePlugin {
       if (player === 'yellow') {
         this.winsYellow++;
         this.statusMessage = "YELLOW WINS!";
+        this.updateHUD();
         this.playSFX('win');
+        this.overlayManager?.showResults({
+          title: 'VICTORY!',
+          score: 1000 + (this.winsYellow * 200),
+          metrics: [
+            { label: 'Winner', value: 'Yellow (Player)' },
+            { label: 'Player Total Wins', value: String(this.winsYellow) }
+          ],
+          onRestart: () => this.restartGame()
+        });
       } else {
         this.winsRed++;
         this.statusMessage = "RED WINS!";
+        this.updateHUD();
         this.playSFX('lose');
+        this.overlayManager?.showResults({
+          title: 'GAME OVER',
+          score: 0,
+          metrics: [
+            { label: 'Winner', value: 'Red (AI / Player 2)' },
+            { label: 'Player Total Wins', value: String(this.winsYellow) }
+          ],
+          onRestart: () => this.restartGame()
+        });
       }
       const scoreVal = document.getElementById('bb-score-val');
       if (scoreVal) scoreVal.textContent = String(this.winsYellow);
@@ -280,13 +375,24 @@ export class ConnectFourPlugin implements MiniGamePlugin {
     if (this.board.every(row => row.every(cell => cell !== null))) {
       this.isGameOver = true;
       this.statusMessage = "MATCH IS A DRAW!";
+      this.updateHUD();
       this.playSFX('click');
+      this.overlayManager?.showResults({
+        title: 'DRAW GAME',
+        score: 300,
+        metrics: [
+          { label: 'Result', value: 'Board is Full' },
+          { label: 'Player Total Wins', value: String(this.winsYellow) }
+        ],
+        onRestart: () => this.restartGame()
+      });
       return;
     }
 
     // Pass turn
     this.currentPlayer = player === 'yellow' ? 'red' : 'yellow';
     this.statusMessage = this.currentPlayer === 'yellow' ? "Your Turn (Yellow)" : "Opponent Turn (Red)";
+    this.updateHUD();
 
     if (this.gameMode === 'vsAI' && this.currentPlayer === 'red' && !this.isGameOver) {
       setTimeout(() => this.makeAIMove(), 350);
@@ -382,45 +488,22 @@ export class ConnectFourPlugin implements MiniGamePlugin {
   }
 
   private playSFX(type: 'drop' | 'win' | 'lose' | 'click') {
-    try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      const now = ctx.currentTime;
-
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      if (type === 'drop') {
-        osc.frequency.setValueAtTime(450, now);
-        osc.frequency.exponentialRampToValueAtTime(150, now + 0.12);
-        gain.gain.setValueAtTime(0.08, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
-        osc.start(now);
-        osc.stop(now + 0.12);
-      } else if (type === 'click') {
-        osc.frequency.setValueAtTime(440, now);
-        gain.gain.setValueAtTime(0.03, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
-        osc.start(now);
-        osc.stop(now + 0.04);
-      } else if (type === 'win') {
-        const freqs = [329.63, 440, 554.37, 659.25];
-        freqs.forEach((f, i) => {
-          const o = ctx.createOscillator();
-          const g = ctx.createGain();
-          o.connect(g);
-          g.connect(ctx.destination);
-          o.frequency.setValueAtTime(f, now + i * 0.08);
-          g.gain.setValueAtTime(0.05, now + i * 0.08);
-          g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.2);
-          o.start(now + i * 0.08);
-          o.stop(now + i * 0.08 + 0.2);
-        });
-      }
-    } catch (e) {}
+    const engine = GameAudioEngine.getInstance();
+    switch (type) {
+      case 'drop':
+        engine.playSFX('step');
+        break;
+      case 'win':
+        engine.playSFX('win');
+        break;
+      case 'lose':
+        engine.playSFX('lose');
+        break;
+      case 'click':
+      default:
+        engine.playSFX('click');
+        break;
+    }
   }
 
   private tick() {
@@ -579,6 +662,8 @@ export class ConnectFourPlugin implements MiniGamePlugin {
       this.canvas.removeEventListener('mousemove', this.boundMouseMove);
     }
     window.removeEventListener('resize', this.boundResize);
+
+    this.overlayManager?.destroy();
 
     const titleEl = document.getElementById('game-panel-title');
     const subtitleEl = document.getElementById('game-panel-subtitle');

@@ -1,6 +1,8 @@
 import { MiniGamePlugin } from '../core/GamePlugin';
 import { GameLaunchContext } from '../core/GameLaunchContext';
 import { resetGameCanvas } from '../../game.js';
+import { GameOverlayManager } from '../core/GameOverlayManager';
+import { GameAudioEngine } from '../core/GameAudioEngine';
 
 interface Ship {
   name: string;
@@ -35,6 +37,8 @@ export class BattleshipPlugin implements MiniGamePlugin {
   private ctx: CanvasRenderingContext2D | null = null;
   private animationFrameId: number | null = null;
   private isRunning = false;
+  private isPaused = false;
+  private isGameOver = false;
 
   private phase: 'placement' | 'battle' | 'gameover' = 'placement';
   private playerGrid: Array<Array<'empty' | 'ship' | 'hit' | 'miss'>> = [];
@@ -53,11 +57,16 @@ export class BattleshipPlugin implements MiniGamePlugin {
   private aiStartX = 0;
   private aiStartY = 0;
 
+  private overlayManager: GameOverlayManager | null = null;
+  private context: GameLaunchContext | null = null;
+
   private boundMouseDown: any;
   private boundTouchStart: any;
   private boundResize: any;
+  private boundKeyDown: any;
 
   launch(context: GameLaunchContext): void {
+    this.context = context;
     if (window.setPanel) window.setPanel('game');
     const overlay = document.getElementById('bb-menu-overlay');
     if (overlay) overlay.style.display = 'none';
@@ -82,19 +91,83 @@ export class BattleshipPlugin implements MiniGamePlugin {
     if (!this.ctx) return;
 
     this.isRunning = true;
-    this.resetGame();
+    this.isPaused = false;
+    this.isGameOver = false;
+
+    // Initialize GameOverlayManager
+    this.overlayManager = new GameOverlayManager('game-canvas-container', {
+      onPause: () => {
+        this.isPaused = true;
+      },
+      onResume: () => {
+        this.isPaused = false;
+      },
+      onRestart: () => {
+        this.restartGame();
+      },
+      onShowInstructions: () => {
+        this.showHelpOverlay();
+      },
+      onExit: () => {
+        if (this.context?.onExit) this.context.onExit();
+      }
+    });
+
     this.resizeCanvas();
 
     this.boundMouseDown = this.handleMouseDown.bind(this);
     this.boundTouchStart = this.handleTouchStart.bind(this);
     this.boundResize = this.resizeCanvas.bind(this);
+    this.boundKeyDown = this.handleKeyDown.bind(this);
 
     this.canvas.style.touchAction = 'none';
     this.canvas.addEventListener('mousedown', this.boundMouseDown);
     this.canvas.addEventListener('touchstart', this.boundTouchStart, { passive: false });
     window.addEventListener('resize', this.boundResize);
+    window.addEventListener('keydown', this.boundKeyDown);
 
+    this.showHelpOverlay();
     this.tick();
+  }
+
+  private showHelpOverlay() {
+    this.isPaused = true;
+    this.overlayManager?.showInstructions({
+      title: 'BATTLESHIP NAVAL WARFARE',
+      subtitle: 'Grid Strategy & Naval Combat',
+      description: 'Position your fleet strategically on your local grid and call coordinates to locate and annihilate the enemy fleet on their grid.',
+      objective: 'Annihilate all 5 ships in the enemy fleet before they sink yours.',
+      controls: [
+        { key: 'Tap / Click Grid', action: 'Place ships (placement phase) or call target strikes (battle phase)' },
+        { key: 'AUTO PLACE', action: 'Automatically position all ships on your grid' },
+        { key: 'DIR: HORIZ / VERT', action: 'Rotate active ship before placement' },
+        { key: 'P / Esc', action: 'Pause / Resume game' }
+      ],
+      rules: [
+        'Place all 5 ships (Carrier: 5, Battleship: 4, Cruiser: 3, Submarine: 3, Destroyer: 2) to start.',
+        'Red dots indicate hits, blue dots indicate misses.',
+        'Sinking a ship reveals its type and size.'
+      ],
+      onStart: () => {
+        this.overlayManager?.hideInstructions();
+        this.overlayManager?.setupHUD([
+          { label: 'Victories', value: 0, id: 'wins' },
+          { label: 'Enemy Ships Sunk', value: '0/5', id: 'enemy_sunk' },
+          { label: 'Player Ships Sunk', value: '0/5', id: 'player_sunk' }
+        ]);
+        this.isPaused = false;
+        this.resetGame();
+        GameAudioEngine.getInstance().playSFX('click');
+      }
+    });
+  }
+
+  private restartGame() {
+    this.overlayManager?.hideResults();
+    this.overlayManager?.resume();
+    this.isGameOver = false;
+    this.isPaused = false;
+    this.resetGame();
   }
 
   private createShipList(): Ship[] {
@@ -109,6 +182,7 @@ export class BattleshipPlugin implements MiniGamePlugin {
 
   private resetGame() {
     this.phase = 'placement';
+    this.isGameOver = false;
     this.playerGrid = Array(10).fill(null).map(() => Array(10).fill('empty'));
     this.aiGrid = Array(10).fill(null).map(() => Array(10).fill('empty'));
     this.playerShips = this.createShipList();
@@ -117,6 +191,21 @@ export class BattleshipPlugin implements MiniGamePlugin {
     this.isHorizontal = true;
     this.statusMessage = `Place ${this.playerShips[0].name} (${this.playerShips[0].size})`;
     this.placeAIShips();
+    this.updateHUD();
+  }
+
+  private updateHUD() {
+    const scoreVal = document.getElementById('bb-score-val');
+    if (scoreVal) scoreVal.textContent = String(this.wins);
+
+    const enemySunkCount = this.aiShips.filter(s => s.hits >= s.size).length;
+    const playerSunkCount = this.playerShips.filter(s => s.hits >= s.size).length;
+
+    this.overlayManager?.updateHUD([
+      { id: 'wins', value: this.wins },
+      { id: 'enemy_sunk', value: `${enemySunkCount}/5` },
+      { id: 'player_sunk', value: `${playerSunkCount}/5` }
+    ]);
   }
 
   private placeAIShips() {
@@ -176,6 +265,8 @@ export class BattleshipPlugin implements MiniGamePlugin {
     }
     this.phase = 'battle';
     this.statusMessage = 'Fleet Ready! Fire at the enemy grid.';
+    GameAudioEngine.getInstance().playSFX('win');
+    this.updateHUD();
   }
 
   private resizeCanvas() {
@@ -204,6 +295,20 @@ export class BattleshipPlugin implements MiniGamePlugin {
     }
   }
 
+  private handleKeyDown(e: KeyboardEvent) {
+    if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
+      if (!this.isGameOver && this.overlayManager) {
+        this.isPaused = !this.isPaused;
+        if (this.isPaused) {
+          this.overlayManager.pause();
+        } else {
+          this.overlayManager.resume();
+        }
+      }
+      return;
+    }
+  }
+
   private handleTouchStart(e: TouchEvent) {
     if (!this.canvas || e.touches.length === 0) return;
     e.preventDefault();
@@ -219,7 +324,9 @@ export class BattleshipPlugin implements MiniGamePlugin {
   }
 
   private processInputAt(mx: number, my: number) {
-    if (!this.canvas) return;
+    if (!this.canvas || this.isPaused || this.isGameOver) return;
+
+    const engine = GameAudioEngine.getInstance();
 
     if (this.phase === 'placement') {
       // Auto place button
@@ -231,6 +338,7 @@ export class BattleshipPlugin implements MiniGamePlugin {
       // Rotate button
       if (Math.abs(mx - (midX + 60)) <= 45 && Math.abs(my - (this.playerStartY + 10 * this.cellSize + 25)) <= 15) {
         this.isHorizontal = !this.isHorizontal;
+        engine.playSFX('click');
         return;
       }
 
@@ -250,6 +358,9 @@ export class BattleshipPlugin implements MiniGamePlugin {
           currentShip.coords = coords;
           currentShip.placed = true;
           this.currentPlacementIndex++;
+          
+          engine.playSFX('select');
+
           if (this.currentPlacementIndex >= this.playerShips.length) {
             this.phase = 'battle';
             this.statusMessage = 'All ships deployed! Select target on enemy grid.';
@@ -257,6 +368,9 @@ export class BattleshipPlugin implements MiniGamePlugin {
             const nextShip = this.playerShips[this.currentPlacementIndex];
             this.statusMessage = `Place ${nextShip.name} (${nextShip.size})`;
           }
+          this.updateHUD();
+        } else {
+          engine.playSFX('invalid');
         }
       }
     } else if (this.phase === 'battle') {
@@ -267,27 +381,43 @@ export class BattleshipPlugin implements MiniGamePlugin {
           const hit = this.aiGrid[row][col] === 'ship';
           this.aiGrid[row][col] = hit ? 'hit' : 'miss';
           if (hit) {
+            engine.playSFX('hit');
             this.statusMessage = 'DIRECT HIT on enemy vessel!';
             this.checkShipSunk(this.aiShips, row, col);
           } else {
+            engine.playSFX('pop');
             this.statusMessage = 'SPLASH! Missed target.';
           }
 
+          this.updateHUD();
+
           if (this.checkAllSunk(this.aiShips)) {
             this.phase = 'gameover';
+            this.isGameOver = true;
             this.wins++;
             this.statusMessage = 'VICTORY! All enemy ships destroyed.';
-            const scoreVal = document.getElementById('bb-score-val');
-            if (scoreVal) scoreVal.textContent = String(this.wins);
+            this.updateHUD();
+            engine.playSFX('win');
+
+            this.overlayManager?.showResults({
+              title: 'FLEET VICTORY!',
+              score: this.wins * 1000,
+              metrics: [
+                { label: 'My Remaining Ships', value: 5 - this.playerShips.filter(s => s.hits >= s.size).length },
+                { label: 'Naval Wins', value: this.wins }
+              ],
+              onRestart: () => {
+                this.overlayManager?.hideResults();
+                this.resetGame();
+              }
+            });
             return;
           }
 
           // AI Turn
-          setTimeout(() => this.makeAITurn(), 300);
+          setTimeout(() => this.makeAITurn(), 400);
         }
       }
-    } else if (this.phase === 'gameover') {
-      this.resetGame();
     }
   }
 
@@ -297,6 +427,7 @@ export class BattleshipPlugin implements MiniGamePlugin {
         ship.hits++;
         if (ship.hits >= ship.size) {
           this.statusMessage = `SUNK! Enemy ${ship.name} destroyed!`;
+          GameAudioEngine.getInstance().playSFX('explosion');
         }
       }
     }
@@ -317,12 +448,32 @@ export class BattleshipPlugin implements MiniGamePlugin {
 
     const hit = this.playerGrid[r][c] === 'ship';
     this.playerGrid[r][c] = hit ? 'hit' : 'miss';
+    
     if (hit) {
+      GameAudioEngine.getInstance().playSFX('hit');
       this.checkShipSunk(this.playerShips, r, c);
+      this.updateHUD();
       if (this.checkAllSunk(this.playerShips)) {
         this.phase = 'gameover';
+        this.isGameOver = true;
         this.statusMessage = 'DEFEAT! Your fleet has been destroyed.';
+        GameAudioEngine.getInstance().playSFX('lose');
+
+        this.overlayManager?.showResults({
+          title: 'FLEET DEFEATED',
+          score: this.wins * 1000,
+          metrics: [
+            { label: 'Enemy Remaining Ships', value: 5 - this.aiShips.filter(s => s.hits >= s.size).length },
+            { label: 'Naval Wins', value: this.wins }
+          ],
+          onRestart: () => {
+            this.overlayManager?.hideResults();
+            this.resetGame();
+          }
+        });
       }
+    } else {
+      GameAudioEngine.getInstance().playSFX('pop');
     }
   }
 
@@ -337,13 +488,15 @@ export class BattleshipPlugin implements MiniGamePlugin {
     const canvas = this.canvas;
     if (!ctx || !canvas) return;
 
-    ctx.fillStyle = '#0f172a';
+    ctx.fillStyle = '#0a0915';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+    if (this.isPaused) return;
+
     ctx.font = 'bold 12px "Space Grotesk", sans-serif';
-    ctx.fillStyle = '#f59e0b';
+    ctx.fillStyle = '#38bdf8';
     ctx.textAlign = 'center';
-    ctx.fillText(this.statusMessage, canvas.width / 2, 30);
+    ctx.fillText(this.statusMessage, canvas.width / 2, 28);
 
     // Render Player Grid
     this.renderGrid(this.playerStartX, this.playerStartY, 'YOUR FLEET', this.playerGrid, true);
@@ -355,22 +508,31 @@ export class BattleshipPlugin implements MiniGamePlugin {
     if (this.phase === 'placement') {
       const midX = canvas.width / 2;
       const btnY = this.playerStartY + 10 * this.cellSize + 25;
-      ctx.fillStyle = '#334155'; ctx.beginPath(); ctx.roundRect(midX - 105, btnY - 12, 90, 24, 6); ctx.fill();
-      ctx.font = 'bold 10px sans-serif'; ctx.fillStyle = '#fff'; ctx.fillText('AUTO PLACE', midX - 60, btnY + 3);
+      
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+      ctx.strokeStyle = '#2d2c4e';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.roundRect(midX - 105, btnY - 12, 90, 24, 6); ctx.fill(); ctx.stroke();
+      ctx.font = 'bold 9px "Space Grotesk", sans-serif';
+      ctx.fillStyle = '#cbd5e1';
+      ctx.fillText('AUTO PLACE', midX - 60, btnY + 1);
 
-      ctx.fillStyle = '#10b981'; ctx.beginPath(); ctx.roundRect(midX + 15, btnY - 12, 90, 24, 6); ctx.fill();
-      ctx.fillText(this.isHorizontal ? 'DIR: HORIZ' : 'DIR: VERT', midX + 60, btnY + 3);
+      ctx.fillStyle = 'rgba(14, 165, 233, 0.1)';
+      ctx.strokeStyle = '#0ea5e9';
+      ctx.beginPath(); ctx.roundRect(midX + 15, btnY - 12, 90, 24, 6); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillText(this.isHorizontal ? 'DIR: HORIZ' : 'DIR: VERT', midX + 60, btnY + 1);
     }
   }
 
   private renderGrid(startX: number, startY: number, title: string, grid: string[][], showShips: boolean) {
     const ctx = this.ctx!;
-    ctx.font = 'bold 11px sans-serif';
+    ctx.font = 'bold 10px "Space Grotesk", sans-serif';
     ctx.fillStyle = '#94a3b8';
     ctx.textAlign = 'left';
     ctx.fillText(title, startX, startY - 8);
 
-    ctx.strokeStyle = '#334155';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
     ctx.lineWidth = 1;
     for (let r = 0; r < 10; r++) {
       for (let c = 0; c < 10; c++) {
@@ -378,8 +540,8 @@ export class BattleshipPlugin implements MiniGamePlugin {
         const y = startY + r * this.cellSize;
         const cell = grid[r][c];
 
-        ctx.fillStyle = '#1e293b';
-        if (showShips && cell === 'ship') ctx.fillStyle = '#475569';
+        ctx.fillStyle = '#111029';
+        if (showShips && cell === 'ship') ctx.fillStyle = '#2d2b5c';
         if (cell === 'hit') ctx.fillStyle = '#ef4444';
         if (cell === 'miss') ctx.fillStyle = '#38bdf8';
 
@@ -390,7 +552,7 @@ export class BattleshipPlugin implements MiniGamePlugin {
           ctx.fillStyle = '#fff';
           ctx.beginPath(); ctx.arc(x + this.cellSize/2, y + this.cellSize/2, this.cellSize*0.25, 0, Math.PI*2); ctx.fill();
         } else if (cell === 'miss') {
-          ctx.fillStyle = '#0f172a';
+          ctx.fillStyle = '#0a0915';
           ctx.beginPath(); ctx.arc(x + this.cellSize/2, y + this.cellSize/2, this.cellSize*0.15, 0, Math.PI*2); ctx.fill();
         }
       }
@@ -405,5 +567,8 @@ export class BattleshipPlugin implements MiniGamePlugin {
       this.canvas.removeEventListener('touchstart', this.boundTouchStart);
     }
     window.removeEventListener('resize', this.boundResize);
+    window.removeEventListener('keydown', this.boundKeyDown);
+
+    this.overlayManager?.destroy();
   }
 }

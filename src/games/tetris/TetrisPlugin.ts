@@ -1,6 +1,8 @@
 import { MiniGamePlugin } from '../core/GamePlugin';
 import { GameLaunchContext } from '../core/GameLaunchContext';
 import { resetGameCanvas } from '../../game.js';
+import { GameOverlayManager } from '../core/GameOverlayManager';
+import { GameAudioEngine } from '../core/GameAudioEngine';
 
 type TetrominoType = 'I' | 'J' | 'L' | 'O' | 'S' | 'T' | 'Z';
 
@@ -38,6 +40,8 @@ export class TetrisPlugin implements MiniGamePlugin {
   private ctx: CanvasRenderingContext2D | null = null;
   private animationFrameId: number | null = null;
   private isRunning = false;
+  private isPaused = false;
+  private isGameOver = false;
 
   private grid: string[][] = Array(20).fill(null).map(() => Array(10).fill('')); // 20 rows, 10 cols
   private currentPiece: Tetromino | null = null;
@@ -49,8 +53,8 @@ export class TetrisPlugin implements MiniGamePlugin {
   private dropInterval = 800; // ms per drop
   private lastDropTime = 0;
 
-  private isPaused = false;
-  private isGameOver = false;
+  private overlayManager: GameOverlayManager | null = null;
+  private context: GameLaunchContext | null = null;
 
   // Layout metrics
   private boardWidth = 0;
@@ -66,6 +70,7 @@ export class TetrisPlugin implements MiniGamePlugin {
   private boundResize: any;
 
   launch(context: GameLaunchContext): void {
+    this.context = context;
     if (window.setPanel) {
       window.setPanel('game');
     }
@@ -94,7 +99,29 @@ export class TetrisPlugin implements MiniGamePlugin {
     if (!this.ctx) return;
 
     this.isRunning = true;
-    this.startNewGame();
+    this.isPaused = false;
+    this.isGameOver = false;
+
+    // Initialize GameOverlayManager
+    this.overlayManager = new GameOverlayManager('game-canvas-container', {
+      onPause: () => {
+        this.isPaused = true;
+      },
+      onResume: () => {
+        this.isPaused = false;
+        this.lastDropTime = performance.now();
+      },
+      onRestart: () => {
+        this.restartGame();
+      },
+      onShowInstructions: () => {
+        this.showHelpOverlay();
+      },
+      onExit: () => {
+        if (this.context?.onExit) this.context.onExit();
+      }
+    });
+
     this.resizeCanvas();
 
     this.boundMouseDown = this.handleMouseDown.bind(this);
@@ -110,7 +137,50 @@ export class TetrisPlugin implements MiniGamePlugin {
     window.addEventListener('keydown', this.boundKeyDown);
     window.addEventListener('resize', this.boundResize);
 
+    this.showHelpOverlay();
     this.tick(performance.now());
+  }
+
+  private showHelpOverlay() {
+    this.isPaused = true;
+    this.overlayManager?.showInstructions({
+      title: 'RECALL BLOCK STACKER',
+      subtitle: 'Spatial Arrangement & Line Clears',
+      description: 'Align and rotate falling block matrix pieces to complete full horizontal line clears. Build spatial dexterity and clear the grid!',
+      objective: 'Clear as many lines as possible and reach high scores.',
+      controls: [
+        { key: 'Arrow Left / Right', action: 'Move falling piece' },
+        { key: 'Arrow Up', action: 'Rotate piece' },
+        { key: 'Arrow Down', action: 'Soft drop' },
+        { key: 'Space', action: 'Hard drop' },
+        { key: 'P / Esc', action: 'Pause / Resume game' }
+      ],
+      rules: [
+        'Complete full horizontal rows to clear them and score points.',
+        'Clearing multiple rows simultaneously grants high-score multipliers.',
+        'The game speed increases with your levels.'
+      ],
+      onStart: () => {
+        this.overlayManager?.hideInstructions();
+        this.overlayManager?.setupHUD([
+          { label: 'Score', value: 0, id: 'score' },
+          { label: 'Lines', value: 0, id: 'lines' },
+          { label: 'Level', value: 1, id: 'level' }
+        ]);
+        this.isPaused = false;
+        this.startNewGame();
+        GameAudioEngine.getInstance().playSFX('click');
+        this.lastDropTime = performance.now();
+      }
+    });
+  }
+
+  private restartGame() {
+    this.overlayManager?.hideResults();
+    this.overlayManager?.resume();
+    this.isGameOver = false;
+    this.isPaused = false;
+    this.startNewGame();
   }
 
   private resizeCanvas() {
@@ -150,6 +220,11 @@ export class TetrisPlugin implements MiniGamePlugin {
     this.spawnPiece();
 
     this.updateHeaderScore();
+    this.overlayManager?.updateHUD([
+      { id: 'score', value: this.score },
+      { id: 'lines', value: this.linesCleared },
+      { id: 'level', value: this.level }
+    ]);
   }
 
   private updateHeaderScore() {
@@ -184,11 +259,35 @@ export class TetrisPlugin implements MiniGamePlugin {
 
     if (this.currentPiece && !this.isValidMove(this.currentPiece.matrix, this.currentPiece.x, this.currentPiece.y)) {
       this.isGameOver = true;
-      this.playSFX('gameover');
+      GameAudioEngine.getInstance().playSFX('lose');
+      this.overlayManager?.showResults({
+        title: 'GAME OVER',
+        score: this.score,
+        metrics: [
+          { label: 'Lines Cleared', value: this.linesCleared },
+          { label: 'Level Reached', value: this.level }
+        ],
+        onRestart: () => {
+          this.overlayManager?.hideResults();
+          this.startNewGame();
+        }
+      });
     }
   }
 
   private handleKeyDown(e: KeyboardEvent) {
+    if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
+      if (!this.isGameOver && this.overlayManager) {
+        this.isPaused = !this.isPaused;
+        if (this.isPaused) {
+          this.overlayManager.pause();
+        } else {
+          this.overlayManager.resume();
+        }
+      }
+      return;
+    }
+
     if (this.isGameOver || this.isPaused || !this.currentPiece) return;
 
     if (e.key === 'ArrowLeft') {
@@ -362,58 +461,38 @@ export class TetrisPlugin implements MiniGamePlugin {
       this.dropInterval = Math.max(100, 800 - (this.level - 1) * 70);
 
       this.updateHeaderScore();
+      this.overlayManager?.updateHUD([
+        { id: 'score', value: this.score },
+        { id: 'lines', value: this.linesCleared },
+        { id: 'level', value: this.level }
+      ]);
       this.playSFX(cleared === 4 ? 'tetris' : 'clear');
     }
   }
 
   private playSFX(type: 'rotate' | 'drop' | 'clear' | 'tetris' | 'gameover' | 'click') {
-    try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      const now = ctx.currentTime;
-
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      if (type === 'rotate') {
-        osc.frequency.setValueAtTime(400, now);
-        osc.frequency.exponentialRampToValueAtTime(600, now + 0.05);
-        gain.gain.setValueAtTime(0.03, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
-        osc.start(now);
-        osc.stop(now + 0.05);
-      } else if (type === 'clear') {
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(523.25, now);
-        osc.frequency.setValueAtTime(659.25, now + 0.08);
-        gain.gain.setValueAtTime(0.06, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
-        osc.start(now);
-        osc.stop(now + 0.18);
-      } else if (type === 'tetris') {
-        const freqs = [392, 523.25, 659.25, 783.99, 1046.5];
-        freqs.forEach((f, i) => {
-          const o = ctx.createOscillator();
-          const g = ctx.createGain();
-          o.connect(g);
-          g.connect(ctx.destination);
-          o.frequency.setValueAtTime(f, now + i * 0.06);
-          g.gain.setValueAtTime(0.05, now + i * 0.06);
-          g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.06 + 0.2);
-          o.start(now + i * 0.06);
-          o.stop(now + i * 0.06 + 0.2);
-        });
-      } else if (type === 'click') {
-        osc.frequency.setValueAtTime(440, now);
-        gain.gain.setValueAtTime(0.03, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
-        osc.start(now);
-        osc.stop(now + 0.04);
-      }
-    } catch (e) {}
+    const engine = GameAudioEngine.getInstance();
+    switch (type) {
+      case 'rotate':
+        engine.playSFX('swish');
+        break;
+      case 'drop':
+        engine.playSFX('drop');
+        break;
+      case 'clear':
+        engine.playSFX('clear');
+        break;
+      case 'tetris':
+        engine.playSFX('score');
+        break;
+      case 'gameover':
+        engine.playSFX('lose');
+        break;
+      case 'click':
+      default:
+        engine.playSFX('click');
+        break;
+    }
   }
 
   private tick(time: number) {
@@ -586,6 +665,8 @@ export class TetrisPlugin implements MiniGamePlugin {
     }
     window.removeEventListener('keydown', this.boundKeyDown);
     window.removeEventListener('resize', this.boundResize);
+
+    this.overlayManager?.destroy();
 
     const titleEl = document.getElementById('game-panel-title');
     const subtitleEl = document.getElementById('game-panel-subtitle');

@@ -1,6 +1,8 @@
 import { MiniGamePlugin } from '../core/GamePlugin';
 import { GameLaunchContext } from '../core/GameLaunchContext';
 import { resetGameCanvas } from '../../game.js';
+import { GameOverlayManager } from '../core/GameOverlayManager';
+import { GameAudioEngine } from '../core/GameAudioEngine';
 
 type DiscColor = 'black' | 'white';
 
@@ -44,6 +46,9 @@ export class ReversiPlugin implements MiniGamePlugin {
 
   private validMoves: { r: number; c: number; flips: { r: number; c: number }[] }[] = [];
   private flippingDiscs: AnimatedFlip[] = [];
+  private isPaused = false;
+  private overlayManager: GameOverlayManager | null = null;
+  private context: GameLaunchContext | null = null;
 
   private blackCount = 2;
   private whiteCount = 2;
@@ -62,6 +67,7 @@ export class ReversiPlugin implements MiniGamePlugin {
   private boundResize: any;
 
   launch(context: GameLaunchContext): void {
+    this.context = context;
     if (window.setPanel) {
       window.setPanel('game');
     }
@@ -94,7 +100,27 @@ export class ReversiPlugin implements MiniGamePlugin {
     if (!this.ctx) return;
 
     this.isRunning = true;
-    this.resetBoard();
+    this.isPaused = false;
+    this.isGameOver = false;
+
+    this.overlayManager = new GameOverlayManager('game-canvas-container', {
+      onPause: () => {
+        this.isPaused = true;
+      },
+      onResume: () => {
+        this.isPaused = false;
+      },
+      onRestart: () => {
+        this.restartGame();
+      },
+      onShowInstructions: () => {
+        this.showHelpOverlay();
+      },
+      onExit: () => {
+        if (this.context?.onExit) this.context.onExit();
+      }
+    });
+
     this.resizeCanvas();
 
     this.boundMouseDown = this.handleMouseDown.bind(this);
@@ -108,7 +134,46 @@ export class ReversiPlugin implements MiniGamePlugin {
     }
     window.addEventListener('resize', this.boundResize);
 
+    this.showHelpOverlay();
     this.tick();
+  }
+
+  private showHelpOverlay() {
+    this.isPaused = true;
+    this.overlayManager?.showInstructions({
+      title: 'REVERSI OTHELLO',
+      subtitle: 'Flanking Strategy & Board Control',
+      description: 'Outflank and outmaneuver your opponent to flip their discs to your color. Master corner control and directional traps against a tactical AI or local PvP.',
+      objective: 'Have the majority of your colored discs on the board when no valid moves are left for either player.',
+      controls: [
+        { key: 'Tap / Click square', action: 'Place disc and flip outflanked opponent discs' },
+        { key: 'Green Dot highlights', action: 'Indicates legal available move squares' }
+      ],
+      rules: [
+        'Each move must outflank and trap one or more opponent discs in a straight line.',
+        'If a player has no valid moves, they pass the turn; if both pass, match ends.',
+        'Black is Black (Player 1); White is White (AI or Player 2).'
+      ],
+      onStart: () => {
+        this.overlayManager?.hideInstructions();
+        this.overlayManager?.setupHUD([
+          { label: 'Mode', value: this.gameMode === 'vsAI' ? 'VS AI' : 'Local PvP', id: 'mode' },
+          { label: 'Status', value: 'Black Turn', id: 'status' },
+          { label: 'Black/White', value: '2 - 2', id: 'discs' }
+        ]);
+        this.isPaused = false;
+        this.resetBoard();
+        GameAudioEngine.getInstance().playSFX('click');
+      }
+    });
+  }
+
+  private restartGame() {
+    this.overlayManager?.hideResults();
+    this.overlayManager?.resume();
+    this.isGameOver = false;
+    this.isPaused = false;
+    this.resetBoard();
   }
 
   private resizeCanvas() {
@@ -146,6 +211,16 @@ export class ReversiPlugin implements MiniGamePlugin {
 
     this.updateScores();
     this.computeValidMoves();
+    this.updateHUD();
+  }
+
+  private updateHUD() {
+    const turnStr = this.currentPlayer === 'black' ? 'Black Turn' : 'White Turn';
+    this.overlayManager?.updateHUD([
+      { id: 'mode', value: this.gameMode === 'vsAI' ? `VS AI (${this.difficulty.toUpperCase()})` : 'Local PvP' },
+      { id: 'status', value: this.isGameOver ? 'Game Over' : turnStr },
+      { id: 'discs', value: `${this.blackCount} - ${this.whiteCount}` }
+    ]);
   }
 
   private handleTouchStart(e: TouchEvent) {
@@ -272,21 +347,50 @@ export class ReversiPlugin implements MiniGamePlugin {
       if (this.validMoves.length === 0) {
         // Neither player has valid moves -> Game Over
         this.isGameOver = true;
+        this.updateHUD();
         if (this.blackCount > this.whiteCount) {
           this.statusMessage = `GAME OVER! BLACK WINS (${this.blackCount}-${this.whiteCount})`;
           this.playSFX('win');
+          this.overlayManager?.showResults({
+            title: 'VICTORY!',
+            score: 1000 + (this.blackCount * 50),
+            metrics: [
+              { label: 'Winner', value: 'Black (Player)' },
+              { label: 'Final Score', value: `${this.blackCount} - ${this.whiteCount}` }
+            ],
+            onRestart: () => this.restartGame()
+          });
         } else if (this.whiteCount > this.blackCount) {
           this.statusMessage = `GAME OVER! WHITE WINS (${this.whiteCount}-${this.blackCount})`;
           this.playSFX('lose');
+          this.overlayManager?.showResults({
+            title: 'GAME OVER',
+            score: 0,
+            metrics: [
+              { label: 'Winner', value: 'White (AI / Player 2)' },
+              { label: 'Final Score', value: `${this.blackCount} - ${this.whiteCount}` }
+            ],
+            onRestart: () => this.restartGame()
+          });
         } else {
           this.statusMessage = `GAME OVER! DRAW (${this.blackCount}-${this.whiteCount})`;
           this.playSFX('click');
+          this.overlayManager?.showResults({
+            title: 'DRAW MATCH',
+            score: 500,
+            metrics: [
+              { label: 'Result', value: 'Draw / Tied score' },
+              { label: 'Final Score', value: `${this.blackCount} - ${this.whiteCount}` }
+            ],
+            onRestart: () => this.restartGame()
+          });
         }
         return;
       }
     }
 
     this.statusMessage = this.currentPlayer === 'black' ? "Your Turn (Black)" : "Opponent Turn (White)";
+    this.updateHUD();
 
     if (this.gameMode === 'vsAI' && this.currentPlayer === 'white' && !this.isGameOver) {
       setTimeout(() => this.makeAIMove(), 350);
@@ -339,45 +443,22 @@ export class ReversiPlugin implements MiniGamePlugin {
   }
 
   private playSFX(type: 'flip' | 'win' | 'lose' | 'click') {
-    try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      const now = ctx.currentTime;
-
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      if (type === 'flip') {
-        osc.frequency.setValueAtTime(300, now);
-        osc.frequency.exponentialRampToValueAtTime(500, now + 0.08);
-        gain.gain.setValueAtTime(0.06, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
-        osc.start(now);
-        osc.stop(now + 0.08);
-      } else if (type === 'click') {
-        osc.frequency.setValueAtTime(440, now);
-        gain.gain.setValueAtTime(0.03, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
-        osc.start(now);
-        osc.stop(now + 0.04);
-      } else if (type === 'win') {
-        const freqs = [392, 523.25, 659.25, 783.99];
-        freqs.forEach((f, i) => {
-          const o = ctx.createOscillator();
-          const g = ctx.createGain();
-          o.connect(g);
-          g.connect(ctx.destination);
-          o.frequency.setValueAtTime(f, now + i * 0.08);
-          g.gain.setValueAtTime(0.05, now + i * 0.08);
-          g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.2);
-          o.start(now + i * 0.08);
-          o.stop(now + i * 0.08 + 0.2);
-        });
-      }
-    } catch (e) {}
+    const engine = GameAudioEngine.getInstance();
+    switch (type) {
+      case 'flip':
+        engine.playSFX('step');
+        break;
+      case 'win':
+        engine.playSFX('win');
+        break;
+      case 'lose':
+        engine.playSFX('lose');
+        break;
+      case 'click':
+      default:
+        engine.playSFX('click');
+        break;
+    }
   }
 
   private tick() {
@@ -524,6 +605,8 @@ export class ReversiPlugin implements MiniGamePlugin {
       this.canvas.removeEventListener('touchstart', this.boundTouchStart);
     }
     window.removeEventListener('resize', this.boundResize);
+
+    this.overlayManager?.destroy();
 
     const titleEl = document.getElementById('game-panel-title');
     const subtitleEl = document.getElementById('game-panel-subtitle');

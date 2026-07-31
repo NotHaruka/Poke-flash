@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { PlayerController } from './PlayerController';
+import { GameAudioEngine } from '../games/core/GameAudioEngine';
 import { EnemyAI, EnemyObject, BulletObject } from './EnemyAI';
 import { StageGenerator, ChestObject, TeleporterObject } from './StageGenerator';
 import { ParticleSystem } from './ParticleSystem';
@@ -750,6 +751,10 @@ export class GameEngine {
         // Sparkling chest opening sparkles
         this.particleSystem.createExplosion(chest.position.clone().add(new THREE.Vector3(0, 0.5, 0)), rolledItem.meshColor, 15, 0.35);
 
+        try {
+          GameAudioEngine.getInstance().playSFX('clear');
+        } catch (e) {}
+
         // Check Milestone Unlocks
         this.checkUnlocks('chests_opened', this.runStats.chestsOpened);
       }
@@ -757,12 +762,18 @@ export class GameEngine {
       const tele = this.stageGenerator.getTeleporter();
       if (tele && !tele.activated) {
         this.activateTeleporter(tele);
+        try {
+          GameAudioEngine.getInstance().playSFX('warning');
+        } catch (e) {}
       }
     } else if (this.nearestInteractive.type === 'portal') {
       // Proceed to Next Stage!
       const nextIndex = this.runStats.stageIndex + 1;
       if (nextIndex < STAGES.length) {
         this.loadStage(nextIndex);
+        try {
+          GameAudioEngine.getInstance().playSFX('select');
+        } catch (e) {}
       } else {
         // Complete the game! Victory
         this.triggerVictory();
@@ -789,6 +800,10 @@ export class GameEngine {
     this.clock.stop();
     if (this.animationFrameId) cancelAnimationFrame(this.animationFrameId);
 
+    try {
+      GameAudioEngine.getInstance().playSFX('lose');
+    } catch (e) {}
+
     // Fade to black screen overlay handled in React UI
     this.onStateUpdate(this);
   }
@@ -797,6 +812,10 @@ export class GameEngine {
     this.isVictory = true;
     this.clock.stop();
     if (this.animationFrameId) cancelAnimationFrame(this.animationFrameId);
+
+    try {
+      GameAudioEngine.getInstance().playSFX('win');
+    } catch (e) {}
 
     // Save final stats or unlocks
     this.checkUnlocks('victory', true);

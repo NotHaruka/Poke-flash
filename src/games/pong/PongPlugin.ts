@@ -388,7 +388,7 @@ export class PongPlugin implements MiniGamePlugin {
   }
 
   private updatePhysics() {
-    if (!this.canvas) return;
+    if (!this.canvas || this.isPaused) return;
     const width = this.canvas.width;
     const height = this.canvas.height;
 

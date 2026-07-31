@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { PlayerCharacter, Item, Rarity } from '../types';
 import { ITEMS } from './ItemSystem';
+import { GameAudioEngine } from '../games/core/GameAudioEngine';
 import { ParticleSystem } from './ParticleSystem';
 import { EnemyObject, BulletObject } from './EnemyAI';
 
@@ -394,6 +395,9 @@ export class PlayerController {
         5,
         0.2
       );
+      try {
+        GameAudioEngine.getInstance().playSFX('move');
+      } catch (e) {}
     }
   }
 
@@ -428,6 +432,9 @@ export class PlayerController {
 
     // Create dash dust trails
     this.particleSystem.createExplosion(this.group.position, 0xef4444, 8, 0.25);
+    try {
+      GameAudioEngine.getInstance().playSFX('swish');
+    } catch (e) {}
   }
 
   // Shoot double pistols or custom primary skill
@@ -454,6 +461,9 @@ export class PlayerController {
       // Artificer explosive Flame Bolt (Heavy orange flame bolts!)
       this.spawnPlayerBullet(bulletDir, this.stats.damage * 2.0, false, 0xf97316, 0.45);
     }
+    try {
+      GameAudioEngine.getInstance().playSFX('shoot');
+    } catch (e) {}
   }
 
   // Heavy secondary skill (e.g. Phase Round, Nano Bomb)
@@ -475,6 +485,9 @@ export class PlayerController {
       // Artificer charged lightning orb
       this.spawnPlayerBullet(bulletDir, this.stats.damage * 4.0, false, 0x8b5cf6, 0.9, 15.0);
     }
+    try {
+      GameAudioEngine.getInstance().playSFX('laser');
+    } catch (e) {}
   }
 
   // Ultimate / special ability (e.g. Missile Barrage, Flamethrower)
@@ -497,6 +510,9 @@ export class PlayerController {
           )).normalize();
           this.spawnPlayerBullet(spreadDir, this.stats.damage * 1.1, false, 0xfacc15, 0.3);
           shots++;
+          try {
+            GameAudioEngine.getInstance().playSFX('shoot');
+          } catch (e) {}
         } else {
           clearInterval(interval);
         }
@@ -652,6 +668,9 @@ export class PlayerController {
     
     // Visual flash/hit sparks
     this.particleSystem.createExplosion(this.group.position, 0xef4444, 6, 0.35);
+    try {
+      GameAudioEngine.getInstance().playSFX('hit');
+    } catch (e) {}
 
     if (this.stats.hp <= 0) {
       this.stats.hp = 0;
@@ -661,6 +680,12 @@ export class PlayerController {
   public earnRewards(xpReward: number, goldReward: number) {
     this.gold += goldReward;
     this.xp += xpReward;
+
+    if (goldReward > 0) {
+      try {
+        GameAudioEngine.getInstance().playSFX('gold');
+      } catch (e) {}
+    }
 
     // Level up check
     if (this.xp >= this.xpNeeded) {
@@ -686,6 +711,9 @@ export class PlayerController {
     // Golden explosion visual
     this.particleSystem.createExplosion(this.group.position, 0xfacc15, 25, 0.5);
     this.particleSystem.createVisualRing(this.group.position, 0xfacc15, 8, 0.5);
+    try {
+      GameAudioEngine.getInstance().playSFX('victory');
+    } catch (e) {}
   }
 
   // --- INPUT LISTENERS ---
