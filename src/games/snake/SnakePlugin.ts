@@ -112,10 +112,14 @@ export class SnakePlugin implements MiniGamePlugin {
       this.touchStartY = e.touches[0].clientY;
     };
     this.boundTouchEnd = (e: TouchEvent) => {
+      if (this.isGameOver) {
+        this.restartGame();
+        return;
+      }
       if (e.changedTouches.length === 0) return;
       const dx = e.changedTouches[0].clientX - this.touchStartX;
       const dy = e.changedTouches[0].clientY - this.touchStartY;
-      const minDistance = 40;
+      const minDistance = 30;
 
       if (Math.abs(dx) > Math.abs(dy)) {
         if (dx > minDistance && this.direction !== 'left') this.nextDirection = 'right';

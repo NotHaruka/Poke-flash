@@ -91,6 +91,25 @@ export class Game2048Plugin implements MiniGamePlugin {
     const savedHighScore = localStorage.getItem('ftp-2048-highscore');
     this.highScore = savedHighScore ? Number(savedHighScore) : 0;
 
+    // Setup Mobile Undo Bar
+    let ctrlBar = document.getElementById('g2048-mobile-bar');
+    if (!ctrlBar) {
+      ctrlBar = document.createElement('div');
+      ctrlBar.id = 'g2048-mobile-bar';
+      ctrlBar.style.cssText = 'position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; z-index: 20;';
+      ctrlBar.innerHTML = `
+        <button id="g2048-undo-btn" class="btn" style="padding: 8px 18px; font-size: 13px; font-weight: 700; border-radius: 20px; background: var(--surface2); color: var(--text); border: 1.5px solid var(--border2); box-shadow: var(--shadow-md);">
+          ↩ Undo Move
+        </button>
+      `;
+      const canvasContainer = document.getElementById('game-canvas-container');
+      if (canvasContainer) canvasContainer.appendChild(ctrlBar);
+
+      document.getElementById('g2048-undo-btn')?.addEventListener('click', () => {
+        this.undo();
+      });
+    }
+
     // Canvas init
     this.canvas = document.getElementById('game-canvas') as HTMLCanvasElement | null;
     if (!this.canvas) return;
@@ -592,6 +611,9 @@ export class Game2048Plugin implements MiniGamePlugin {
       this.canvas.removeEventListener('touchend', this.boundTouchEnd);
     }
     window.removeEventListener('resize', this.boundResize);
+
+    const ctrlBar = document.getElementById('g2048-mobile-bar');
+    if (ctrlBar) ctrlBar.remove();
 
     // Restore original panel header attributes
     const titleEl = document.getElementById('game-panel-title');
