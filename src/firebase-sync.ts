@@ -1143,7 +1143,7 @@ function formatFriendlyAuthError(errorText: string | null): string {
       <div style="font-weight: 600; margin-bottom: 6px; color: #FF8B8B; font-size: 13px;">🔒 Email Provider Disabled</div>
       <p style="margin: 0 0 10px 0; font-size: 11px; color: #E2E2E2; line-height: 1.4;">Email/Password registration is disabled in your Firebase Console. To enable it:</p>
       <ol style="margin: 0; padding-left: 18px; font-size: 11px; text-align: left; color: #A0A0C0; line-height: 1.5;">
-        <li>Go to <a href="https://console.firebase.google.com/project/${projectId}/authentication/providers" target="_blank" style="color: #a8ff78; text-decoration: underline; font-weight: bold;">Firebase Console → Authentication → Providers</a></li>
+        <li>Go to <a href="https://console.firebase.google.com/project/${projectId}/authentication/providers" target="_blank" style="color: var(--accent); text-decoration: underline; font-weight: bold;">Firebase Console → Authentication → Providers</a></li>
         <li>Click <strong>Add new provider</strong> and select <strong>Email/Password</strong>.</li>
         <li>Toggle <strong>Enable</strong> and click <strong>Save</strong>.</li>
       </ol>
@@ -1155,7 +1155,7 @@ function formatFriendlyAuthError(errorText: string | null): string {
       <div style="font-weight: 600; margin-bottom: 6px; color: #FF8B8B; font-size: 13px;">🌐 Unauthorized Domain</div>
       <p style="margin: 0 0 10px 0; font-size: 11px; color: #E2E2E2; line-height: 1.4;">Firebase authentication is not yet configured to trust this web domain. To authorize it:</p>
       <ol style="margin: 0; padding-left: 18px; font-size: 11px; text-align: left; color: #A0A0C0; line-height: 1.5;">
-        <li>Go to <a href="https://console.firebase.google.com/project/${projectId}/authentication/settings" target="_blank" style="color: #a8ff78; text-decoration: underline; font-weight: bold;">Firebase Console → Authentication → Settings</a></li>
+        <li>Go to <a href="https://console.firebase.google.com/project/${projectId}/authentication/settings" target="_blank" style="color: var(--accent); text-decoration: underline; font-weight: bold;">Firebase Console → Authentication → Settings</a></li>
         <li>Select the <strong>Authorized domains</strong> tab.</li>
         <li>Click <strong>Add domain</strong> and enter:<br><code style="background: #121220; padding: 2px 6px; border-radius: 4px; color: #fff; font-family: monospace; font-size: 10px; display: inline-block;">${currentDomain}</code></li>
       </ol>
@@ -1367,7 +1367,7 @@ function injectAuthStyles(): void {
       top: 0;
       left: 0;
       width: 100vw;
-      height: 100vh;
+      height: 100dvh;
       background: rgba(10, 10, 18, 0.95);
       display: flex;
       align-items: center;
@@ -1438,7 +1438,7 @@ function injectAuthStyles(): void {
       transition: border-color 0.2s;
     }
     .auth-input-group input:focus {
-      border-color: #a8ff78;
+      border-color: var(--accent);
     }
     .auth-actions {
       display: flex;
@@ -1457,8 +1457,8 @@ function injectAuthStyles(): void {
       transition: all 0.2s;
     }
     .auth-btn.primary {
-      background: #a8ff78;
-      color: #0A1A06;
+      background: var(--accent);
+      color: #ffffff;
     }
     .auth-btn.primary:hover {
       opacity: 0.9;

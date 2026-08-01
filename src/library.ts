@@ -93,7 +93,7 @@ async function confirmLibraryCreateDeck(): Promise<void> {
     modified: Date.now(),
     folderId: null,
     favorite: false,
-    color: '#a8ff78' // default forest green
+    color: '#3D7A5F' // default sage green
   };
   S.deckOrder.unshift(id);
 
@@ -339,7 +339,7 @@ async function createDeckInsideFolder(folderId: string, event: Event): Promise<v
     modified: Date.now(),
     folderId: folderId,
     favorite: false,
-    color: '#a8ff78'
+    color: '#3D7A5F'
   };
   S.deckOrder.unshift(id);
 
@@ -616,7 +616,7 @@ function renderLibrary(): void {
 
 // Single Deck card generator
 function renderLibraryDeckCard(d: any, folderOptionsHtml: string): string {
-  const color = d.color || '#a8ff78'; // fallback
+  const color = d.color || '#3D7A5F'; // fallback
   const dueBadge = d.dueCount > 0 ? `<span style="background:rgba(234, 179, 8, 0.12); color:#ffd700; border:1px solid rgba(234,179,8,0.25); font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px;">${d.dueCount} Due</span>` : '';
   const aiTag = d.ai ? `<span style="background:rgba(168,85,247,0.1); color:#c084fc; border:1px solid rgba(168,85,247,0.2); font-size:9px; font-weight:800; padding:1px 5px; border-radius:4px; text-transform:uppercase;">AI</span>` : '';
   const favIcon = d.favorite

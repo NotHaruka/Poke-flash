@@ -532,7 +532,7 @@ body.game-panel-active #panel-game {
 /* ─── BUTTONS ─────────────────────────────────────────────────────────── */
 .btn{
   display:inline-flex;align-items:center;gap:6px;
-  padding:9px 18px;border-radius:var(--rs);font-size:13px;font-weight:500;
+  padding:11px 18px;border-radius:var(--rs);font-size:13px;font-weight:500;
   cursor:pointer;font-family:inherit;transition:all 0.15s;
   border:1px solid var(--border2);background:var(--surface2);color:var(--text2);
   letter-spacing:0.015em;box-shadow:var(--shadow-sm);white-space:nowrap;
@@ -750,8 +750,7 @@ body.game-panel-active #panel-game {
 }
 .quiz-q{font-size:18px;font-weight:500;line-height:1.6;
   margin-bottom:24px;color:var(--text);letter-spacing:-.01em}
-.quiz-options{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-@media(max-width:600px){.quiz-options{grid-template-columns:1fr}}
+.quiz-options{display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:10px}
 .quiz-opt{
   padding:15px 18px;border-radius:var(--rs);border:1px solid var(--border);
   background:var(--surface2);color:var(--text2);font-size:14px;
@@ -816,7 +815,7 @@ body.game-panel-active #panel-game {
   border-radius:var(--r);padding:20px;margin-bottom:20px;
   box-shadow:var(--shadow-sm);
 }
-.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:14px;margin-bottom:14px}
 
 .cards-grid{display:flex;flex-direction:column;gap:6px}
 .crow{
@@ -1060,7 +1059,7 @@ body.dark .stab-bar {
 .qr-size-warn{font-size:11px;color:var(--yellow);margin-bottom:12px;display:none}
 
 /* ─── NOTES PANEL ───────────────────────────────────────────────────── */
-.notes-layout{display:flex;gap:0;height:calc(100vh - 130px);min-height:0;overflow:hidden}
+.notes-layout{display:flex;gap:0;height:calc(100dvh - 130px);min-height:0;overflow:hidden}
 .notes-left {
   display: flex;
   flex-direction: column;
@@ -1583,8 +1582,7 @@ body.dark .stab-bar {
   box-shadow:var(--shadow-sm)}
 .exam-setup h3{font-size:19px;font-weight:600;margin-bottom:6px;letter-spacing:-.02em}
 .exam-setup .exam-setup-sub{font-size:13px;color:var(--text2);margin-bottom:26px;line-height:1.6}
-.exam-opt-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:22px}
-@media(max-width:480px){.exam-opt-grid{grid-template-columns:1fr}}
+.exam-opt-grid{display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:10px;margin-bottom:22px}
 .exam-opt{border:1px solid var(--border);border-radius:var(--rs);
   padding:15px 16px;cursor:pointer;transition:all .15s;
   background:var(--surface2);text-align:left;box-shadow:var(--shadow-sm)}
@@ -1788,7 +1786,7 @@ body.lightweight .card-wrap{transition:none!important}
   .editor-hdr .btn{font-size:12px;padding:7px 12px}
   .drop-zone{padding:26px 16px}
   .dz-icon{font-size:28px}
-  .modal{width:92vw!important;padding:20px}
+  .modal{width:min(440px, 92vw) !important; max-height: calc(100dvh - 30px); overflow-y: auto; padding:20px}
   .ol-row{flex-direction:column}
   .ol-field{min-width:unset;width:100%}
   .deck-item{padding:11px 12px}
@@ -2284,14 +2282,14 @@ body.lightweight .card-wrap{transition:none!important}
 .panel#panel-chat.active {
   display: flex !important;
   flex-direction: column;
-  height: calc(100vh - 64px);
+  height: calc(100dvh - 64px);
   min-height: 0;
   box-sizing: border-box;
 }
 
 @media(max-width:768px) {
   .panel#panel-chat.active {
-    height: calc(100vh - 102px);
+    height: calc(100dvh - 102px);
   }
 }
 
@@ -6341,4 +6339,19 @@ select:active {
     letter-spacing: 0.01em;
     line-height: 1.5;
   }
+}
+
+/* ─── PRODUCTION READY ENHANCEMENTS & RESPONSIVE AUDIT REMEDIATION ─── */
+/* Ensure focus-visible outlines are ALWAYS visible on interactive elements when navigated via keyboard */
+*:focus-visible {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px !important;
+}
+button:focus-visible, 
+a:focus-visible, 
+input:focus-visible, 
+select:focus-visible, 
+textarea:focus-visible {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px !important;
 }

@@ -90,7 +90,7 @@ function initTheme(): void {
 
   const picker = document.getElementById('custom-accent-picker') as HTMLInputElement | null;
   const hexInp = document.getElementById('custom-accent-hex') as HTMLInputElement | null;
-  const cur = saved || '#a8ff78';
+  const cur = saved || '#C4613A';
   if (picker) picker.value = cur;
   if (hexInp) hexInp.value = cur;
   renderCustomRecents();
@@ -124,7 +124,7 @@ function applyCustomAccent(): void {
   
   const picker = document.getElementById('custom-accent-picker') as HTMLInputElement | null;
   const hexInp = document.getElementById('custom-accent-hex') as HTMLInputElement | null;
-  const hex = hexInp?.value.trim() || picker?.value || '#a8ff78';
+  const hex = hexInp?.value.trim() || picker?.value || '#C4613A';
   if (!/^#[0-9a-fA-F]{6}$/.test(hex)) { (window as any).toast('Enter a valid hex like #ff6b6b'); return; }
   const rgb = hexToRgb(hex);
   if (!rgb) return;

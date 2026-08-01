@@ -9,7 +9,7 @@ import { debounce, escH } from './utils.js';
 
 const Scratch = (() => {
   let canvas, ctx, drawing = false, brushSize = 4, erasing = false;
-  let color = '#a8ff78';
+  let color = '#3D7A5F';
   let lastX = 0, lastY = 0;
 
   function init() {

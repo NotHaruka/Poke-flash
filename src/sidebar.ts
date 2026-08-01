@@ -963,9 +963,14 @@ async function renderWelcomeDashboard() {
 
   // Fetch stats telemetry
   let localActivity: any = {};
+  let rawActivity: any = {};
   let streak = 0;
   let totalXP = 0;
   let todayReviews = 0;
+  let todayCorrect = 0;
+  let todayIncorrect = 0;
+  let todaySkipped = 0;
+  let todayTimeSpent = 0;
   let level = 1;
   let xpInLevel = 0;
   let xpNeeded = 100;
@@ -978,18 +983,36 @@ async function renderWelcomeDashboard() {
       streak = await (window as any).computeStreak(localActivity) || 0;
     }
     if (typeof (window as any).getActivityData === 'function') {
-      const rawActivity = await (window as any).getActivityData() || {};
+      rawActivity = await (window as any).getActivityData() || {};
       const todayString = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local format
       
       if (localActivity) {
         todayReviews = Number(localActivity[todayString] || 0);
       }
       
-      for (const stats of Object.values(rawActivity) as any[]) {
+      const tz = (window as any).getUserTimeZone ? (window as any).getUserTimeZone() : 'UTC';
+      for (const [timestamp, stats] of Object.entries(rawActivity)) {
+        let dayKey = timestamp.slice(0, 10);
+        if (typeof (window as any).getLocalDayString === 'function') {
+          dayKey = (window as any).getLocalDayString(timestamp, tz);
+        }
+
+        if (dayKey === todayString) {
+          if (typeof stats === 'number') {
+            todayCorrect += stats;
+            todayTimeSpent += stats * 4;
+          } else if (stats && typeof stats === 'object') {
+            todayCorrect += Number((stats as any).correct || 0);
+            todayIncorrect += Number((stats as any).incorrect || 0);
+            todaySkipped += Number((stats as any).skipped || 0);
+            todayTimeSpent += Number((stats as any).timeSpentSecs || 0);
+          }
+        }
+
         if (typeof stats === 'number') {
           totalXP += stats * 10;
         } else if (stats && typeof stats === 'object') {
-          totalXP += (Number(stats.correct || 0) * 10) + (Number(stats.incorrect || 0) * 2);
+          totalXP += (Number((stats as any).correct || 0) * 10) + (Number((stats as any).incorrect || 0) * 2);
         }
       }
     }
@@ -1028,36 +1051,149 @@ async function renderWelcomeDashboard() {
     elDueStatus.style.color = S.srsEnabled ? '#f87171' : '#9ca3af';
   }
 
-  const elLvl = document.getElementById('dashboard-lvl-display');
-  if (elLvl) {
-    elLvl.textContent = `L${level}`;
+  // Render Redesigned Today's Progress Bento Card
+  const progressCard = document.getElementById('dashboard-todays-progress-card');
+  if (progressCard) {
+    const targetPct = Math.min(100, Math.round((todayReviews / 20) * 100));
+    const todayTotalAnswered = todayCorrect + todayIncorrect;
+    const todayAccuracy = todayTotalAnswered > 0 ? Math.round((todayCorrect / todayTotalAnswered) * 100) : 0;
+    
+    let todayTimeStr = '0s';
+    if (todayTimeSpent > 0) {
+      const mins = Math.floor(todayTimeSpent / 60);
+      const secs = todayTimeSpent % 60;
+      todayTimeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+    }
+
+    const levelHtml = `
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="width:32px; height:32px; border-radius:50%; background:var(--accent-dim); border:1.5px solid var(--accent); display:flex; align-items:center; justify-content:center; font-family:var(--font-mono); font-weight:800; color:var(--accent); font-size:12px;">L${level}</div>
+        <div>
+          <div style="font-size:12px; font-weight:700; color:var(--text);">${totalXP} XP</div>
+          <div style="font-size:10px; color:var(--text3);">${xpNeeded - xpInLevel} XP to L${level+1}</div>
+        </div>
+      </div>
+    `;
+
+    progressCard.innerHTML = `
+      <div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <span style="font-size:11px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:0.05em;">Today's Study Progress</span>
+          <span style="font-size:11px; font-family:var(--font-serif); font-style:italic; color:var(--text3);">${new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+        </div>
+
+        <div style="display:flex; gap:16px; align-items:center; margin-bottom:16px; background:var(--surface3); border:1px solid var(--border); padding:12px; border-radius:var(--rs);">
+          <div style="position:relative; width:52px; height:52px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+            <svg width="52" height="52" viewBox="0 0 36 36" style="transform: rotate(-90deg);">
+              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="var(--border)" stroke-width="3" />
+              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="var(--accent)" stroke-width="3.5" stroke-dasharray="${targetPct}, 100" stroke-linecap="round" />
+            </svg>
+            <div style="position:absolute; font-family:var(--font-serif); font-weight:700; font-size:13px; color:var(--text);">${todayReviews}</div>
+          </div>
+          <div style="flex:1;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:13px; font-weight:700; color:var(--text);">${todayReviews} / 20 reviewed</span>
+              <span style="font-size:11px; font-weight:700; color:var(--accent);">${targetPct}% of goal</span>
+            </div>
+            <div style="font-size:10px; color:var(--text3); margin-top:2px;">Target review volume to retain cards.</div>
+          </div>
+        </div>
+
+        <!-- Metric breakdown grid -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+          <div style="background:var(--surface3); border:1px solid var(--border); border-radius:var(--rs); padding:10px;">
+            <div style="font-size:10px; color:var(--text3); text-transform:uppercase; font-weight:600; letter-spacing:0.02em;">XP Gained</div>
+            <div style="font-size:15px; font-weight:700; color:var(--accent); margin-top:2px; display:flex; align-items:center; gap:4px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:14px;height:14px;color:var(--accent);"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 3.5z"/></svg>
+              <span>+${todayCorrect * 10 + todayIncorrect * 2} XP</span>
+            </div>
+          </div>
+          <div style="background:var(--surface3); border:1px solid var(--border); border-radius:var(--rs); padding:10px;">
+            <div style="font-size:10px; color:var(--text3); text-transform:uppercase; font-weight:600; letter-spacing:0.02em;">Study Time</div>
+            <div style="font-size:15px; font-weight:700; color:var(--text); margin-top:2px; display:flex; align-items:center; gap:4px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:14px;height:14px;color:var(--text3);"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <span>${todayTimeStr}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Accuracy meter -->
+        <div style="background:var(--surface3); border:1px solid var(--border); border-radius:var(--rs); padding:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:10px; color:var(--text3); text-transform:uppercase; font-weight:600; letter-spacing:0.02em;">Recall Accuracy</span>
+            <span style="font-size:11px; font-weight:700; color:${todayAccuracy >= 85 ? 'var(--sage)' : (todayAccuracy >= 65 ? 'var(--yellow)' : 'var(--red)')};">${todayTotalAnswered > 0 ? todayAccuracy + '%' : 'N/A'}</span>
+          </div>
+          ${todayTotalAnswered > 0 ? `
+            <div style="background:var(--surface); height:5px; border-radius:3px; overflow:hidden; margin-top:6px;">
+              <div style="background:${todayAccuracy >= 85 ? 'var(--sage)' : (todayAccuracy >= 65 ? 'var(--yellow)' : 'var(--red)')}; width:${todayAccuracy}%; height:100%;"></div>
+            </div>
+          ` : `
+            <div style="font-size:11px; color:var(--text3); margin-top:4px; font-style:italic;">No responses logged yet today.</div>
+          `}
+        </div>
+      </div>
+      
+      <div style="border-top:1px solid var(--border); padding-top:12px; margin-top:14px; display:flex; justify-content:space-between; align-items:center;">
+        ${levelHtml}
+      </div>
+    `;
   }
 
-  const elXpSub = document.getElementById('dashboard-xp-sub');
-  if (elXpSub) {
-    elXpSub.textContent = `${totalXP} XP total`;
-  }
+  // Render Redesigned Recent Activity Feed
+  const recentActivityContainer = document.getElementById('dashboard-recent-activity');
+  if (recentActivityContainer) {
+    const activities = Object.entries(rawActivity).map(([timestamp, val]: [string, any]) => {
+      return { timestamp, ...val };
+    }).sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 4);
 
-  const elXpNeeded = document.getElementById('dashboard-xp-needed');
-  if (elXpNeeded) {
-    elXpNeeded.textContent = `${xpNeeded - xpInLevel} XP to next level`;
-  }
+    if (activities.length === 0) {
+      recentActivityContainer.innerHTML = `
+        <div style="text-align:center; padding:16px; color:var(--text3); font-size:12px; font-style:italic;">
+          No recent study activity logged yet. Select a deck to begin your learning journey!
+        </div>
+      `;
+    } else {
+      const getRelativeTimeString = (isoString: string): string => {
+        const ms = Date.now() - new Date(isoString).getTime();
+        const secs = Math.floor(ms / 1000);
+        if (secs < 60) return 'Just now';
+        const mins = Math.floor(secs / 60);
+        if (mins < 60) return `${mins}m ago`;
+        const hrs = Math.floor(mins / 60);
+        if (hrs < 24) return `${hrs}h ago`;
+        const days = Math.floor(hrs / 24);
+        if (days === 1) return 'Yesterday';
+        return new Date(isoString).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      };
 
-  const elXpBar = document.getElementById('dashboard-xp-progress-bar');
-  if (elXpBar) {
-    const pct = Math.min(100, Math.round((xpInLevel / xpNeeded) * 100));
-    elXpBar.style.width = `${pct}%`;
-  }
+      recentActivityContainer.innerHTML = activities.map(act => {
+        const deckName = S.decks[act.deckId]?.name || 'Practice Session';
+        const correct = Number(act.correct || 0);
+        const incorrect = Number(act.incorrect || 0);
+        const skipped = Number(act.skipped || 0);
+        const total = correct + incorrect + skipped;
+        const xp = (correct * 10) + (incorrect * 2);
+        const acc = total > 0 ? Math.round((correct / (correct + incorrect)) * 100) : 100;
+        const relativeTime = getRelativeTimeString(act.timestamp);
 
-  const elReviewedGoal = document.getElementById('dashboard-reviewed-goal');
-  if (elReviewedGoal) {
-    elReviewedGoal.textContent = `${todayReviews} / 20`;
-  }
+        let dotColor = 'var(--sage)';
+        if (acc < 60) dotColor = 'var(--red)';
+        else if (acc < 85) dotColor = 'var(--yellow)';
 
-  const elGoalBar = document.getElementById('dashboard-goal-progress-bar');
-  if (elGoalBar) {
-    const pct = Math.min(100, Math.round((todayReviews / 20) * 100));
-    elGoalBar.style.width = `${pct}%`;
+        return `
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; font-size:12px;">
+            <div style="display:flex; gap:10px; align-items:start;">
+              <div style="margin-top:4px; width:8px; height:8px; border-radius:50%; background:${dotColor}; flex-shrink:0; box-shadow:0 0 0 3px var(--surface3);"></div>
+              <div>
+                <div style="font-weight:700; color:var(--text);">${escH(deckName)}</div>
+                <div style="color:var(--text3); font-size:11px; margin-top:2px;">Reviewed ${total} card${total !== 1 ? 's' : ''} · ${correct} correct, ${incorrect} wrong · <span style="color:var(--accent); font-weight:600;">+${xp} XP</span></div>
+              </div>
+            </div>
+            <div style="color:var(--text3); font-size:11px; font-family:var(--font-mono); white-space:nowrap;">${relativeTime}</div>
+          </div>
+        `;
+      }).join('');
+    }
   }
 
   // Populate Continual Studying / Recent Decks grid
@@ -1081,7 +1217,7 @@ async function renderWelcomeDashboard() {
       }).slice(0, 3); // top 3 recently active decks
 
       recentDecksContainer.innerHTML = sorted.map(d => {
-        const color = d.color || '#a8ff78';
+        const color = d.color || '#3D7A5F';
         const dBadge = d.dueCount > 0 ? `<span style="background:rgba(234,179,8,0.12); color:#ffd700; font-size:11px; font-weight:700; padding:1px 6px; border-radius:6px;">${d.dueCount} due</span>` : '';
         return `
           <div style="background:var(--surface2); border:1.5px solid var(--border); border-radius:var(--rs); padding:16px; position:relative; display:flex; flex-direction:column; justify-content:space-between; cursor:pointer;"
