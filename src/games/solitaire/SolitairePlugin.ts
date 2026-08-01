@@ -1,5 +1,6 @@
 import { MiniGamePlugin } from '../core/GamePlugin';
 import { GameLaunchContext } from '../core/GameLaunchContext';
+import { GameOverlayManager } from '../core/GameOverlayManager';
 import { resetGameCanvas } from '../../game.js';
 
 type Suit = 'H' | 'D' | 'C' | 'S'; // Hearts, Diamonds, Clubs, Spades
@@ -35,6 +36,8 @@ export class SolitairePlugin implements MiniGamePlugin {
   private ctx: CanvasRenderingContext2D | null = null;
   private animationFrameId: number | null = null;
   private isRunning = false;
+  private overlayManager: GameOverlayManager | null = null;
+  private context: GameLaunchContext | null = null;
 
   private stock: Card[] = [];
   private waste: Card[] = [];
@@ -61,6 +64,7 @@ export class SolitairePlugin implements MiniGamePlugin {
   private boundResize: any;
 
   launch(context: GameLaunchContext): void {
+    this.context = context;
     if (window.setPanel) {
       window.setPanel('game');
     }
@@ -88,6 +92,34 @@ export class SolitairePlugin implements MiniGamePlugin {
     this.ctx = this.canvas.getContext('2d');
     if (!this.ctx) return;
 
+    this.overlayManager = new GameOverlayManager('game-canvas-container', {
+      onRestart: () => this.startNewGame(),
+      onExit: () => {
+        if (this.context?.onExit) this.context.onExit();
+      }
+    });
+
+    this.overlayManager.showInstructions({
+      title: 'KLONDIKE SOLITAIRE',
+      subtitle: 'Classic Card Puzzle',
+      description: 'Build foundations from Ace to King by suit while sorting alternating-color card cascades in the tableau.',
+      objective: 'Clear all cards to the four top-right foundation piles.',
+      controls: [
+        { key: 'Tap Stock', action: 'Draw card to waste pile' },
+        { key: 'Tap Card', action: 'Select or auto-move card' }
+      ],
+      onStart: () => {
+        this.overlayManager?.hideInstructions();
+        this.overlayManager?.setupHUD([
+          { id: 'moves', label: 'Moves', value: '0' },
+          { id: 'time', label: 'Time', value: '0s' }
+        ]);
+        this.startGame();
+      }
+    });
+  }
+
+  private startGame() {
     this.isRunning = true;
     this.startNewGame();
     this.resizeCanvas();
@@ -128,10 +160,14 @@ export class SolitairePlugin implements MiniGamePlugin {
   private startNewGame() {
     this.movesCount = 0;
     this.timerSeconds = 0;
+    this.overlayManager?.updateStat('moves', 0);
+    this.overlayManager?.updateStat('time', '0s');
+
     if (this.timerInterval) clearInterval(this.timerInterval);
     this.timerInterval = setInterval(() => {
       if (!this.isWon && this.isRunning) {
         this.timerSeconds++;
+        this.overlayManager?.updateStat('time', `${this.timerSeconds}s`);
       }
     }, 1000);
 
@@ -356,6 +392,7 @@ export class SolitairePlugin implements MiniGamePlugin {
 
     this.movesCount++;
     this.updateHeaderScore();
+    this.overlayManager?.updateStat('moves', this.movesCount);
     this.playSFX('move');
     this.selectedCard = null;
 
@@ -372,10 +409,28 @@ export class SolitairePlugin implements MiniGamePlugin {
 
   private checkVictory() {
     const totalFoundations = this.foundations.reduce((sum, f) => sum + f.length, 0);
-    if (totalFoundations === 52) {
+    if (totalFoundations === 52 && !this.isWon) {
       this.isWon = true;
-      this.statusMessage = "SOLITAIRE VICTORIOUS! CONGRATULATIONS!";
+      this.statusMessage = "SOLITAIRE VICTORIOUS!";
       this.playSFX('win');
+      setTimeout(() => {
+        this.overlayManager?.showResults({
+          title: 'KLONDIKE VICTORY! 🎴',
+          subtitle: `Cleared all 52 cards in ${this.movesCount} moves!`,
+          isWin: true,
+          stats: [
+            { label: 'Total Moves', value: String(this.movesCount) },
+            { label: 'Time Elapsed', value: `${this.timerSeconds}s` }
+          ],
+          onRestart: () => {
+            this.overlayManager?.hideResults();
+            this.startNewGame();
+          },
+          onExit: () => {
+            if (this.context?.onExit) this.context.onExit();
+          }
+        });
+      }, 300);
     }
   }
 
@@ -608,6 +663,10 @@ export class SolitairePlugin implements MiniGamePlugin {
       this.canvas.removeEventListener('touchstart', this.boundTouchStart);
     }
     window.removeEventListener('resize', this.boundResize);
+    if (this.overlayManager) {
+      this.overlayManager.destroy();
+      this.overlayManager = null;
+    }
 
     const titleEl = document.getElementById('game-panel-title');
     const subtitleEl = document.getElementById('game-panel-subtitle');

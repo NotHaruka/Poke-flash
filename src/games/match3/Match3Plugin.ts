@@ -1,5 +1,6 @@
 import { MiniGamePlugin } from '../core/GamePlugin';
 import { GameLaunchContext } from '../core/GameLaunchContext';
+import { GameOverlayManager } from '../core/GameOverlayManager';
 import { resetGameCanvas } from '../../game.js';
 
 export class Match3Plugin implements MiniGamePlugin {
@@ -26,6 +27,7 @@ export class Match3Plugin implements MiniGamePlugin {
   private ctx: CanvasRenderingContext2D | null = null;
   private animationFrameId: number | null = null;
   private isRunning = false;
+  private overlayManager: GameOverlayManager | null = null;
 
   private gridSize = 7;
   private grid: number[][] = [];
@@ -67,6 +69,30 @@ export class Match3Plugin implements MiniGamePlugin {
     this.ctx = this.canvas.getContext('2d');
     if (!this.ctx) return;
 
+    this.overlayManager = new GameOverlayManager('game-canvas-container', {
+      onRestart: () => this.resetBoard()
+    });
+
+    this.overlayManager.showInstructions({
+      title: 'GEM MATCH CASCADE',
+      subtitle: 'Match-3 Cascade Puzzle',
+      description: 'Swap adjacent gems to align 3 or more matching colors in rows or columns to trigger explosive cascades.',
+      objective: 'Maximize your total score within 20 moves.',
+      controls: [
+        { key: 'Tap 2 Gems', action: 'Swap adjacent gems' }
+      ],
+      onStart: () => {
+        this.overlayManager?.hideInstructions();
+        this.overlayManager?.setupHUD([
+          { id: 'score', label: 'Score', value: '0' },
+          { id: 'moves', label: 'Moves', value: '20' }
+        ]);
+        this.startGame();
+      }
+    });
+  }
+
+  private startGame() {
     this.isRunning = true;
     this.resetBoard();
     this.resizeCanvas();
@@ -75,9 +101,11 @@ export class Match3Plugin implements MiniGamePlugin {
     this.boundTouchStart = this.handleTouchStart.bind(this);
     this.boundResize = this.resizeCanvas.bind(this);
 
-    this.canvas.style.touchAction = 'none';
-    this.canvas.addEventListener('mousedown', this.boundMouseDown);
-    this.canvas.addEventListener('touchstart', this.boundTouchStart, { passive: false });
+    if (this.canvas) {
+      this.canvas.style.touchAction = 'none';
+      this.canvas.addEventListener('mousedown', this.boundMouseDown);
+      this.canvas.addEventListener('touchstart', this.boundTouchStart, { passive: false });
+    }
     window.addEventListener('resize', this.boundResize);
 
     this.tick();
@@ -88,6 +116,8 @@ export class Match3Plugin implements MiniGamePlugin {
     this.movesLeft = 20;
     this.isGameOver = false;
     this.selected = null;
+    this.overlayManager?.updateStat('score', 0);
+    this.overlayManager?.updateStat('moves', 20);
 
     this.grid = Array(7).fill(null).map(() => Array(7).fill(0).map(() => Math.floor(Math.random() * 5)));
     this.resolveMatches();
@@ -149,7 +179,25 @@ export class Match3Plugin implements MiniGamePlugin {
           const matched = this.resolveMatches();
           if (matched) {
             this.movesLeft--;
-            if (this.movesLeft <= 0) this.isGameOver = true;
+            this.overlayManager?.updateStat('moves', this.movesLeft);
+            if (this.movesLeft <= 0) {
+              this.isGameOver = true;
+              setTimeout(() => {
+                this.overlayManager?.showResults({
+                  title: 'GAME OVER 💎',
+                  subtitle: `You scored ${this.score} points in 20 moves!`,
+                  isWin: true,
+                  score: this.score,
+                  stats: [
+                    { label: 'Final Score', value: this.score }
+                  ],
+                  onRestart: () => {
+                    this.overlayManager?.hideResults();
+                    this.resetBoard();
+                  }
+                });
+              }, 300);
+            }
           } else {
             // Undo invalid swap
             this.grid[row][col] = this.grid[sr][sc];
@@ -187,6 +235,7 @@ export class Match3Plugin implements MiniGamePlugin {
     if (matches.length > 0) {
       matchedAny = true;
       this.score += matches.length * 10;
+      this.overlayManager?.updateStat('score', this.score);
       const scoreVal = document.getElementById('bb-score-val');
       if (scoreVal) scoreVal.textContent = String(this.score);
 
@@ -271,5 +320,9 @@ export class Match3Plugin implements MiniGamePlugin {
       this.canvas.removeEventListener('touchstart', this.boundTouchStart);
     }
     window.removeEventListener('resize', this.boundResize);
+    if (this.overlayManager) {
+      this.overlayManager.destroy();
+      this.overlayManager = null;
+    }
   }
 }

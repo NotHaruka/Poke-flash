@@ -1,5 +1,6 @@
 import { MiniGamePlugin } from '../core/GamePlugin';
 import { GameLaunchContext } from '../core/GameLaunchContext';
+import { GameOverlayManager } from '../core/GameOverlayManager';
 import { resetGameCanvas } from '../../game.js';
 
 export class NonogramPlugin implements MiniGamePlugin {
@@ -26,6 +27,7 @@ export class NonogramPlugin implements MiniGamePlugin {
   private ctx: CanvasRenderingContext2D | null = null;
   private animationFrameId: number | null = null;
   private isRunning = false;
+  private overlayManager: GameOverlayManager | null = null;
 
   private gridSize = 5;
   private solution: boolean[][] = [];
@@ -69,6 +71,30 @@ export class NonogramPlugin implements MiniGamePlugin {
     this.ctx = this.canvas.getContext('2d');
     if (!this.ctx) return;
 
+    this.overlayManager = new GameOverlayManager('game-canvas-container', {
+      onRestart: () => this.generatePuzzle(5)
+    });
+
+    this.overlayManager.showInstructions({
+      title: 'PICROSS NONOGRAM',
+      subtitle: 'Picture Logic Grid Puzzle',
+      description: 'Deduce hidden pixel art grid patterns by analyzing row and column numbers. Mark filled tiles and X obstacles with precision.',
+      objective: 'Reveal the correct pixel art pattern without making mistakes.',
+      controls: [
+        { key: 'Tap Cell', action: 'Fill or place X based on current mode' },
+        { key: 'Toggle Mode', action: 'Switch between Fill and X tools' }
+      ],
+      onStart: () => {
+        this.overlayManager?.hideInstructions();
+        this.overlayManager?.setupHUD([
+          { id: 'mistakes', label: 'Mistakes', value: '0' }
+        ]);
+        this.startGame();
+      }
+    });
+  }
+
+  private startGame() {
     this.isRunning = true;
     this.generatePuzzle(5);
     this.resizeCanvas();
@@ -77,9 +103,11 @@ export class NonogramPlugin implements MiniGamePlugin {
     this.boundTouchStart = this.handleTouchStart.bind(this);
     this.boundResize = this.resizeCanvas.bind(this);
 
-    this.canvas.style.touchAction = 'none';
-    this.canvas.addEventListener('mousedown', this.boundMouseDown);
-    this.canvas.addEventListener('touchstart', this.boundTouchStart, { passive: false });
+    if (this.canvas) {
+      this.canvas.style.touchAction = 'none';
+      this.canvas.addEventListener('mousedown', this.boundMouseDown);
+      this.canvas.addEventListener('touchstart', this.boundTouchStart, { passive: false });
+    }
     window.addEventListener('resize', this.boundResize);
 
     this.tick();
@@ -90,6 +118,7 @@ export class NonogramPlugin implements MiniGamePlugin {
     this.mistakes = 0;
     this.isWon = false;
     this.statusMessage = 'Deduce the picture!';
+    this.overlayManager?.updateStat('mistakes', 0);
 
     // Generate random solution
     this.solution = Array(size).fill(null).map(() => Array(size).fill(false).map(() => Math.random() > 0.4));
@@ -184,6 +213,7 @@ export class NonogramPlugin implements MiniGamePlugin {
           this.playerGrid[row][col] = 'fill';
           if (!this.solution[row][col]) {
             this.mistakes++;
+            this.overlayManager?.updateStat('mistakes', this.mistakes);
             const scoreVal = document.getElementById('bb-score-val');
             if (scoreVal) scoreVal.textContent = String(this.mistakes);
           }
@@ -204,9 +234,25 @@ export class NonogramPlugin implements MiniGamePlugin {
         if (!this.solution[r][c] && this.playerGrid[r][c] === 'fill') won = false;
       }
     }
-    if (won) {
+    if (won && !this.isWon) {
       this.isWon = true;
-      this.statusMessage = 'PUZZLE SOLVED! Tap to next level.';
+      this.statusMessage = 'PUZZLE SOLVED!';
+      const nextSize = this.gridSize === 5 ? 10 : 5;
+      setTimeout(() => {
+        this.overlayManager?.showResults({
+          title: 'PICTURE REVEALED! 🎨',
+          subtitle: `Solved with ${this.mistakes} mistakes!`,
+          isWin: true,
+          stats: [
+            { label: 'Grid Size', value: `${this.gridSize}x${this.gridSize}` },
+            { label: 'Mistakes', value: String(this.mistakes) }
+          ],
+          onRestart: () => {
+            this.overlayManager?.hideResults();
+            this.generatePuzzle(nextSize);
+          }
+        });
+      }, 300);
     }
   }
 
@@ -286,5 +332,9 @@ export class NonogramPlugin implements MiniGamePlugin {
       this.canvas.removeEventListener('touchstart', this.boundTouchStart);
     }
     window.removeEventListener('resize', this.boundResize);
+    if (this.overlayManager) {
+      this.overlayManager.destroy();
+      this.overlayManager = null;
+    }
   }
 }

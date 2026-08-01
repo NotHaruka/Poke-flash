@@ -414,7 +414,7 @@ export class ReversiPlugin implements MiniGamePlugin {
   }
 
   private makeAIMove() {
-    if (this.isGameOver || this.validMoves.length === 0 || !this.isRunning) return;
+    if (this.isGameOver || this.validMoves.length === 0 || !this.isRunning || this.isPaused || this.gameMode !== 'vsAI' || this.currentPlayer !== 'white') return;
 
     // Positional evaluation weights (Corners are heavily valued!)
     const weights = [

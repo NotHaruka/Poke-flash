@@ -547,8 +547,7 @@ export class GameScene extends Phaser.Scene {
       }
 
       if (pauseOverlay) {
-        pauseOverlay.style.display = 'flex';
-        pauseOverlay.style.pointerEvents = 'auto';
+        pauseOverlay.style.display = 'none';
       }
     } else {
       this.physics.resume();

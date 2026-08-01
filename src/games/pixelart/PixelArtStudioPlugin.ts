@@ -1,5 +1,6 @@
 import { MiniGamePlugin } from '../core/GamePlugin';
 import { GameLaunchContext } from '../core/GameLaunchContext';
+import { GameOverlayManager } from '../core/GameOverlayManager';
 import { resetGameCanvas } from '../../game.js';
 
 export class PixelArtStudioPlugin implements MiniGamePlugin {
@@ -26,6 +27,7 @@ export class PixelArtStudioPlugin implements MiniGamePlugin {
   private ctx: CanvasRenderingContext2D | null = null;
   private animationFrameId: number | null = null;
   private isRunning = false;
+  private overlayManager: GameOverlayManager | null = null;
 
   private gridSize = 16;
   private grid: string[][] = [];
@@ -70,6 +72,31 @@ export class PixelArtStudioPlugin implements MiniGamePlugin {
     this.ctx = this.canvas.getContext('2d');
     if (!this.ctx) return;
 
+    this.overlayManager = new GameOverlayManager('game-canvas-container', {
+      onRestart: () => this.resetGrid()
+    });
+
+    this.overlayManager.showInstructions({
+      title: 'PIXEL ART CANVAS',
+      subtitle: 'Retro Pixel Painting Studio',
+      description: 'Express your creativity with a retro 16x16 pixel canvas, vibrant color palette, bucket fill, and eraser tools.',
+      objective: 'Paint and design pixel art masterpieces.',
+      controls: [
+        { key: 'Pencil / Tap', action: 'Draw pixels with selected color' },
+        { key: 'Bucket Fill', action: 'Fill connected matching region' },
+        { key: 'Eraser', action: 'Clear pixel back to background' }
+      ],
+      onStart: () => {
+        this.overlayManager?.hideInstructions();
+        this.overlayManager?.setupHUD([
+          { id: 'pixels', label: 'Painted Pixels', value: '0' }
+        ]);
+        this.startGame();
+      }
+    });
+  }
+
+  private startGame() {
     this.isRunning = true;
     this.resetGrid();
     this.resizeCanvas();
@@ -84,15 +111,15 @@ export class PixelArtStudioPlugin implements MiniGamePlugin {
 
     this.boundResize = this.resizeCanvas.bind(this);
 
-    this.canvas.style.touchAction = 'none';
-    this.canvas.addEventListener('mousedown', this.boundMouseDown);
-    this.canvas.addEventListener('mousemove', this.boundMouseMove);
+    if (this.canvas) {
+      this.canvas.style.touchAction = 'none';
+      this.canvas.addEventListener('mousedown', this.boundMouseDown);
+      this.canvas.addEventListener('mousemove', this.boundMouseMove);
+      this.canvas.addEventListener('touchstart', this.boundTouchStart, { passive: false });
+      this.canvas.addEventListener('touchmove', this.boundTouchMove, { passive: false });
+    }
     window.addEventListener('mouseup', this.boundMouseUp);
-
-    this.canvas.addEventListener('touchstart', this.boundTouchStart, { passive: false });
-    this.canvas.addEventListener('touchmove', this.boundTouchMove, { passive: false });
     window.addEventListener('touchend', this.boundTouchEnd);
-
     window.addEventListener('resize', this.boundResize);
 
     this.tick();
@@ -294,5 +321,9 @@ export class PixelArtStudioPlugin implements MiniGamePlugin {
     window.removeEventListener('mouseup', this.boundMouseUp);
     window.removeEventListener('touchend', this.boundTouchEnd);
     window.removeEventListener('resize', this.boundResize);
+    if (this.overlayManager) {
+      this.overlayManager.destroy();
+      this.overlayManager = null;
+    }
   }
 }

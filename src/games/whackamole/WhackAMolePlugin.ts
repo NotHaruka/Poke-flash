@@ -1,5 +1,6 @@
 import { MiniGamePlugin } from '../core/GamePlugin';
 import { GameLaunchContext } from '../core/GameLaunchContext';
+import { GameOverlayManager } from '../core/GameOverlayManager';
 import { resetGameCanvas } from '../../game.js';
 
 interface Hole {
@@ -30,6 +31,7 @@ export class WhackAMolePlugin implements MiniGamePlugin {
   private ctx: CanvasRenderingContext2D | null = null;
   private animationFrameId: number | null = null;
   private isRunning = false;
+  private overlayManager: GameOverlayManager | null = null;
 
   private holes: Hole[] = [];
   private score = 0;
@@ -65,6 +67,30 @@ export class WhackAMolePlugin implements MiniGamePlugin {
     this.ctx = this.canvas.getContext('2d');
     if (!this.ctx) return;
 
+    this.overlayManager = new GameOverlayManager('game-canvas-container', {
+      onRestart: () => this.resetGame()
+    });
+
+    this.overlayManager.showInstructions({
+      title: 'WHACK-A-MOLE BLITZ',
+      subtitle: 'Reflex Tap Arcade',
+      description: 'Test your reaction speed by whacking moles as they pop out of their holes. Hit golden moles for bonus multipliers and avoid bombs!',
+      objective: 'Whack normal and golden moles to score points before time runs out. Avoid red bombs!',
+      controls: [
+        { key: 'Tap / Click', action: 'Whack popping mole' }
+      ],
+      onStart: () => {
+        this.overlayManager?.hideInstructions();
+        this.overlayManager?.setupHUD([
+          { id: 'score', label: 'Score', value: '0' },
+          { id: 'time', label: 'Time', value: '30s' }
+        ]);
+        this.startGame();
+      }
+    });
+  }
+
+  private startGame() {
     this.isRunning = true;
     this.resizeCanvas();
     this.resetGame();
@@ -73,9 +99,11 @@ export class WhackAMolePlugin implements MiniGamePlugin {
     this.boundTouchStart = this.handleTouchStart.bind(this);
     this.boundResize = this.resizeCanvas.bind(this);
 
-    this.canvas.style.touchAction = 'none';
-    this.canvas.addEventListener('mousedown', this.boundMouseDown);
-    this.canvas.addEventListener('touchstart', this.boundTouchStart, { passive: false });
+    if (this.canvas) {
+      this.canvas.style.touchAction = 'none';
+      this.canvas.addEventListener('mousedown', this.boundMouseDown);
+      this.canvas.addEventListener('touchstart', this.boundTouchStart, { passive: false });
+    }
     window.addEventListener('resize', this.boundResize);
 
     this.tick();
@@ -85,14 +113,32 @@ export class WhackAMolePlugin implements MiniGamePlugin {
     this.score = 0;
     this.timeLeft = 30;
     this.isGameOver = false;
+    this.overlayManager?.updateStat('score', 0);
+    this.overlayManager?.updateStat('time', '30s');
 
     if (this.timerInterval) clearInterval(this.timerInterval);
     this.timerInterval = setInterval(() => {
       if (this.isRunning && !this.isGameOver) {
         this.timeLeft--;
+        this.overlayManager?.updateStat('time', `${this.timeLeft}s`);
         if (this.timeLeft <= 0) {
           this.isGameOver = true;
           clearInterval(this.timerInterval);
+          setTimeout(() => {
+            this.overlayManager?.showResults({
+              title: 'TIME EXPIRED! ⏱️',
+              subtitle: `You scored ${this.score} points!`,
+              isWin: true,
+              score: this.score,
+              stats: [
+                { label: 'Final Score', value: this.score }
+              ],
+              onRestart: () => {
+                this.overlayManager?.hideResults();
+                this.resetGame();
+              }
+            });
+          }, 300);
         }
       }
     }, 1000);
@@ -161,6 +207,7 @@ export class WhackAMolePlugin implements MiniGamePlugin {
           this.score += 100;
         }
         hole.moleTime = 0;
+        this.overlayManager?.updateStat('score', this.score);
         const scoreVal = document.getElementById('bb-score-val');
         if (scoreVal) scoreVal.textContent = String(this.score);
         return;
@@ -237,5 +284,9 @@ export class WhackAMolePlugin implements MiniGamePlugin {
       this.canvas.removeEventListener('touchstart', this.boundTouchStart);
     }
     window.removeEventListener('resize', this.boundResize);
+    if (this.overlayManager) {
+      this.overlayManager.destroy();
+      this.overlayManager = null;
+    }
   }
 }

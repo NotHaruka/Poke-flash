@@ -1,5 +1,6 @@
 import { MiniGamePlugin } from '../core/GamePlugin';
 import { GameLaunchContext } from '../core/GameLaunchContext';
+import { GameOverlayManager } from '../core/GameOverlayManager';
 import { resetGameCanvas } from '../../game.js';
 
 export class WaterSortPlugin implements MiniGamePlugin {
@@ -26,6 +27,7 @@ export class WaterSortPlugin implements MiniGamePlugin {
   private ctx: CanvasRenderingContext2D | null = null;
   private animationFrameId: number | null = null;
   private isRunning = false;
+  private overlayManager: GameOverlayManager | null = null;
 
   private selectedTube: number | null = null;
   private tubes: string[][] = [];
@@ -70,6 +72,30 @@ export class WaterSortPlugin implements MiniGamePlugin {
     this.ctx = this.canvas.getContext('2d');
     if (!this.ctx) return;
 
+    this.overlayManager = new GameOverlayManager('game-canvas-container', {
+      onRestart: () => this.loadLevel(this.currentLevel)
+    });
+
+    this.overlayManager.showInstructions({
+      title: 'WATER SORT PUZZLE',
+      subtitle: 'Color Sorting Challenge',
+      description: 'Pour colored liquids between test tubes until every tube contains only a single uniform color.',
+      objective: 'Sort all test tubes so that each tube holds a single color or is completely empty.',
+      controls: [
+        { key: 'Tap Tube', action: 'Select tube to pour from / to' }
+      ],
+      onStart: () => {
+        this.overlayManager?.hideInstructions();
+        this.overlayManager?.setupHUD([
+          { id: 'level', label: 'Level', value: '1' },
+          { id: 'moves', label: 'Moves', value: '0' }
+        ]);
+        this.startGame();
+      }
+    });
+  }
+
+  private startGame() {
     this.isRunning = true;
     this.loadLevel(1);
     this.resizeCanvas();
@@ -78,9 +104,11 @@ export class WaterSortPlugin implements MiniGamePlugin {
     this.boundTouchStart = this.handleTouchStart.bind(this);
     this.boundResize = this.resizeCanvas.bind(this);
 
-    this.canvas.style.touchAction = 'none';
-    this.canvas.addEventListener('mousedown', this.boundMouseDown);
-    this.canvas.addEventListener('touchstart', this.boundTouchStart, { passive: false });
+    if (this.canvas) {
+      this.canvas.style.touchAction = 'none';
+      this.canvas.addEventListener('mousedown', this.boundMouseDown);
+      this.canvas.addEventListener('touchstart', this.boundTouchStart, { passive: false });
+    }
     window.addEventListener('resize', this.boundResize);
 
     this.tick();
@@ -93,6 +121,8 @@ export class WaterSortPlugin implements MiniGamePlugin {
     this.isWon = false;
     this.history = [];
     this.statusMessage = 'Pour matching liquids into tubes';
+    this.overlayManager?.updateStat('level', lvl);
+    this.overlayManager?.updateStat('moves', 0);
 
     const colorCount = Math.min(3 + Math.floor((lvl - 1) / 2), 6);
     const usedColors = this.colors.slice(0, colorCount);
@@ -197,6 +227,7 @@ export class WaterSortPlugin implements MiniGamePlugin {
       dst.push(src.pop()!);
     }
     this.moves++;
+    this.overlayManager?.updateStat('moves', this.moves);
 
     this.checkWin();
   }
@@ -208,9 +239,25 @@ export class WaterSortPlugin implements MiniGamePlugin {
         won = false;
       }
     }
-    if (won) {
+    if (won && !this.isWon) {
       this.isWon = true;
-      this.statusMessage = 'ALL TUBES SORTED! Tap for next level';
+      this.statusMessage = 'ALL TUBES SORTED!';
+      const nextLvl = this.currentLevel + 1;
+      setTimeout(() => {
+        this.overlayManager?.showResults({
+          title: 'LEVEL CLEARED! 🧪',
+          subtitle: `Sorted all liquids in ${this.moves} moves!`,
+          isWin: true,
+          stats: [
+            { label: 'Completed Level', value: this.currentLevel },
+            { label: 'Total Moves', value: String(this.moves) }
+          ],
+          onRestart: () => {
+            this.overlayManager?.hideResults();
+            this.loadLevel(nextLvl);
+          }
+        });
+      }, 300);
     }
   }
 
@@ -275,5 +322,9 @@ export class WaterSortPlugin implements MiniGamePlugin {
       this.canvas.removeEventListener('touchstart', this.boundTouchStart);
     }
     window.removeEventListener('resize', this.boundResize);
+    if (this.overlayManager) {
+      this.overlayManager.destroy();
+      this.overlayManager = null;
+    }
   }
 }

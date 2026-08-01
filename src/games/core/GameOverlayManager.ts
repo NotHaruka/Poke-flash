@@ -115,7 +115,8 @@ export class GameOverlayManager {
     this.instructionsElement.style.cssText = `
       position: absolute;
       inset: 0;
-      background: rgba(8, 9, 18, 0.92);
+      background: var(--bg);
+      opacity: 0.96;
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
       display: none;
@@ -126,6 +127,7 @@ export class GameOverlayManager {
       pointer-events: auto;
       z-index: 50;
       overflow-y: auto;
+      color: var(--text);
     `;
     this.overlayRoot.appendChild(this.instructionsElement);
 
@@ -135,7 +137,8 @@ export class GameOverlayManager {
     this.pauseElement.style.cssText = `
       position: absolute;
       inset: 0;
-      background: rgba(8, 9, 18, 0.90);
+      background: var(--bg);
+      opacity: 0.95;
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
       display: none;
@@ -145,6 +148,7 @@ export class GameOverlayManager {
       padding: 20px;
       pointer-events: auto;
       z-index: 60;
+      color: var(--text);
     `;
     this.overlayRoot.appendChild(this.pauseElement);
 
@@ -154,7 +158,8 @@ export class GameOverlayManager {
     this.resultsElement.style.cssText = `
       position: absolute;
       inset: 0;
-      background: rgba(8, 9, 18, 0.94);
+      background: var(--bg);
+      opacity: 0.96;
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
       display: none;
@@ -165,6 +170,7 @@ export class GameOverlayManager {
       pointer-events: auto;
       z-index: 70;
       overflow-y: auto;
+      color: var(--text);
     `;
     this.overlayRoot.appendChild(this.resultsElement);
 
@@ -179,16 +185,16 @@ export class GameOverlayManager {
       showInstructions?: boolean;
       showAudio?: boolean;
       showRestart?: boolean;
-    } = { showPause: true, showInstructions: true, showAudio: true, showRestart: true }
+    } = { showPause: false, showInstructions: true, showAudio: false, showRestart: false }
   ): void {
     if (!this.hudElement) return;
 
     const statsHTML = stats
       .map(
         s => `
-        <div style="background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 8px; padding: 4px 10px; display: flex; align-items: center; gap: 6px;">
-          <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">${s.label}:</span>
-          <span id="ftp-hud-stat-${s.id || s.label.toLowerCase().replace(/\s+/g, '-')}" style="font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 800; color: #38bdf8;">${s.value}</span>
+        <div style="background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 4px 10px; display: flex; align-items: center; gap: 6px; box-shadow: var(--shadow-sm);">
+          <span style="font-size: 10px; color: var(--text3); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">${s.label}:</span>
+          <span id="ftp-hud-stat-${s.id || s.label.toLowerCase().replace(/\s+/g, '-')}" style="font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 800; color: var(--accent);">${s.value}</span>
         </div>
       `
       )
@@ -202,23 +208,23 @@ export class GameOverlayManager {
       </div>
       <div style="display: flex; gap: 6px; align-items: center;">
         ${
-          options.showAudio !== false
-            ? `<button id="ftp-btn-hud-audio" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); color: #fff; width: 34px; height: 34px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.15s;" title="Toggle Audio">${soundIcon}</button>`
+          options.showAudio === true
+            ? `<button id="ftp-btn-hud-audio" style="background: var(--surface2); border: 1px solid var(--border); color: var(--text); width: 34px; height: 34px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.15s;" title="Toggle Audio">${soundIcon}</button>`
             : ''
         }
         ${
           options.showInstructions !== false
-            ? `<button id="ftp-btn-hud-help" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); color: #38bdf8; width: 34px; height: 34px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; transition: all 0.15s;" title="How to Play">?</button>`
+            ? `<button id="ftp-btn-hud-help" style="background: var(--surface2); border: 1px solid var(--border); color: var(--accent); width: 34px; height: 34px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; transition: all 0.15s;" title="How to Play">?</button>`
             : ''
         }
         ${
-          options.showRestart !== false
-            ? `<button id="ftp-btn-hud-restart" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); color: #fff; width: 34px; height: 34px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.15s;" title="Restart Game">🔄</button>`
+          options.showRestart === true
+            ? `<button id="ftp-btn-hud-restart" style="background: var(--surface2); border: 1px solid var(--border); color: var(--text); width: 34px; height: 34px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.15s;" title="Restart Game">🔄</button>`
             : ''
         }
         ${
-          options.showPause !== false
-            ? `<button id="ftp-btn-hud-pause" style="background: rgba(56, 189, 248, 0.15); border: 1px solid #38bdf8; color: #38bdf8; width: 34px; height: 34px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.15s;" title="Pause Game">⏸</button>`
+          options.showPause === true
+            ? `<button id="ftp-btn-hud-pause" style="background: var(--accent-dim); border: 1px solid var(--accent); color: var(--accent); width: 34px; height: 34px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.15s;" title="Pause Game">⏸</button>`
             : ''
         }
       </div>
@@ -281,9 +287,9 @@ export class GameOverlayManager {
       ? config.controls
           .map(
             c => `
-        <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); padding: 6px 12px; border-radius: 6px;">
-          <span style="font-weight: 700; color: #38bdf8; font-size: 11px;">${c.key}</span>
-          <span style="color: #cbd5e1; font-size: 11px;">${c.action}</span>
+        <div style="display: flex; justify-content: space-between; align-items: center; background: var(--surface2); border: 1px solid var(--border); padding: 6px 12px; border-radius: 6px;">
+          <span style="font-weight: 700; color: var(--accent); font-size: 11px;">${c.key}</span>
+          <span style="color: var(--text2); font-size: 11px;">${c.action}</span>
         </div>
       `
           )
@@ -294,7 +300,7 @@ export class GameOverlayManager {
       ? config.rules
           .map(
             r => `
-        <li style="margin-bottom: 4px; color: #cbd5e1; font-size: 12px;">${r}</li>
+        <li style="margin-bottom: 4px; color: var(--text2); font-size: 12px;">${r}</li>
       `
           )
           .join('')
@@ -304,16 +310,16 @@ export class GameOverlayManager {
     if (config.options?.difficulties) {
       diffHTML = `
         <div style="margin-top: 12px; width: 100%;">
-          <div style="font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 6px;">Select Difficulty</div>
+          <div style="font-size: 10px; font-weight: 800; color: var(--text3); text-transform: uppercase; margin-bottom: 6px;">Select Difficulty</div>
           <div style="display: flex; gap: 8px; justify-content: center;">
             ${config.options.difficulties
               .map(
                 d => `
               <button class="ftp-diff-btn ${d === config.options?.currentDifficulty ? 'active' : ''}" data-diff="${d}" style="
                 flex: 1; padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; text-transform: uppercase;
-                background: ${d === config.options?.currentDifficulty ? '#38bdf8' : 'rgba(255,255,255,0.05)'};
-                color: ${d === config.options?.currentDifficulty ? '#000' : '#fff'};
-                border: 1px solid ${d === config.options?.currentDifficulty ? '#38bdf8' : 'rgba(255,255,255,0.15)'};
+                background: ${d === config.options?.currentDifficulty ? 'var(--accent)' : 'var(--surface2)'};
+                color: ${d === config.options?.currentDifficulty ? 'var(--bg)' : 'var(--text)'};
+                border: 1px solid ${d === config.options?.currentDifficulty ? 'var(--accent)' : 'var(--border)'};
               ">${d}</button>
             `
               )
@@ -324,23 +330,23 @@ export class GameOverlayManager {
     }
 
     this.instructionsElement.innerHTML = `
-      <div style="background: rgba(18, 20, 38, 0.95); border: 1.5px solid rgba(56, 189, 248, 0.3); border-radius: 16px; padding: 24px; max-width: 460px; width: 100%; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.6); display: flex; flex-direction: column; gap: 16px;">
+      <div style="background: var(--surface); border: 1.5px solid var(--accent); border-radius: 16px; padding: 24px; max-width: 460px; width: 100%; text-align: center; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; gap: 16px;">
         <div>
-          <div style="font-size: 10px; font-weight: 800; color: #38bdf8; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 2px;">HOW TO PLAY</div>
-          <h2 style="font-size: 24px; font-weight: 800; color: #ffffff; margin: 0;">${config.title}</h2>
-          ${config.subtitle ? `<p style="font-size: 12px; color: #94a3b8; margin: 4px 0 0 0;">${config.subtitle}</p>` : ''}
+          <div style="font-size: 10px; font-weight: 800; color: var(--accent); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 2px;">HOW TO PLAY</div>
+          <h2 style="font-size: 24px; font-weight: 800; color: var(--text); margin: 0;">${config.title}</h2>
+          ${config.subtitle ? `<p style="font-size: 12px; color: var(--text3); margin: 4px 0 0 0;">${config.subtitle}</p>` : ''}
         </div>
 
-        <p style="font-size: 13px; color: #cbd5e1; line-height: 1.5; margin: 0; text-align: left; background: rgba(0,0,0,0.2); padding: 10px 12px; border-radius: 8px;">
+        <p style="font-size: 13px; color: var(--text2); line-height: 1.5; margin: 0; text-align: left; background: var(--surface2); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border);">
           ${config.description}
         </p>
 
         ${
           config.objective
             ? `
-          <div style="text-align: left; background: rgba(56, 189, 248, 0.08); border-left: 3px solid #38bdf8; padding: 8px 12px; border-radius: 4px;">
-            <div style="font-size: 10px; font-weight: 800; color: #38bdf8; text-transform: uppercase;">OBJECTIVE</div>
-            <div style="font-size: 12px; color: #ffffff; margin-top: 2px;">${config.objective}</div>
+          <div style="text-align: left; background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 8px 12px; border-radius: 4px;">
+            <div style="font-size: 10px; font-weight: 800; color: var(--accent); text-transform: uppercase;">OBJECTIVE</div>
+            <div style="font-size: 12px; color: var(--text); margin-top: 2px;">${config.objective}</div>
           </div>
         `
             : ''
@@ -350,7 +356,7 @@ export class GameOverlayManager {
           controlsHTML
             ? `
           <div style="text-align: left;">
-            <div style="font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 6px;">CONTROLS</div>
+            <div style="font-size: 10px; font-weight: 800; color: var(--text3); text-transform: uppercase; margin-bottom: 6px;">CONTROLS</div>
             <div style="display: flex; flex-direction: column; gap: 4px;">${controlsHTML}</div>
           </div>
         `
@@ -361,7 +367,7 @@ export class GameOverlayManager {
           rulesHTML
             ? `
           <div style="text-align: left;">
-            <div style="font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px;">RULES & TIPS</div>
+            <div style="font-size: 10px; font-weight: 800; color: var(--text3); text-transform: uppercase; margin-bottom: 4px;">RULES & TIPS</div>
             <ul style="margin: 0; padding-left: 18px;">${rulesHTML}</ul>
           </div>
         `
@@ -371,7 +377,7 @@ export class GameOverlayManager {
         ${diffHTML}
 
         <button id="ftp-btn-start-game" style="
-          margin-top: 8px; width: 100%; height: 42px; background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%); border: none; border-radius: 8px; color: #ffffff; font-weight: 800; font-size: 14px; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; box-shadow: 0 4px 14px rgba(56, 189, 248, 0.35); transition: transform 0.1s;
+          margin-top: 8px; width: 100%; height: 42px; background: var(--accent); border: none; border-radius: 8px; color: var(--bg); font-weight: 800; font-size: 14px; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; box-shadow: 0 4px 14px rgba(var(--accent-rgb), 0.35); transition: transform 0.1s;
         ">START PLAYING ▶</button>
       </div>
     `;
@@ -386,13 +392,13 @@ export class GameOverlayManager {
           this.audio.playSFX('select');
           const d = e.target.getAttribute('data-diff');
           diffBtns.forEach(b => {
-            (b as HTMLElement).style.background = 'rgba(255,255,255,0.05)';
-            (b as HTMLElement).style.color = '#fff';
-            (b as HTMLElement).style.borderColor = 'rgba(255,255,255,0.15)';
+            (b as HTMLElement).style.background = 'var(--surface2)';
+            (b as HTMLElement).style.color = 'var(--text)';
+            (b as HTMLElement).style.borderColor = 'var(--border)';
           });
-          e.target.style.background = '#38bdf8';
-          e.target.style.color = '#000';
-          e.target.style.borderColor = '#38bdf8';
+          e.target.style.background = 'var(--accent)';
+          e.target.style.color = 'var(--bg)';
+          e.target.style.borderColor = 'var(--accent)';
           if (config.options?.onSelectDifficulty) config.options.onSelectDifficulty(d);
         });
       });
@@ -414,74 +420,13 @@ export class GameOverlayManager {
     }
   }
 
-  // --- PAUSE MENU OVERLAY ---
+  // --- PAUSE MENU OVERLAY (Disabled - external header controls are used) ---
   public togglePause(): void {
-    if (this.isPaused) {
-      this.resume();
-    } else {
-      this.pause();
-    }
+    // External header controls handle pause and sound
   }
 
   public pause(): void {
-    if (this.isPaused || !this.pauseElement) return;
-    this.isPaused = true;
-
-    if (this.callbacks.onPause) this.callbacks.onPause();
-
-    const soundText = this.audio.getIsMuted() ? 'Sound: Muted 🔇' : 'Sound: Enabled 🔊';
-
-    this.pauseElement.innerHTML = `
-      <div style="background: rgba(18, 20, 38, 0.95); border: 1.5px solid rgba(56, 189, 248, 0.3); border-radius: 16px; padding: 24px; max-width: 380px; width: 100%; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.6); display: flex; flex-direction: column; gap: 14px;">
-        <div>
-          <div style="font-size: 10px; font-weight: 800; color: #38bdf8; letter-spacing: 2px; text-transform: uppercase;">GAME SUSPENDED</div>
-          <h2 style="font-size: 26px; font-weight: 800; color: #ffffff; margin: 4px 0 0 0;">PAUSED</h2>
-        </div>
-
-        <div style="display: flex; flex-direction: column; gap: 8px;">
-          <button id="ftp-pause-resume" style="height: 42px; background: #38bdf8; border: none; border-radius: 8px; color: #000000; font-weight: 800; font-size: 13px; letter-spacing: 0.5px; text-transform: uppercase; cursor: pointer;">Resume Game ▶</button>
-          <button id="ftp-pause-restart" style="height: 40px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: #ffffff; font-weight: 700; font-size: 12px; cursor: pointer;">Restart Round 🔄</button>
-          <button id="ftp-pause-audio" style="height: 40px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: #ffffff; font-weight: 700; font-size: 12px; cursor: pointer;">${soundText}</button>
-          <button id="ftp-pause-exit" style="height: 40px; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 8px; color: #ef4444; font-weight: 700; font-size: 12px; cursor: pointer;">Exit to Arcade 🚪</button>
-        </div>
-      </div>
-    `;
-
-    this.pauseElement.style.display = 'flex';
-
-    const btnResume = this.pauseElement.querySelector('#ftp-pause-resume');
-    if (btnResume) {
-      btnResume.addEventListener('click', () => {
-        this.audio.playSFX('click');
-        this.resume();
-      });
-    }
-
-    const btnRestart = this.pauseElement.querySelector('#ftp-pause-restart');
-    if (btnRestart) {
-      btnRestart.addEventListener('click', () => {
-        this.audio.playSFX('click');
-        this.resume();
-        if (this.callbacks.onRestart) this.callbacks.onRestart();
-      });
-    }
-
-    const btnAudio = this.pauseElement.querySelector('#ftp-pause-audio');
-    if (btnAudio) {
-      btnAudio.addEventListener('click', () => {
-        this.audio.playSFX('click');
-        const muted = this.audio.toggleMute();
-        btnAudio.textContent = muted ? 'Sound: Muted 🔇' : 'Sound: Enabled 🔊';
-      });
-    }
-
-    const btnExit = this.pauseElement.querySelector('#ftp-pause-exit');
-    if (btnExit) {
-      btnExit.addEventListener('click', () => {
-        this.audio.playSFX('click');
-        if (this.callbacks.onExit) this.callbacks.onExit();
-      });
-    }
+    // External header controls handle pause and sound
   }
 
   public resume(): void {
@@ -501,7 +446,7 @@ export class GameOverlayManager {
       this.audio.playSFX('lose');
     }
 
-    const titleColor = config.isWin !== false ? '#10b981' : '#ef4444';
+    const titleColor = config.isWin !== false ? 'var(--accent)' : 'var(--red, #ef4444)';
     const tagText = config.isWin !== false ? 'VICTORY ACHIEVED' : 'GAME OVER';
 
     const statsToUse = config.stats || config.metrics;
@@ -509,9 +454,9 @@ export class GameOverlayManager {
       ? statsToUse
           .map(
             s => `
-        <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); padding: 8px 12px; border-radius: 8px; text-align: center; flex: 1; min-width: 90px;">
-          <div style="font-size: 9px; color: #94a3b8; text-transform: uppercase; font-weight: 700;">${s.label}</div>
-          <div style="font-family: 'DM Mono', monospace; font-size: 16px; font-weight: 800; color: #ffffff; margin-top: 2px;">${s.value}</div>
+        <div style="background: var(--surface2); border: 1px solid var(--border); padding: 8px 12px; border-radius: 8px; text-align: center; flex: 1; min-width: 90px;">
+          <div style="font-size: 9px; color: var(--text3); text-transform: uppercase; font-weight: 700;">${s.label}</div>
+          <div style="font-family: 'DM Mono', monospace; font-size: 16px; font-weight: 800; color: var(--text); margin-top: 2px;">${s.value}</div>
         </div>
       `
           )
@@ -519,20 +464,20 @@ export class GameOverlayManager {
       : '';
 
     this.resultsElement.innerHTML = `
-      <div style="background: rgba(18, 20, 38, 0.95); border: 1.5px solid ${titleColor}; border-radius: 16px; padding: 24px; max-width: 420px; width: 100%; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.6); display: flex; flex-direction: column; gap: 16px;">
+      <div style="background: var(--surface); border: 1.5px solid ${titleColor}; border-radius: 16px; padding: 24px; max-width: 420px; width: 100%; text-align: center; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; gap: 16px;">
         <div>
           <div style="font-size: 10px; font-weight: 800; color: ${titleColor}; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 2px;">${tagText}</div>
-          <h2 style="font-size: 28px; font-weight: 800; color: #ffffff; margin: 0;">${config.title}</h2>
-          ${config.subtitle ? `<p style="font-size: 12px; color: #94a3b8; margin: 4px 0 0 0;">${config.subtitle}</p>` : ''}
+          <h2 style="font-size: 28px; font-weight: 800; color: var(--text); margin: 0;">${config.title}</h2>
+          ${config.subtitle ? `<p style="font-size: 12px; color: var(--text3); margin: 4px 0 0 0;">${config.subtitle}</p>` : ''}
         </div>
 
         ${
           config.score !== undefined
             ? `
-          <div style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 12px;">
-            <div style="font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase;">FINAL SCORE</div>
+          <div style="background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 12px;">
+            <div style="font-size: 10px; font-weight: 800; color: var(--text3); text-transform: uppercase;">FINAL SCORE</div>
             <div style="font-family: 'DM Mono', monospace; font-size: 32px; font-weight: 900; color: ${titleColor}; margin-top: 2px;">${config.score}</div>
-            ${config.highScore !== undefined ? `<div style="font-size: 11px; color: #eab308; margin-top: 2px;">🏆 Best Score: ${config.highScore}</div>` : ''}
+            ${config.highScore !== undefined ? `<div style="font-size: 11px; color: var(--yellow, #eab308); margin-top: 2px;">🏆 Best Score: ${config.highScore}</div>` : ''}
           </div>
         `
             : ''
@@ -549,8 +494,8 @@ export class GameOverlayManager {
         }
 
         <div style="display: flex; gap: 10px; margin-top: 6px;">
-          <button id="ftp-results-restart" style="flex: 1; height: 42px; background: ${titleColor}; border: none; border-radius: 8px; color: #000000; font-weight: 800; font-size: 13px; text-transform: uppercase; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">PLAY AGAIN 🔄</button>
-          <button id="ftp-results-exit" style="height: 42px; padding: 0 16px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #ffffff; font-weight: 700; font-size: 12px; cursor: pointer;">EXIT 🚪</button>
+          <button id="ftp-results-restart" style="flex: 1; height: 42px; background: ${titleColor}; border: none; border-radius: 8px; color: var(--bg); font-weight: 800; font-size: 13px; text-transform: uppercase; cursor: pointer; box-shadow: var(--shadow-md);">PLAY AGAIN 🔄</button>
+          <button id="ftp-results-exit" style="height: 42px; padding: 0 16px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-weight: 700; font-size: 12px; cursor: pointer;">EXIT 🚪</button>
         </div>
       </div>
     `;

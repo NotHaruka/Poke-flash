@@ -170,11 +170,11 @@ function renderQuickPlayRecommendation(): void {
   // Match games based on break duration
   let recommendedGames: GameDefinition[] = [];
   if (quickPlayDuration === 'short') {
-    recommendedGames = games.filter(g => ['tictactoe', 'memory_match', 'pong', 'connect_four', 'cyberflap'].includes(g.id));
+    recommendedGames = games.filter(g => ['tictactoe', 'memorymatch', 'pong', 'connectfour', 'cyberflap', 'whackamole', 'watersort', 'lightsout'].includes(g.id));
   } else if (quickPlayDuration === 'medium') {
-    recommendedGames = games.filter(g => ['snake', 'minesweeper', 'reversi', 'checkers', 'sudoku', 'breakout', 'tetris'].includes(g.id));
+    recommendedGames = games.filter(g => ['snake', 'minesweeper', 'reversi', 'checkers', 'sudoku', 'breakout', 'tetris', 'match3', 'sokoban', 'nonogram', 'gomoku', 'asteroids', 'mancala'].includes(g.id));
   } else {
-    recommendedGames = games.filter(g => ['chess', 'solitaire', 'game_2048', 'blade_bedlam', 'void_survivor', 'rhythm_game'].includes(g.id));
+    recommendedGames = games.filter(g => ['chess', 'solitaire', 'game2048', 'blade_bedlam', 'void_survivor', 'rhythm_game', 'colosseum_duel', 'battleship', 'freecell', 'zengarden', 'pixelart'].includes(g.id));
   }
 
   // Fallback if no matching game

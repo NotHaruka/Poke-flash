@@ -33,11 +33,11 @@ function renderMenuOverlay(): void {
 
   if (currentMenuStep === 'main') {
     overlay.innerHTML = `
-      <h1 style="font-family: 'Fraunces', serif; font-size: clamp(24px, 6vw, 38px); font-weight: 700; color: #ffffff; margin-bottom: 6px; text-shadow: 0 0 15px rgba(205, 162, 80, 0.4);">Blade Bedlam</h1>
+      <h1 style="font-family: 'Fraunces', serif; font-size: clamp(24px, 6vw, 38px); font-weight: 700; color: var(--text); margin-bottom: 6px; text-shadow: 0 0 15px rgba(var(--accent-rgb), 0.3);">Blade Bedlam</h1>
       <p style="color: var(--text3); font-size: clamp(11px, 3.5vw, 13px); max-width: 480px; margin-bottom: 20px; line-height: 1.5;">An intense gladiatorial action-adventure runner. Tap the left side of the screen to fly, and the right side (or Shift/X/Space) to execute sweeping blade slashes. Slay gargoyles, wyverns, and phoenices to survive!</p>
       
       <div id="bb-main-menu-actions" style="display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap; margin-top: 16px;">
-        <button class="btn btn-p" onclick="window.setMenuStep('character')" style="font-size: clamp(14px, 4vw, 16px); font-weight: 700; height: 44px; padding: 0 28px; border-radius: 22px; box-shadow: 0 0 20px rgba(205, 162, 80, 0.45); border-color: #cda250; background: #cda250; color: #000; cursor: pointer;">
+        <button class="btn btn-p" onclick="window.setMenuStep('character')" style="font-size: clamp(14px, 4vw, 16px); font-weight: 700; height: 44px; padding: 0 28px; border-radius: 22px; box-shadow: 0 0 20px rgba(var(--accent-rgb), 0.45); border-color: var(--accent); background: var(--accent); color: var(--bg); cursor: pointer;">
           ENTER THE COLOSSEUM
         </button>
       </div>
@@ -53,26 +53,26 @@ function renderMenuOverlay(): void {
       devBtn.style.height = '44px';
       devBtn.style.padding = '0 20px';
       devBtn.style.borderRadius = '22px';
-      devBtn.style.borderColor = '#00f3ff';
-      devBtn.style.background = 'rgba(0, 243, 255, 0.1)';
-      devBtn.style.color = '#00f3ff';
-      devBtn.style.boxShadow = '0 0 15px rgba(0, 243, 255, 0.15)';
+      devBtn.style.borderColor = 'var(--accent)';
+      devBtn.style.background = 'var(--accent-dim)';
+      devBtn.style.color = 'var(--accent)';
+      devBtn.style.boxShadow = '0 0 15px rgba(var(--accent-rgb), 0.15)';
       devBtn.style.cursor = 'pointer';
       devBtn.style.transition = 'all 0.15s';
       devBtn.onmouseenter = () => {
-        devBtn.style.background = 'rgba(0, 243, 255, 0.25)';
-        devBtn.style.boxShadow = '0 0 20px rgba(0, 243, 255, 0.35)';
+        devBtn.style.background = 'var(--accent-dim)';
+        devBtn.style.boxShadow = '0 0 20px rgba(var(--accent-rgb), 0.35)';
       };
       devBtn.onmouseleave = () => {
-        devBtn.style.background = 'rgba(0, 243, 255, 0.1)';
-        devBtn.style.boxShadow = '0 0 15px rgba(0, 243, 255, 0.15)';
+        devBtn.style.background = 'var(--accent-dim)';
+        devBtn.style.boxShadow = '0 0 15px rgba(var(--accent-rgb), 0.15)';
       };
       devBtn.innerHTML = 'DEVELOPER MODE';
       actions.appendChild(devBtn);
     }
   } else if (currentMenuStep === 'character') {
     overlay.innerHTML = `
-      <h1 style="font-family: 'Fraunces', serif; font-size: clamp(22px, 5vw, 32px); font-weight: 700; color: #ffffff; margin-bottom: 4px; text-shadow: 0 0 15px rgba(205, 162, 80, 0.3);">Select Gladiator</h1>
+      <h1 style="font-family: 'Fraunces', serif; font-size: clamp(22px, 5vw, 32px); font-weight: 700; color: var(--text); margin-bottom: 4px; text-shadow: 0 0 15px rgba(var(--accent-rgb), 0.3);">Select Gladiator</h1>
       <p style="color: var(--text3); font-size: clamp(11px, 3.2vw, 13px); max-width: 480px; margin-bottom: 16px;">Gladiators define your passive abilities, starting health, and movement speed.</p>
       
       <div id="bb-character-list" style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; max-width: 720px; margin-bottom: 20px; width: 100%;">
@@ -83,7 +83,7 @@ function renderMenuOverlay(): void {
           return `
             <div class="bb-char-card cursor-pointer" id="bb-card-${b.id}" onclick="window.selectGameBird(${i})"
                  style="border: 1.5px solid ${border}; background: ${bg}; border-radius: var(--rs); padding: 10px; transition: all 0.15s; flex: 1 1 min(100%, 140px); min-width: 130px; text-align: left;">
-               <div style="font-weight: 700; font-size: 13px; color: ${b.color}; margin-bottom: 2px;">${b.name}</div>
+               <div style="font-weight: 700; font-size: 13px; color: ${isSelected ? 'var(--accent)' : 'var(--text)'}; margin-bottom: 2px;">${b.name}</div>
                <div style="font-size: 10px; color: var(--text2); line-height: 1.4; margin-bottom: 6px;">${b.desc}</div>
                <div style="font-size: 9.5px; font-weight: 600; color: var(--accent); background: var(--accent-dim); padding: 2px 6px; border-radius: 4px; display: inline-block;">
                  Ability: ${b.ability}
@@ -94,10 +94,10 @@ function renderMenuOverlay(): void {
       </div>
 
       <div style="display: flex; gap: 10px; align-items: center; justify-content: center;">
-        <button class="btn" onclick="window.setMenuStep('main')" style="font-size: 13px; font-weight: 700; height: 40px; padding: 0 20px; border-radius: 20px; cursor: pointer;">
+        <button class="btn" onclick="window.setMenuStep('main')" style="font-size: 13px; font-weight: 700; height: 40px; padding: 0 20px; border-radius: 20px; cursor: pointer; background: var(--surface2); color: var(--text); border: 1px solid var(--border);">
           BACK
         </button>
-        <button class="btn btn-p" onclick="window.setMenuStep('weapon')" style="font-size: 13px; font-weight: 700; height: 40px; padding: 0 24px; border-radius: 20px; cursor: pointer; border-color: #cda250; background: #cda250; color: #000;">
+        <button class="btn btn-p" onclick="window.setMenuStep('weapon')" style="font-size: 13px; font-weight: 700; height: 40px; padding: 0 24px; border-radius: 20px; cursor: pointer; border-color: var(--accent); background: var(--accent); color: var(--bg);">
           SELECT WEAPON
         </button>
       </div>
@@ -105,7 +105,7 @@ function renderMenuOverlay(): void {
   } else if (currentMenuStep === 'weapon') {
     const activeWeapon = WEAPON_PRESETS.find(w => w.id === selectedWeaponId) || WEAPON_PRESETS[0];
     overlay.innerHTML = `
-      <h1 style="font-family: 'Fraunces', serif; font-size: clamp(22px, 5vw, 32px); font-weight: 700; color: #ffffff; margin-bottom: 4px; text-shadow: 0 0 15px rgba(205, 162, 80, 0.3);">Select Weapon</h1>
+      <h1 style="font-family: 'Fraunces', serif; font-size: clamp(22px, 5vw, 32px); font-weight: 700; color: var(--text); margin-bottom: 4px; text-shadow: 0 0 15px rgba(var(--accent-rgb), 0.3);">Select Weapon</h1>
       <p style="color: var(--text3); font-size: clamp(11px, 3.2vw, 13px); max-width: 480px; margin-bottom: 16px;">Weapons define your swing speed, reach, physical damage, and special Weapon Art.</p>
       
       <div id="bb-weapon-list" style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; max-width: 720px; margin-bottom: 16px; width: 100%;">
@@ -118,7 +118,7 @@ function renderMenuOverlay(): void {
                  style="border: 1.5px solid ${border}; background: ${bg}; border-radius: var(--rs); padding: 8px 12px; transition: all 0.15s; flex: 1 1 min(100%, 130px); min-width: 120px; text-align: left; display: flex; align-items: center; gap: 8px;">
                <div style="color: ${isSelected ? 'var(--accent)' : 'var(--text2)'};">${w.icon}</div>
                <div>
-                 <div style="font-weight: 700; font-size: 12px; color: #fff;">${w.name}</div>
+                 <div style="font-weight: 700; font-size: 12px; color: var(--text);">${w.name}</div>
                  <div style="font-size: 9.5px; color: var(--text3);">${w.weaponArt}</div>
                </div>
             </div>
@@ -127,13 +127,13 @@ function renderMenuOverlay(): void {
       </div>
 
       <!-- Selected Weapon Info Panel -->
-      <div style="background: rgba(18, 20, 38, 0.85); border: 1px solid var(--border); border-radius: var(--rs); padding: 12px 14px; max-width: 580px; width: 100%; margin-bottom: 16px; text-align: left; display: flex; flex-direction: column; gap: 6px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 4px;">
+      <div style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--rs); padding: 12px 14px; max-width: 580px; width: 100%; margin-bottom: 16px; text-align: left; display: flex; flex-direction: column; gap: 6px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 4px;">
           <div style="font-family: 'Fraunces', serif; font-size: 15px; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 6px;">
             <span>${activeWeapon.icon}</span>
             <span>${activeWeapon.name}</span>
           </div>
-          <div style="font-size: 10px; font-weight: 600; color: #38bdf8; background: rgba(56, 189, 248, 0.1); padding: 2px 6px; border-radius: 4px;">
+          <div style="font-size: 10px; font-weight: 600; color: var(--accent); background: var(--accent-dim); padding: 2px 6px; border-radius: 4px;">
             Art: ${activeWeapon.weaponArt}
           </div>
         </div>

@@ -400,7 +400,7 @@ export class ConnectFourPlugin implements MiniGamePlugin {
   }
 
   private makeAIMove() {
-    if (this.isGameOver || this.droppingDisc || !this.isRunning) return;
+    if (this.isGameOver || this.droppingDisc || !this.isRunning || this.isPaused || this.gameMode !== 'vsAI' || this.currentPlayer !== 'red') return;
 
     // Find available columns
     const validCols: number[] = [];

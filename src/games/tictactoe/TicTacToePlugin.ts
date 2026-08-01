@@ -285,7 +285,7 @@ export class TicTacToePlugin implements MiniGamePlugin {
   }
 
   private makeAIMove() {
-    if (this.isMatchOver || !this.isRunning || this.isPaused) return;
+    if (this.isMatchOver || !this.isRunning || this.isPaused || this.gameMode !== 'vsAI' || this.currentPlayer !== 'O') return;
 
     let moveIndex = -1;
     if (this.difficulty === 'impossible') {

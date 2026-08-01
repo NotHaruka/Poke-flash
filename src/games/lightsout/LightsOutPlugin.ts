@@ -1,5 +1,6 @@
 import { MiniGamePlugin } from '../core/GamePlugin';
 import { GameLaunchContext } from '../core/GameLaunchContext';
+import { GameOverlayManager } from '../core/GameOverlayManager';
 import { resetGameCanvas } from '../../game.js';
 
 export class LightsOutPlugin implements MiniGamePlugin {
@@ -26,6 +27,7 @@ export class LightsOutPlugin implements MiniGamePlugin {
   private ctx: CanvasRenderingContext2D | null = null;
   private animationFrameId: number | null = null;
   private isRunning = false;
+  private overlayManager: GameOverlayManager | null = null;
 
   private gridSize = 5;
   private grid: boolean[][] = [];
@@ -65,6 +67,29 @@ export class LightsOutPlugin implements MiniGamePlugin {
     this.ctx = this.canvas.getContext('2d');
     if (!this.ctx) return;
 
+    this.overlayManager = new GameOverlayManager('game-canvas-container', {
+      onRestart: () => this.generatePuzzle()
+    });
+
+    this.overlayManager.showInstructions({
+      title: 'LIGHTS OUT LOGIC',
+      subtitle: 'Matrix Grid Puzzle',
+      description: 'Toggle matrix lights to turn off all nodes on the board. Each tap flips the target and all adjacent cross neighbors.',
+      objective: 'Turn off all glowing yellow nodes on the 5x5 grid.',
+      controls: [
+        { key: 'Tap Cell', action: 'Flip cell and 4 adjacent cross neighbors' }
+      ],
+      onStart: () => {
+        this.overlayManager?.hideInstructions();
+        this.overlayManager?.setupHUD([
+          { id: 'moves', label: 'Moves', value: '0' }
+        ]);
+        this.startGame();
+      }
+    });
+  }
+
+  private startGame() {
     this.isRunning = true;
     this.generatePuzzle();
     this.resizeCanvas();
@@ -73,9 +98,11 @@ export class LightsOutPlugin implements MiniGamePlugin {
     this.boundTouchStart = this.handleTouchStart.bind(this);
     this.boundResize = this.resizeCanvas.bind(this);
 
-    this.canvas.style.touchAction = 'none';
-    this.canvas.addEventListener('mousedown', this.boundMouseDown);
-    this.canvas.addEventListener('touchstart', this.boundTouchStart, { passive: false });
+    if (this.canvas) {
+      this.canvas.style.touchAction = 'none';
+      this.canvas.addEventListener('mousedown', this.boundMouseDown);
+      this.canvas.addEventListener('touchstart', this.boundTouchStart, { passive: false });
+    }
     window.addEventListener('resize', this.boundResize);
 
     this.tick();
@@ -86,6 +113,7 @@ export class LightsOutPlugin implements MiniGamePlugin {
     this.moves = 0;
     this.isWon = false;
     this.statusMessage = 'Turn off all lit nodes!';
+    this.overlayManager?.updateStat('moves', 0);
 
     // Guarantee solvable by starting from all off and simulating 8 random taps
     for (let i = 0; i < 8; i++) {
@@ -109,6 +137,7 @@ export class LightsOutPlugin implements MiniGamePlugin {
     }
     if (countMove) {
       this.moves++;
+      this.overlayManager?.updateStat('moves', this.moves);
       const scoreVal = document.getElementById('bb-score-val');
       if (scoreVal) scoreVal.textContent = String(this.moves);
       this.checkWin();
@@ -117,9 +146,23 @@ export class LightsOutPlugin implements MiniGamePlugin {
 
   private checkWin() {
     const allOff = this.grid.every(row => row.every(cell => !cell));
-    if (allOff) {
+    if (allOff && !this.isWon) {
       this.isWon = true;
-      this.statusMessage = 'ALL LIGHTS OFF! Tap to restart.';
+      this.statusMessage = 'ALL LIGHTS OFF!';
+      setTimeout(() => {
+        this.overlayManager?.showResults({
+          title: 'PUZZLE CLEARED! 💡',
+          subtitle: `You turned off all lights in ${this.moves} moves!`,
+          isWin: true,
+          stats: [
+            { label: 'Total Moves', value: String(this.moves) }
+          ],
+          onRestart: () => {
+            this.overlayManager?.hideResults();
+            this.generatePuzzle();
+          }
+        });
+      }, 300);
     }
   }
 
@@ -219,5 +262,9 @@ export class LightsOutPlugin implements MiniGamePlugin {
       this.canvas.removeEventListener('touchstart', this.boundTouchStart);
     }
     window.removeEventListener('resize', this.boundResize);
+    if (this.overlayManager) {
+      this.overlayManager.destroy();
+      this.overlayManager = null;
+    }
   }
 }

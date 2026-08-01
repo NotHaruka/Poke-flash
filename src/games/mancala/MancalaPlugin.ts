@@ -1,5 +1,6 @@
 import { MiniGamePlugin } from '../core/GamePlugin';
 import { GameLaunchContext } from '../core/GameLaunchContext';
+import { GameOverlayManager } from '../core/GameOverlayManager';
 import { resetGameCanvas } from '../../game.js';
 
 export class MancalaPlugin implements MiniGamePlugin {
@@ -28,6 +29,7 @@ export class MancalaPlugin implements MiniGamePlugin {
   private ctx: CanvasRenderingContext2D | null = null;
   private animationFrameId: number | null = null;
   private isRunning = false;
+  private overlayManager: GameOverlayManager | null = null;
 
   // Board layout: pits 0-5 (P1 bottom), pit 6 (P1 store), pits 7-12 (P2 top), pit 13 (P2 store)
   private board: number[] = [];
@@ -68,6 +70,31 @@ export class MancalaPlugin implements MiniGamePlugin {
     this.ctx = this.canvas.getContext('2d');
     if (!this.ctx) return;
 
+    this.overlayManager = new GameOverlayManager('game-canvas-container', {
+      onRestart: () => this.resetBoard()
+    });
+
+    this.overlayManager.showInstructions({
+      title: 'MANCALA KALAH',
+      subtitle: 'Ancient Pit & Seed Strategy',
+      description: 'Sow seeds into pits strategically to capture your opponent\'s seeds and maximize your store count.',
+      objective: 'Collect the most seeds in your right-hand store. Ending a move in your store grants a free extra turn!',
+      controls: [
+        { key: 'Tap Pit', action: 'Pick up and sow seeds counter-clockwise' },
+        { key: 'Mode Toggle', action: 'Switch between VS AI & Local 2-Player' }
+      ],
+      onStart: () => {
+        this.overlayManager?.hideInstructions();
+        this.overlayManager?.setupHUD([
+          { id: 'p1Score', label: 'Player 1 Store', value: '0' },
+          { id: 'p2Score', label: 'AI Store', value: '0' }
+        ]);
+        this.startGame();
+      }
+    });
+  }
+
+  private startGame() {
     this.isRunning = true;
     this.resetBoard();
     this.resizeCanvas();
@@ -76,9 +103,11 @@ export class MancalaPlugin implements MiniGamePlugin {
     this.boundTouchStart = this.handleTouchStart.bind(this);
     this.boundResize = this.resizeCanvas.bind(this);
 
-    this.canvas.style.touchAction = 'none';
-    this.canvas.addEventListener('mousedown', this.boundMouseDown);
-    this.canvas.addEventListener('touchstart', this.boundTouchStart, { passive: false });
+    if (this.canvas) {
+      this.canvas.style.touchAction = 'none';
+      this.canvas.addEventListener('mousedown', this.boundMouseDown);
+      this.canvas.addEventListener('touchstart', this.boundTouchStart, { passive: false });
+    }
     window.addEventListener('resize', this.boundResize);
 
     this.tick();
@@ -90,6 +119,8 @@ export class MancalaPlugin implements MiniGamePlugin {
     this.currentPlayer = 1;
     this.isGameOver = false;
     this.statusMessage = 'Your Turn (Player 1)';
+    this.overlayManager?.updateStat('p1Score', 0);
+    this.overlayManager?.updateStat('p2Score', 0);
   }
 
   private resizeCanvas() {
@@ -220,7 +251,7 @@ export class MancalaPlugin implements MiniGamePlugin {
   }
 
   private makeAIMove() {
-    if (this.isGameOver || !this.isRunning) return;
+    if (this.isGameOver || !this.isRunning || this.gameMode !== 'vsAI' || this.currentPlayer !== 2) return;
 
     // AI selects valid pit (7-12)
     const validPits = [7, 8, 9, 10, 11, 12].filter(p => this.board[p] > 0);
@@ -242,6 +273,9 @@ export class MancalaPlugin implements MiniGamePlugin {
     const p1Empty = this.board.slice(0, 6).every(s => s === 0);
     const p2Empty = this.board.slice(7, 13).every(s => s === 0);
 
+    this.overlayManager?.updateStat('p1Score', this.board[6]);
+    this.overlayManager?.updateStat('p2Score', this.board[13]);
+
     if (p1Empty || p2Empty) {
       this.isGameOver = true;
       // Collect remaining seeds
@@ -254,13 +288,37 @@ export class MancalaPlugin implements MiniGamePlugin {
         this.board[i] = 0;
       }
 
+      this.overlayManager?.updateStat('p1Score', this.board[6]);
+      this.overlayManager?.updateStat('p2Score', this.board[13]);
+
+      let winTitle = 'MATCH DRAW 🤝';
+      let isWin = true;
       if (this.board[6] > this.board[13]) {
         this.statusMessage = `P1 Wins! (${this.board[6]} - ${this.board[13]})`;
+        winTitle = 'PLAYER 1 VICTORY! 🏆';
       } else if (this.board[13] > this.board[6]) {
         this.statusMessage = `P2 Wins! (${this.board[13]} - ${this.board[6]})`;
+        winTitle = this.gameMode === 'vsAI' ? 'AI VICTORY' : 'PLAYER 2 VICTORY! 🏆';
+        if (this.gameMode === 'vsAI') isWin = false;
       } else {
         this.statusMessage = `Tie Game! (${this.board[6]} - ${this.board[13]})`;
       }
+
+      setTimeout(() => {
+        this.overlayManager?.showResults({
+          title: winTitle,
+          subtitle: `Final Seed Count: P1 (${this.board[6]}) vs P2 (${this.board[13]})`,
+          isWin: isWin,
+          stats: [
+            { label: 'Player 1 Store', value: this.board[6] },
+            { label: 'Player 2 Store', value: this.board[13] }
+          ],
+          onRestart: () => {
+            this.overlayManager?.hideResults();
+            this.resetBoard();
+          }
+        });
+      }, 400);
     }
   }
 
@@ -349,5 +407,9 @@ export class MancalaPlugin implements MiniGamePlugin {
       this.canvas.removeEventListener('touchstart', this.boundTouchStart);
     }
     window.removeEventListener('resize', this.boundResize);
+    if (this.overlayManager) {
+      this.overlayManager.destroy();
+      this.overlayManager = null;
+    }
   }
 }

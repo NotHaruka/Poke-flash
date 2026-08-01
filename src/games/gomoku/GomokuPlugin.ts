@@ -1,5 +1,6 @@
 import { MiniGamePlugin } from '../core/GamePlugin';
 import { GameLaunchContext } from '../core/GameLaunchContext';
+import { GameOverlayManager } from '../core/GameOverlayManager';
 import { resetGameCanvas } from '../../game.js';
 
 export class GomokuPlugin implements MiniGamePlugin {
@@ -27,6 +28,7 @@ export class GomokuPlugin implements MiniGamePlugin {
   private ctx: CanvasRenderingContext2D | null = null;
   private animationFrameId: number | null = null;
   private isRunning = false;
+  private overlayManager: GameOverlayManager | null = null;
 
   private boardSize = 15;
   private board: Array<Array<'black' | 'white' | null>> = [];
@@ -68,6 +70,31 @@ export class GomokuPlugin implements MiniGamePlugin {
     this.ctx = this.canvas.getContext('2d');
     if (!this.ctx) return;
 
+    this.overlayManager = new GameOverlayManager('game-canvas-container', {
+      onRestart: () => this.resetBoard()
+    });
+
+    this.overlayManager.showInstructions({
+      title: 'GOMOKU FIVE-IN-A-ROW',
+      subtitle: 'Classic Tactical Alignment',
+      description: 'Place your stones strategically on the 15x15 board to construct an unbroken line of 5 matching stones.',
+      objective: 'Be the first player to form an uninterrupted line of 5 stones horizontally, vertically, or diagonally.',
+      controls: [
+        { key: 'Tap / Click', action: 'Place Stone on Intersection' },
+        { key: 'Mode Toggle', action: 'Switch between VS AI & Local 2P' }
+      ],
+      onStart: () => {
+        this.overlayManager?.hideInstructions();
+        this.overlayManager?.setupHUD([
+          { id: 'turn', label: 'Turn', value: 'Black' },
+          { id: 'mode', label: 'Mode', value: 'VS AI' }
+        ]);
+        this.startGame();
+      }
+    });
+  }
+
+  private startGame() {
     this.isRunning = true;
     this.resetBoard();
     this.resizeCanvas();
@@ -76,9 +103,11 @@ export class GomokuPlugin implements MiniGamePlugin {
     this.boundTouchStart = this.handleTouchStart.bind(this);
     this.boundResize = this.resizeCanvas.bind(this);
 
-    this.canvas.style.touchAction = 'none';
-    this.canvas.addEventListener('mousedown', this.boundMouseDown);
-    this.canvas.addEventListener('touchstart', this.boundTouchStart, { passive: false });
+    if (this.canvas) {
+      this.canvas.style.touchAction = 'none';
+      this.canvas.addEventListener('mousedown', this.boundMouseDown);
+      this.canvas.addEventListener('touchstart', this.boundTouchStart, { passive: false });
+    }
     window.addEventListener('resize', this.boundResize);
 
     this.tick();
@@ -90,6 +119,8 @@ export class GomokuPlugin implements MiniGamePlugin {
     this.isMatchOver = false;
     this.winningLine = null;
     this.statusMessage = 'Your Turn (Black)';
+    this.overlayManager?.updateStat('turn', 'Black');
+    this.overlayManager?.updateStat('mode', this.gameMode === 'vsAI' ? 'VS AI' : 'Local 2P');
   }
 
   private resizeCanvas() {
@@ -165,7 +196,25 @@ export class GomokuPlugin implements MiniGamePlugin {
     if (winLine) {
       this.winningLine = winLine;
       this.isMatchOver = true;
-      this.statusMessage = `${this.currentPlayer === 'black' ? 'Black' : 'White'} Wins!`;
+      const winnerName = this.currentPlayer === 'black' ? 'Black' : 'White';
+      this.statusMessage = `${winnerName} Wins!`;
+      const isPlayerWin = this.gameMode === 'local' || this.currentPlayer === 'black';
+
+      setTimeout(() => {
+        this.overlayManager?.showResults({
+          title: isPlayerWin ? 'VICTORY! 🏆' : 'DEFEAT',
+          subtitle: `${winnerName} connected 5 stones in a row!`,
+          isWin: isPlayerWin,
+          stats: [
+            { label: 'Winner', value: winnerName },
+            { label: 'Mode', value: this.gameMode === 'vsAI' ? 'VS AI' : 'Local 2P' }
+          ],
+          onRestart: () => {
+            this.overlayManager?.hideResults();
+            this.resetBoard();
+          }
+        });
+      }, 400);
       return;
     }
 
@@ -179,11 +228,26 @@ export class GomokuPlugin implements MiniGamePlugin {
     if (isFull) {
       this.isMatchOver = true;
       this.statusMessage = 'Board Full - Draw!';
+      setTimeout(() => {
+        this.overlayManager?.showResults({
+          title: 'MATCH DRAW 🤝',
+          subtitle: 'The board is completely full with no 5-in-a-row!',
+          isWin: true,
+          stats: [
+            { label: 'Result', value: 'Draw' }
+          ],
+          onRestart: () => {
+            this.overlayManager?.hideResults();
+            this.resetBoard();
+          }
+        });
+      }, 400);
       return;
     }
 
     this.currentPlayer = this.currentPlayer === 'black' ? 'white' : 'black';
     this.statusMessage = this.currentPlayer === 'black' ? 'Black Turn' : 'White Turn';
+    this.overlayManager?.updateStat('turn', this.currentPlayer === 'black' ? 'Black' : 'White');
 
     if (this.gameMode === 'vsAI' && this.currentPlayer === 'white' && !this.isMatchOver) {
       setTimeout(() => this.makeAIMove(), 200);
@@ -191,7 +255,7 @@ export class GomokuPlugin implements MiniGamePlugin {
   }
 
   private makeAIMove() {
-    if (this.isMatchOver || !this.isRunning) return;
+    if (this.isMatchOver || !this.isRunning || this.gameMode !== 'vsAI' || this.currentPlayer !== 'white') return;
 
     // Smart heuristic AI for Gomoku
     let bestScore = -Infinity;
@@ -365,5 +429,9 @@ export class GomokuPlugin implements MiniGamePlugin {
       this.canvas.removeEventListener('touchstart', this.boundTouchStart);
     }
     window.removeEventListener('resize', this.boundResize);
+    if (this.overlayManager) {
+      this.overlayManager.destroy();
+      this.overlayManager = null;
+    }
   }
 }

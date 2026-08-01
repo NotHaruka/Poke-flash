@@ -79,17 +79,7 @@ export default function App() {
 
     engineRef.current = engine;
 
-    // Capture Escape key to pause
-    const handleGlobalKeys = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' || e.key.toLowerCase() === 'p') {
-        e.preventDefault();
-        handleTogglePause();
-      }
-    };
-    window.addEventListener('keydown', handleGlobalKeys);
-
     return () => {
-      window.removeEventListener('keydown', handleGlobalKeys);
       if (engineRef.current) {
         engineRef.current.destroy();
         engineRef.current = null;

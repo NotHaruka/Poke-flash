@@ -454,6 +454,11 @@ export class CheckersPlugin implements MiniGamePlugin {
       this.mustJumpSequence = { r: jump.toR, c: jump.toC };
       this.validJumps = furtherJumps;
       this.validSimpleMoves = [];
+
+      // If AI made a multi-jump, schedule the follow-up jump automatically
+      if (this.gameMode === 'vsAI' && this.currentPlayer === 'black' && !this.isGameOver) {
+        setTimeout(() => this.makeAIMove(), 400);
+      }
     } else {
       this.selectedSquare = null;
       this.mustJumpSequence = null;
@@ -551,12 +556,36 @@ export class CheckersPlugin implements MiniGamePlugin {
   }
 
   private makeAIMove() {
-    if (this.isGameOver || !this.isRunning) return;
+    if (this.isGameOver || !this.isRunning || this.isPaused || this.gameMode !== 'vsAI' || this.currentPlayer !== 'black') return;
 
-    const jumps = this.getAllJumpsForPlayer('black');
+    let jumps: JumpMove[] = [];
+    if (this.mustJumpSequence) {
+      jumps = this.getJumpsForPiece(this.mustJumpSequence.r, this.mustJumpSequence.c);
+    } else {
+      jumps = this.getAllJumpsForPlayer('black');
+    }
+
     if (jumps.length > 0) {
       // Must jump
-      const chosenJump = jumps[Math.floor(Math.random() * jumps.length)];
+      let chosenJump = jumps[0];
+      if (jumps.length > 1) {
+        if (this.difficulty === 'hard' || this.difficulty === 'medium') {
+          let maxScore = -999;
+          for (const j of jumps) {
+            let score = 0;
+            const target = this.board[j.capR][j.capC];
+            if (target?.isKing) score += 10;
+            const nextJumps = this.getJumpsForPiece(j.toR, j.toC);
+            score += nextJumps.length * 5;
+            if (score > maxScore) {
+              maxScore = score;
+              chosenJump = j;
+            }
+          }
+        } else {
+          chosenJump = jumps[Math.floor(Math.random() * jumps.length)];
+        }
+      }
       this.selectedSquare = { r: chosenJump.fromR, c: chosenJump.fromC };
       this.executeJump(chosenJump);
       return;
@@ -573,7 +602,21 @@ export class CheckersPlugin implements MiniGamePlugin {
     }
 
     if (allSimpleMoves.length > 0) {
-      const chosenMove = allSimpleMoves[Math.floor(Math.random() * allSimpleMoves.length)];
+      let chosenMove = allSimpleMoves[0];
+      if (this.difficulty === 'hard' && allSimpleMoves.length > 1) {
+        let maxScore = -999;
+        for (const m of allSimpleMoves) {
+          let score = 0;
+          if (m.toR === 7) score += 10;
+          if (m.toC >= 2 && m.toC <= 5) score += 2;
+          if (score > maxScore) {
+            maxScore = score;
+            chosenMove = m;
+          }
+        }
+      } else {
+        chosenMove = allSimpleMoves[Math.floor(Math.random() * allSimpleMoves.length)];
+      }
       this.selectedSquare = { r: chosenMove.fromR, c: chosenMove.fromC };
       this.executeSimpleMove(chosenMove);
     }

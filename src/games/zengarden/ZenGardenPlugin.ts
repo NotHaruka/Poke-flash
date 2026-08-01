@@ -1,5 +1,6 @@
 import { MiniGamePlugin } from '../core/GamePlugin';
 import { GameLaunchContext } from '../core/GameLaunchContext';
+import { GameOverlayManager } from '../core/GameOverlayManager';
 import { resetGameCanvas } from '../../game.js';
 
 interface Rock {
@@ -30,6 +31,7 @@ export class ZenGardenPlugin implements MiniGamePlugin {
   private ctx: CanvasRenderingContext2D | null = null;
   private animationFrameId: number | null = null;
   private isRunning = false;
+  private overlayManager: GameOverlayManager | null = null;
 
   private rocks: Rock[] = [];
   private tool: 'rake' | 'rock' = 'rake';
@@ -69,6 +71,35 @@ export class ZenGardenPlugin implements MiniGamePlugin {
     this.ctx = this.canvas.getContext('2d');
     if (!this.ctx) return;
 
+    this.overlayManager = new GameOverlayManager('game-canvas-container', {
+      onRestart: () => {
+        this.rocks = [];
+        this.trails = [];
+        this.currentTrail = [];
+        this.overlayManager?.updateStat('stones', 0);
+      }
+    });
+
+    this.overlayManager.showInstructions({
+      title: 'ZEN GARDEN RAKER',
+      subtitle: 'Meditative Sand Art',
+      description: 'Rake tranquil patterns into fine white sand, arrange polished river stones, and enjoy a peaceful meditative break.',
+      objective: 'Relax and create sand patterns and stone arrangements.',
+      controls: [
+        { key: 'Rake Mode', action: 'Drag to rake grooves into the sand' },
+        { key: 'Stone Mode', action: 'Tap to place polished river stones' }
+      ],
+      onStart: () => {
+        this.overlayManager?.hideInstructions();
+        this.overlayManager?.setupHUD([
+          { id: 'stones', label: 'River Stones', value: '0' }
+        ]);
+        this.startGame();
+      }
+    });
+  }
+
+  private startGame() {
     this.isRunning = true;
     this.resizeCanvas();
 
@@ -82,15 +113,15 @@ export class ZenGardenPlugin implements MiniGamePlugin {
 
     this.boundResize = this.resizeCanvas.bind(this);
 
-    this.canvas.style.touchAction = 'none';
-    this.canvas.addEventListener('mousedown', this.boundMouseDown);
-    this.canvas.addEventListener('mousemove', this.boundMouseMove);
+    if (this.canvas) {
+      this.canvas.style.touchAction = 'none';
+      this.canvas.addEventListener('mousedown', this.boundMouseDown);
+      this.canvas.addEventListener('mousemove', this.boundMouseMove);
+      this.canvas.addEventListener('touchstart', this.boundTouchStart, { passive: false });
+      this.canvas.addEventListener('touchmove', this.boundTouchMove, { passive: false });
+    }
     window.addEventListener('mouseup', this.boundMouseUp);
-
-    this.canvas.addEventListener('touchstart', this.boundTouchStart, { passive: false });
-    this.canvas.addEventListener('touchmove', this.boundTouchMove, { passive: false });
     window.addEventListener('touchend', this.boundTouchEnd);
-
     window.addEventListener('resize', this.boundResize);
 
     this.tick();
@@ -163,6 +194,7 @@ export class ZenGardenPlugin implements MiniGamePlugin {
 
     if (this.tool === 'rock') {
       this.rocks.push({ x, y, size: 16 + Math.random() * 12 });
+      this.overlayManager?.updateStat('stones', this.rocks.length);
       const scoreVal = document.getElementById('bb-score-val');
       if (scoreVal) scoreVal.textContent = String(this.rocks.length);
     } else {
@@ -259,5 +291,9 @@ export class ZenGardenPlugin implements MiniGamePlugin {
     window.removeEventListener('mouseup', this.boundMouseUp);
     window.removeEventListener('touchend', this.boundTouchEnd);
     window.removeEventListener('resize', this.boundResize);
+    if (this.overlayManager) {
+      this.overlayManager.destroy();
+      this.overlayManager = null;
+    }
   }
 }

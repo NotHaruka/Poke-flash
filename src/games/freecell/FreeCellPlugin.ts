@@ -1,5 +1,6 @@
 import { MiniGamePlugin } from '../core/GamePlugin';
 import { GameLaunchContext } from '../core/GameLaunchContext';
+import { GameOverlayManager } from '../core/GameOverlayManager';
 import { resetGameCanvas } from '../../game.js';
 
 interface Card {
@@ -32,6 +33,7 @@ export class FreeCellPlugin implements MiniGamePlugin {
   private ctx: CanvasRenderingContext2D | null = null;
   private animationFrameId: number | null = null;
   private isRunning = false;
+  private overlayManager: GameOverlayManager | null = null;
 
   private freeCells: (Card | null)[] = [null, null, null, null];
   private foundations: Card[][] = [[], [], [], []]; // ♠, ♥, ♦, ♣
@@ -75,6 +77,30 @@ export class FreeCellPlugin implements MiniGamePlugin {
     this.ctx = this.canvas.getContext('2d');
     if (!this.ctx) return;
 
+    this.overlayManager = new GameOverlayManager('game-canvas-container', {
+      onRestart: () => this.resetGame()
+    });
+
+    this.overlayManager.showInstructions({
+      title: 'FREECELL SOLITAIRE',
+      subtitle: 'Open Card Solitaire Puzzle',
+      description: 'Clear all 52 cards into four foundations using four free buffer cells and smart sequence building.',
+      objective: 'Move all cards into the 4 foundation piles from Ace to King.',
+      controls: [
+        { key: 'Tap Card', action: 'Select card/cascade' },
+        { key: 'Tap Destination', action: 'Move card to free cell, foundation, or cascade' }
+      ],
+      onStart: () => {
+        this.overlayManager?.hideInstructions();
+        this.overlayManager?.setupHUD([
+          { id: 'moves', label: 'Moves', value: '0' }
+        ]);
+        this.startGame();
+      }
+    });
+  }
+
+  private startGame() {
     this.isRunning = true;
     this.resetGame();
     this.resizeCanvas();
@@ -83,9 +109,11 @@ export class FreeCellPlugin implements MiniGamePlugin {
     this.boundTouchStart = this.handleTouchStart.bind(this);
     this.boundResize = this.resizeCanvas.bind(this);
 
-    this.canvas.style.touchAction = 'none';
-    this.canvas.addEventListener('mousedown', this.boundMouseDown);
-    this.canvas.addEventListener('touchstart', this.boundTouchStart, { passive: false });
+    if (this.canvas) {
+      this.canvas.style.touchAction = 'none';
+      this.canvas.addEventListener('mousedown', this.boundMouseDown);
+      this.canvas.addEventListener('touchstart', this.boundTouchStart, { passive: false });
+    }
     window.addEventListener('resize', this.boundResize);
 
     this.tick();
@@ -98,6 +126,7 @@ export class FreeCellPlugin implements MiniGamePlugin {
     this.isWon = false;
     this.selectedCard = null;
     this.statusMessage = 'Select card to move';
+    this.overlayManager?.updateStat('moves', 0);
 
     // Deck
     const suits: ('♠' | '♥' | '♦' | '♣')[] = ['♠', '♥', '♦', '♣'];
@@ -244,6 +273,7 @@ export class FreeCellPlugin implements MiniGamePlugin {
       if (this.selectedCard.type === 'tab') this.tableau[this.selectedCard.idx].pop();
       if (this.selectedCard.type === 'free') this.freeCells[this.selectedCard.idx] = null;
       this.moves++;
+      this.overlayManager?.updateStat('moves', this.moves);
       this.checkWin();
     }
     this.selectedCard = null;
@@ -271,15 +301,30 @@ export class FreeCellPlugin implements MiniGamePlugin {
       if (this.selectedCard.type === 'tab') this.tableau[this.selectedCard.idx].pop();
       if (this.selectedCard.type === 'free') this.freeCells[this.selectedCard.idx] = null;
       this.moves++;
+      this.overlayManager?.updateStat('moves', this.moves);
     }
     this.selectedCard = null;
   }
 
   private checkWin() {
     const totalFoundations = this.foundations.reduce((sum, f) => sum + f.length, 0);
-    if (totalFoundations === 52) {
+    if (totalFoundations === 52 && !this.isWon) {
       this.isWon = true;
-      this.statusMessage = 'ALL CARDS CLEARED! VICTORY!';
+      this.statusMessage = 'ALL CARDS CLEARED!';
+      setTimeout(() => {
+        this.overlayManager?.showResults({
+          title: 'FREECELL VICTORY! 🃏',
+          subtitle: `Cleared all 52 cards in ${this.moves} moves!`,
+          isWin: true,
+          stats: [
+            { label: 'Total Moves', value: String(this.moves) }
+          ],
+          onRestart: () => {
+            this.overlayManager?.hideResults();
+            this.resetGame();
+          }
+        });
+      }, 300);
     }
   }
 
@@ -360,5 +405,9 @@ export class FreeCellPlugin implements MiniGamePlugin {
       this.canvas.removeEventListener('touchstart', this.boundTouchStart);
     }
     window.removeEventListener('resize', this.boundResize);
+    if (this.overlayManager) {
+      this.overlayManager.destroy();
+      this.overlayManager = null;
+    }
   }
 }

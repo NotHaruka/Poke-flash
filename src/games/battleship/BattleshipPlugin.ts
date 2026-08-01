@@ -438,7 +438,7 @@ export class BattleshipPlugin implements MiniGamePlugin {
   }
 
   private makeAITurn() {
-    if (this.phase !== 'battle') return;
+    if (this.phase !== 'battle' || !this.isRunning || this.isPaused || this.isGameOver) return;
     let r = 0, c = 0, valid = false;
     while (!valid) {
       r = Math.floor(Math.random() * 10);

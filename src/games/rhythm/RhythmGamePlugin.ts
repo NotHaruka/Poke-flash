@@ -392,9 +392,6 @@ export class RhythmGamePlugin implements MiniGamePlugin {
           </div>
 
           <div style="display: flex; flex-direction: column; gap: 10px;">
-            <button id="btn-gameplay-pause" class="btn" style="width: 100%; height: 38px; background: rgba(255, 255, 255, 0.05); border: 1.5px solid rgba(255,255,255,0.08); font-size: 12px; font-weight: 700; border-radius: 8px;">
-              PAUSE
-            </button>
             <button id="btn-gameplay-quit" class="btn" style="width: 100%; height: 38px; background: rgba(239, 68, 68, 0.1); border: 1.5px solid rgba(239,68,68,0.2); color: #ef4444; font-size: 12px; font-weight: 700; border-radius: 8px;">
               ABANDON RUN
             </button>
@@ -500,26 +497,6 @@ export class RhythmGamePlugin implements MiniGamePlugin {
     });
 
     // Bind Controls
-    const pauseBtn = document.getElementById('btn-gameplay-pause');
-    if (pauseBtn) {
-      let isPausedLocal = false;
-      pauseBtn.addEventListener('click', () => {
-        if (!isPausedLocal) {
-          this.engine?.pause();
-          pauseBtn.textContent = 'RESUME';
-          pauseBtn.style.background = '#0ea5e9';
-          pauseBtn.style.color = '#000';
-          isPausedLocal = true;
-        } else {
-          this.engine?.resume();
-          pauseBtn.textContent = 'PAUSE';
-          pauseBtn.style.background = 'rgba(255,255,255,0.05)';
-          pauseBtn.style.color = '#fff';
-          isPausedLocal = false;
-        }
-      });
-    }
-
     const quitBtn = document.getElementById('btn-gameplay-quit');
     if (quitBtn) {
       quitBtn.addEventListener('click', () => {

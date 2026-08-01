@@ -4,6 +4,7 @@ import { resetGameCanvas } from '../../game.js';
 import { Chess, Square, Move } from 'chess.js';
 import { GameOverlayManager } from '../core/GameOverlayManager';
 import { GameAudioEngine } from '../core/GameAudioEngine';
+import { getGameTheme } from '../core/GameTheme';
 
 export class ChessPlugin implements MiniGamePlugin {
   id = 'chess';
@@ -421,7 +422,7 @@ export class ChessPlugin implements MiniGamePlugin {
   }
 
   private makeAIMove() {
-    if (this.isGameOver || !this.isRunning) return;
+    if (this.isGameOver || !this.isRunning || this.isPaused || this.gameMode !== 'vsAI' || this.chess.turn() === this.playerColor) return;
 
     const moves = this.chess.moves({ verbose: true });
     if (moves.length === 0) return;
@@ -523,8 +524,10 @@ export class ChessPlugin implements MiniGamePlugin {
     const canvas = this.canvas;
     if (!ctx || !canvas) return;
 
+    const theme = getGameTheme();
+
     // Clear background
-    ctx.fillStyle = '#0a0915';
+    ctx.fillStyle = theme.bg;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const midX = canvas.width / 2;
@@ -532,12 +535,12 @@ export class ChessPlugin implements MiniGamePlugin {
     // 1. Header status string
     ctx.textAlign = 'center';
     ctx.font = 'bold 13px "Space Grotesk", sans-serif';
-    ctx.fillStyle = this.isGameOver ? '#ef4444' : (this.chess.inCheck() ? '#f59e0b' : '#cda250');
+    ctx.fillStyle = this.isGameOver ? '#ef4444' : (this.chess.inCheck() ? '#f59e0b' : theme.accent);
     ctx.fillText(this.statusMessage, midX, this.startY - 14);
 
     // 2. Draw Chessboard
-    const lightColor = '#e2d6b5';
-    const darkColor = '#7a6651';
+    const lightColor = theme.isDark ? '#e2d6b5' : '#f0e6d2';
+    const darkColor = theme.isDark ? '#7a6651' : '#b58863';
 
     for (let r = 0; r < 8; r++) {
       for (let c = 0; c < 8; c++) {
@@ -572,7 +575,7 @@ export class ChessPlugin implements MiniGamePlugin {
 
     // 4. Highlight Selected Square
     if (this.selectedSquare) {
-      this.highlightSquare(this.selectedSquare, 'rgba(56, 189, 248, 0.6)');
+      this.highlightSquare(this.selectedSquare, theme.isDark ? 'rgba(56, 189, 248, 0.6)' : 'rgba(196, 97, 58, 0.4)');
     }
 
     // 5. Highlight Legal Moves
@@ -602,7 +605,7 @@ export class ChessPlugin implements MiniGamePlugin {
     }
 
     // 7. Draw Board Border
-    ctx.strokeStyle = '#3a385e';
+    ctx.strokeStyle = theme.border2;
     ctx.lineWidth = 2;
     ctx.strokeRect(this.startX, this.startY, this.boardSize, this.boardSize);
 
@@ -610,13 +613,13 @@ export class ChessPlugin implements MiniGamePlugin {
     const controlsY = this.startY + this.boardSize + 28;
 
     // VS AI Button
-    this.drawButton(midX - 120, controlsY, 76, 26, 'VS AI', this.gameMode === 'vsAI');
+    this.drawButton(midX - 120, controlsY, 76, 26, 'VS AI', this.gameMode === 'vsAI', theme);
     // Local PvP Button
-    this.drawButton(midX - 35, controlsY, 76, 26, 'LOCAL PvP', this.gameMode === 'local');
+    this.drawButton(midX - 35, controlsY, 76, 26, 'LOCAL PvP', this.gameMode === 'local', theme);
     // Undo Button
-    this.drawButton(midX + 45, controlsY, 56, 26, 'UNDO', false);
+    this.drawButton(midX + 45, controlsY, 56, 26, 'UNDO', false, theme);
     // New Game Button
-    this.drawButton(midX + 115, controlsY, 68, 26, 'NEW GAME', false);
+    this.drawButton(midX + 115, controlsY, 68, 26, 'NEW GAME', false, theme);
   }
 
   private highlightSquare(sq: Square, color: string) {
@@ -629,10 +632,10 @@ export class ChessPlugin implements MiniGamePlugin {
     this.ctx!.fillRect(x, y, this.cellSize, this.cellSize);
   }
 
-  private drawButton(cx: number, cy: number, w: number, h: number, label: string, active: boolean) {
+  private drawButton(cx: number, cy: number, w: number, h: number, label: string, active: boolean, theme: any) {
     const ctx = this.ctx!;
-    ctx.fillStyle = active ? '#10b981' : 'rgba(255, 255, 255, 0.04)';
-    ctx.strokeStyle = active ? '#10b981' : '#2d2c4e';
+    ctx.fillStyle = active ? theme.accent : theme.surface2;
+    ctx.strokeStyle = active ? theme.accent : theme.border;
     ctx.lineWidth = 1.5;
 
     ctx.beginPath();
@@ -641,7 +644,7 @@ export class ChessPlugin implements MiniGamePlugin {
     ctx.stroke();
 
     ctx.font = 'bold 10px "Space Grotesk", sans-serif';
-    ctx.fillStyle = active ? '#000000' : 'var(--text3)';
+    ctx.fillStyle = active ? theme.bg : theme.text2;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(label, cx, cy);

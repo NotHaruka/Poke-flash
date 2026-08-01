@@ -1,5 +1,6 @@
 import { MiniGamePlugin } from '../core/GamePlugin';
 import { GameLaunchContext } from '../core/GameLaunchContext';
+import { GameOverlayManager } from '../core/GameOverlayManager';
 import { resetGameCanvas } from '../../game.js';
 
 export class SokobanPlugin implements MiniGamePlugin {
@@ -27,6 +28,7 @@ export class SokobanPlugin implements MiniGamePlugin {
   private ctx: CanvasRenderingContext2D | null = null;
   private animationFrameId: number | null = null;
   private isRunning = false;
+  private overlayManager: GameOverlayManager | null = null;
 
   private currentLevel = 0;
   private grid: string[][] = [];
@@ -67,6 +69,7 @@ export class SokobanPlugin implements MiniGamePlugin {
 
   private boundMouseDown: any;
   private boundTouchStart: any;
+  private boundKeyDown: any;
   private boundResize: any;
 
   launch(context: GameLaunchContext): void {
@@ -93,20 +96,61 @@ export class SokobanPlugin implements MiniGamePlugin {
     this.ctx = this.canvas.getContext('2d');
     if (!this.ctx) return;
 
+    this.overlayManager = new GameOverlayManager('game-canvas-container', {
+      onRestart: () => this.loadLevel(this.currentLevel)
+    });
+
+    this.overlayManager.showInstructions({
+      title: 'SOKOBAN CRATE PUSHER',
+      subtitle: 'Warehouse Logic Puzzle',
+      description: 'Push crates onto designated target storage spots without trapping yourself against walls.',
+      objective: 'Push all wooden crates onto yellow target dots. Plan ahead so you do not push crates into un-extractable corners!',
+      controls: [
+        { key: 'WASD / Arrows', action: 'Move / Push Crates' },
+        { key: 'Touch D-Pad', action: 'On-Screen Arrow Controls' },
+        { key: 'Undo / Reset', action: 'Step Back or Restart Level' }
+      ],
+      onStart: () => {
+        this.overlayManager?.hideInstructions();
+        this.overlayManager?.setupHUD([
+          { id: 'level', label: 'Level', value: '1 / 3' },
+          { id: 'moves', label: 'Moves', value: '0' }
+        ]);
+        this.startLevel();
+      }
+    });
+  }
+
+  private startLevel() {
     this.isRunning = true;
     this.loadLevel(0);
     this.resizeCanvas();
 
     this.boundMouseDown = this.handleMouseDown.bind(this);
     this.boundTouchStart = this.handleTouchStart.bind(this);
+    this.boundKeyDown = this.handleKeyDown.bind(this);
     this.boundResize = this.resizeCanvas.bind(this);
 
-    this.canvas.style.touchAction = 'none';
-    this.canvas.addEventListener('mousedown', this.boundMouseDown);
-    this.canvas.addEventListener('touchstart', this.boundTouchStart, { passive: false });
+    if (this.canvas) {
+      this.canvas.style.touchAction = 'none';
+      this.canvas.addEventListener('mousedown', this.boundMouseDown);
+      this.canvas.addEventListener('touchstart', this.boundTouchStart, { passive: false });
+    }
+    window.addEventListener('keydown', this.boundKeyDown);
     window.addEventListener('resize', this.boundResize);
 
     this.tick();
+  }
+
+  private handleKeyDown(e: KeyboardEvent) {
+    if (!this.isRunning || this.isWon) return;
+    const key = e.key.toLowerCase();
+    if (key === 'arrowup' || key === 'w') { e.preventDefault(); this.movePlayer(-1, 0); }
+    else if (key === 'arrowdown' || key === 's') { e.preventDefault(); this.movePlayer(1, 0); }
+    else if (key === 'arrowleft' || key === 'a') { e.preventDefault(); this.movePlayer(0, -1); }
+    else if (key === 'arrowright' || key === 'd') { e.preventDefault(); this.movePlayer(0, 1); }
+    else if (key === 'z') { e.preventDefault(); this.undo(); }
+    else if (key === 'r') { e.preventDefault(); this.loadLevel(this.currentLevel); }
   }
 
   private loadLevel(levelIdx: number) {
@@ -226,6 +270,7 @@ export class SokobanPlugin implements MiniGamePlugin {
       }
     }
 
+    this.overlayManager?.updateStat('moves', this.moves);
     const scoreVal = document.getElementById('bb-score-val');
     if (scoreVal) scoreVal.textContent = String(this.moves);
 
@@ -238,6 +283,7 @@ export class SokobanPlugin implements MiniGamePlugin {
     this.grid = last.grid;
     this.playerPos = last.playerPos;
     this.moves = Math.max(0, this.moves - 1);
+    this.overlayManager?.updateStat('moves', this.moves);
     const scoreVal = document.getElementById('bb-score-val');
     if (scoreVal) scoreVal.textContent = String(this.moves);
   }
@@ -250,8 +296,26 @@ export class SokobanPlugin implements MiniGamePlugin {
         if (this.grid[r][c] === 'B') hasUnplacedBox = true;
       }
     }
-    if (!hasUnplacedBox) {
+    if (!hasUnplacedBox && !this.isWon) {
       this.isWon = true;
+      const nextLevel = (this.currentLevel + 1) % this.levels.length;
+      setTimeout(() => {
+        this.overlayManager?.showResults({
+          title: 'LEVEL CLEARED! 📦',
+          subtitle: `Completed Level ${this.currentLevel + 1} in ${this.moves} moves!`,
+          isWin: true,
+          stats: [
+            { label: 'Level', value: `${this.currentLevel + 1} / ${this.levels.length}` },
+            { label: 'Total Moves', value: String(this.moves) }
+          ],
+          onRestart: () => {
+            this.overlayManager?.hideResults();
+            this.loadLevel(nextLevel);
+            this.overlayManager?.updateStat('level', `${this.currentLevel + 1} / ${this.levels.length}`);
+            this.overlayManager?.updateStat('moves', '0');
+          }
+        });
+      }, 300);
     }
   }
 
@@ -274,7 +338,7 @@ export class SokobanPlugin implements MiniGamePlugin {
     ctx.font = 'bold 12px "Space Grotesk", sans-serif';
     ctx.fillStyle = this.isWon ? '#10b981' : '#f59e0b';
     ctx.textAlign = 'center';
-    ctx.fillText(this.isWon ? 'LEVEL CLEARED! Tap for next' : `Level ${this.currentLevel + 1} of ${this.levels.length}`, midX, this.startY - 15);
+    ctx.fillText(this.isWon ? 'LEVEL CLEARED!' : `Level ${this.currentLevel + 1} of ${this.levels.length}`, midX, this.startY - 15);
 
     // Render Grid
     for (let r = 0; r < this.grid.length; r++) {
@@ -338,6 +402,11 @@ export class SokobanPlugin implements MiniGamePlugin {
       this.canvas.removeEventListener('mousedown', this.boundMouseDown);
       this.canvas.removeEventListener('touchstart', this.boundTouchStart);
     }
+    window.removeEventListener('keydown', this.boundKeyDown);
     window.removeEventListener('resize', this.boundResize);
+    if (this.overlayManager) {
+      this.overlayManager.destroy();
+      this.overlayManager = null;
+    }
   }
 }

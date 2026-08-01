@@ -1847,8 +1847,8 @@
       </div>
 
       <!-- Iframe Container -->
-      <div id="cyberflap-iframe-container" style="flex: 1; position: relative; background: #000; overflow: hidden; width: 100%; height: calc(100% - 60px);">
-        <iframe id="cyberflap-iframe" src="/cyberflap/index.html" style="width: 100%; height: 100%; border: none; background: #000;"></iframe>
+      <div id="cyberflap-iframe-container" style="flex: 1; position: relative; background: var(--bg); overflow: hidden; width: 100%; height: calc(100% - 60px);">
+        <iframe id="cyberflap-iframe" src="/cyberflap/index.html" style="width: 100%; height: 100%; border: none; background: var(--bg);"></iframe>
       </div>
     </div>
 
@@ -1857,7 +1857,7 @@
       <!-- Panel Header -->
       <div class="panel-header game-panel-header" style="flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--surface); margin-bottom: 0;">
         <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
-          <div style="width: 32px; height: 32px; background: rgba(16, 185, 129, 0.15); border-radius: var(--rs); display: flex; align-items: center; justify-content: center; color: #10b981; flex-shrink: 0;">
+          <div style="width: 32px; height: 32px; background: var(--accent-dim); border-radius: var(--rs); display: flex; align-items: center; justify-content: center; color: var(--accent); flex-shrink: 0;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 18px; height: 18px;">
               <circle cx="12" cy="12" r="10" />
               <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
@@ -1881,13 +1881,13 @@
       </div>
 
       <!-- React Root Container -->
-      <div id="void-survivor-root" style="flex: 1; position: relative; background: #000; overflow: hidden; width: 100%; height: calc(100% - 60px);">
+      <div id="void-survivor-root" style="flex: 1; position: relative; background: var(--bg); overflow: hidden; width: 100%; height: calc(100% - 60px);">
       </div>
     </div>
 
     <!-- RHYTHM GAME PANEL -->
     <div class="panel" id="panel-rhythm-game" style="flex-direction: column; height: 100%; min-height: 500px; padding: 0;">
-      <div id="rhythm-game-root" style="flex: 1; position: relative; background: #080718; overflow: hidden; width: 100%; height: 100%;"></div>
+      <div id="rhythm-game-root" style="flex: 1; position: relative; background: var(--bg); overflow: hidden; width: 100%; height: 100%;"></div>
     </div>
 
     <div class="panel" id="panel-game" style="flex-direction: column; height: 100%; min-height: 500px; padding: 0;">
@@ -1938,13 +1938,13 @@
       </div>
       
       <!-- Interactive Stage -->
-      <div id="game-canvas-container" style="flex: 1; position: relative; background: #0b0c10; overflow: hidden; width: 100%; height: calc(100% - 60px);">
+      <div id="game-canvas-container" style="flex: 1; position: relative; background: var(--bg); overflow: hidden; width: 100%; height: calc(100% - 60px);">
         <!-- Active game canvas -->
-        <canvas id="game-canvas" style="display: block; background: #090b15;"></canvas>
+        <canvas id="game-canvas" style="display: block; background: var(--bg);"></canvas>
 
         <!-- MENU OVERLAY -->
-        <div id="bb-menu-overlay" style="position: absolute; inset: 0; background: rgba(13, 15, 30, 0.92); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; text-align: center; overflow-y: auto; z-index: 10;">
-          <h1 style="font-family: 'Fraunces', serif; font-size: 38px; font-weight: 700; color: #ffffff; margin-bottom: 6px; text-shadow: 0 0 15px rgba(205, 162, 80, 0.4);">Blade Bedlam</h1>
+        <div id="bb-menu-overlay" style="position: absolute; inset: 0; background: var(--surface); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; text-align: center; overflow-y: auto; z-index: 10; color: var(--text);">
+          <h1 style="font-family: 'Fraunces', serif; font-size: 38px; font-weight: 700; color: var(--accent); margin-bottom: 6px; text-shadow: 0 0 15px rgba(var(--accent-rgb), 0.3);">Blade Bedlam</h1>
           <p style="color: var(--text3); font-size: 13px; max-width: 480px; margin-bottom: 24px;">An intense gladiatorial action-adventure runner. Tap or click the left side of the screen to fly, and the right side (or Shift/X/Space) to execute sweeping blade slashes. Slay gargoyles, wyverns, and phoenices to survive!</p>
           
           <h3 style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--text2); margin-bottom: 12px;">Choose Your Colosseum Gladiator</h3>
@@ -1955,7 +1955,7 @@
           </div>
 
           <div id="bb-main-menu-actions" style="display: flex; gap: 12px; align-items: center; justify-content: center; flex-wrap: wrap;">
-            <button class="btn btn-p" onclick="window.startGame()" style="font-size: 16px; font-weight: 700; height: 48px; padding: 0 36px; border-radius: 24px; box-shadow: 0 0 20px rgba(205, 162, 80, 0.45); border-color: #cda250; background: #cda250; color: #000;">
+            <button class="btn btn-g" onclick="window.startGame()" style="font-size: 16px; font-weight: 700; height: 48px; padding: 0 36px; border-radius: 24px; box-shadow: 0 0 20px rgba(var(--accent-rgb), 0.45); border-color: var(--accent); background: var(--accent); color: var(--bg);">
               ENTER THE ARENA
             </button>
           </div>
