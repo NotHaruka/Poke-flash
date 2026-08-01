@@ -8,7 +8,7 @@ interface CapacitorConfig {
 const config: CapacitorConfig = {
   appId: 'com.flashtrainer.pro',
   appName: 'FlashTrainer Pro',
-  webDir: 'www/dist'
+  webDir: 'dist'
 };
 
 export default config;

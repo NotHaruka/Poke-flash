@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cyber Flap 2084</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div id="arcade-container">
+  <div id="arcade-root">
+    <div id="game-wrapper">
+      <div id="score-bar">
+        <span>SCORE <span class="val" id="live-score">0</span></span>
+        <span>BEST <span class="val" id="live-best">0</span></span>
+      </div>
+      <!-- Floating Pause Button -->
+      <button id="pause-btn" class="hidden" title="Pause Session">
+        <svg width="6" height="6" viewBox="0 0 10 10" style="display: block; fill: currentColor;">
+          <rect x="2" y="1" width="2" height="8"></rect>
+          <rect x="6" y="1" width="2" height="8"></rect>
+        </svg>
+      </button>
+      <canvas id="c" width="180" height="270"></canvas>
+      <div id="overlay-title" style="display:none"></div>
+      <div id="overlay-msg" style="display:none"></div>
+      <div id="overlay">
+        <!-- 1. Home Screen View -->
+        <div id="home-screen" class="view-panel">
+          <div>
+            <div class="logo-title">Cyber Flap 2084</div>
+            <div class="subtitle">ARCADE EDITION</div>
+          </div>
+          
+          <div class="button-row">
+            <button id="play-btn-classic" class="home-action-btn" title="Start Session">
+              <span class="play-icon"></span>
+            </button>
+            <button id="open-customize-btn" class="home-action-btn" title="Chassis Garage" style="display: flex; align-items: center; justify-content: center;">
+              <svg width="18" height="15" viewBox="0 0 16 13" fill="none" xmlns="http://www.w3.org/2000/svg" style="image-rendering: pixelated; display: block;">
+                <!-- Outline -->
+                <path d="M4 0h6v1H4zM2 1h2v1H2zM10 1h2v1h-2zM0 2h2v1H0zM12 2h2v1h-2zM0 3h2v4H0zM12 3h2v1h-2zM10 4h2v1h-2zM12 5h2v1h-2zM10 6h2v1h-2zM12 7h2v1h-2zM2 7h8v1H2z" fill="#543847"/>
+                <!-- Body/Yellow -->
+                <path d="M4 1h6v1H4zM2 2h8v1H2zM2 3h8v1H2zM2 4h8v1H2zM2 5h8v1H2zM2 6h8v1H2z" fill="#ffe94e"/>
+                <!-- Belly/White-Orange -->
+                <path d="M4 5h4v2H4z" fill="#ff9800"/>
+                <!-- Eye -->
+                <path d="M8 2h3v3H8z" fill="#ffffff"/>
+                <path d="M9 3h1v1H9z" fill="#000000"/>
+                <!-- Beak -->
+                <path d="M10 4h3v2h-3z" fill="#f97316"/>
+                <path d="M11 6h1v1h-1z" fill="#fb923c"/>
+                <!-- Wing -->
+                <path d="M2 4h4v2H2z" fill="#fb923c"/>
+              </svg>
+            </button>
+          </div>
+
+          <button id="debug-boss-btn" style="
+            font-family: 'Orbitron', monospace;
+            font-size: 4.5px;
+            width: 140px;
+            padding: 5px 4px;
+            background: #1a0a0a;
+            color: #ef4444;
+            border: 1.5px dashed #ef4444;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 0 4px rgba(239,68,68,0.3);
+          " title="Debug: Skip to Boss">&#9888; DEBUG: SKIP TO BOSS</button>
+
+        </div>
+
+        <div id="customization-screen" class="view-panel hidden" style="justify-content: center; gap: 8px;">
+          <div style="width:100%; display:flex; flex-direction:column; align-items:center;">
+            <h2 id="custom-title" style="margin: 0; font-size: 6px; color: #ffd23f; text-shadow: 2px 2px 0 #000; text-transform: uppercase;">CHASSIS GARAGE</h2>
+            <p id="custom-msg" style="font-size: 4px; margin: 2px 0 0 0; color: #94a3b8;">Modify flight parameters</p>
+          </div>
+
+          <div class="menu-scroll-frame" style="width:100%; max-height: 124px; margin: 0;">
+            <div class="control-group">
+              <div class="control-group-title">Chassis Setup</div>
+              <div class="control-row">
+                <label>Matrix Model</label>
+                <select id="bird-style" style="display:none">
+                  <option value="classic">Classic</option>
+                  <option value="angry">Angry Matrix</option>
+                  <option value="cute">Cute Sparkle</option>
+                  <option value="robot">Cybernetic Robot</option>
+                  <option value="golden">Solid Gold</option>
+                </select>
+                <div class="selector-row" id="bird-style-selector">
+                  <div class="selector-item" data-value="classic" title="Classic Chassis" onclick="selectModel('classic')">
+                    <svg width="22" height="22" viewBox="0 0 16 16" style="image-rendering:pixelated; display:block;">
+                      <rect x="5" y="3" width="7" height="1" fill="#543847"/>
+                      <rect x="3" y="4" width="2" height="1" fill="#543847"/>
+                      <rect x="12" y="4" width="2" height="1" fill="#543847"/>
+                      <rect x="2" y="5" width="1" height="7" fill="#543847"/>
+                      <rect x="14" y="5" width="1" height="1" fill="#543847"/>
+                      <rect x="12" y="6" width="2" height="1" fill="#543847"/>
+                      <rect x="14" y="7" width="1" height="3" fill="#543847"/>
+                      <rect x="12" y="10" width="2" height="1" fill="#543847"/>
+                      <rect x="3" y="12" width="9" height="1" fill="#543847"/>
+                      <rect x="5" y="4" width="7" height="1" fill="#ffe94e"/>
+                      <rect x="3" y="5" width="11" height="1" fill="#ffe94e"/>
+                      <rect x="3" y="6" width="9" height="1" fill="#ffe94e"/>
+                      <rect x="3" y="7" width="11" height="1" fill="#ffe94e"/>
+                      <rect x="3" y="8" width="11" height="1" fill="#ffe94e"/>
+                      <rect x="3" y="9" width="11" height="1" fill="#ffe94e"/>
+                      <rect x="3" y="10" width="9" height="1" fill="#ffe94e"/>
+                      <rect x="3" y="11" width="9" height="1" fill="#ffe94e"/>
+                      <rect x="5" y="8" width="5" height="3" fill="#ff9800"/>
+                      <rect x="8" y="5" width="4" height="4" fill="#ffffff"/>
+                      <rect x="9" y="6" width="2" height="2" fill="#000000"/>
+                      <rect x="11" y="5" width="1" height="1" fill="#543847"/>
+                      <rect x="11" y="9" width="1" height="1" fill="#543847"/>
+                      <rect x="11" y="7" width="3" height="3" fill="#f97316"/>
+                      <rect x="11" y="8" width="4" height="1" fill="#f97316"/>
+                      <rect x="3" y="7" width="4" height="3" fill="#fb923c"/>
+                    </svg>
+                  </div>
+                  <div class="selector-item" data-value="angry" title="Angry Matrix" onclick="selectModel('angry')">
+                    <svg width="22" height="22" viewBox="0 0 16 16" style="image-rendering:pixelated; display:block;">
+                      <rect x="5" y="3" width="7" height="1" fill="#543847"/>
+                      <rect x="3" y="4" width="2" height="1" fill="#543847"/>
+                      <rect x="12" y="4" width="2" height="1" fill="#543847"/>
+                      <rect x="2" y="5" width="1" height="7" fill="#543847"/>
+                      <rect x="14" y="5" width="1" height="1" fill="#543847"/>
+                      <rect x="12" y="6" width="2" height="1" fill="#543847"/>
+                      <rect x="14" y="7" width="1" height="3" fill="#543847"/>
+                      <rect x="12" y="10" width="2" height="1" fill="#543847"/>
+                      <rect x="3" y="12" width="9" height="1" fill="#543847"/>
+                      <rect x="5" y="4" width="7" height="1" fill="#ffe94e"/>
+                      <rect x="3" y="5" width="11" height="1" fill="#ffe94e"/>
+                      <rect x="3" y="6" width="9" height="1" fill="#ffe94e"/>
+                      <rect x="3" y="7" width="11" height="1" fill="#ffe94e"/>
+                      <rect x="3" y="8" width="11" height="1" fill="#ffe94e"/>
+                      <rect x="3" y="9" width="11" height="1" fill="#ffe94e"/>
+                      <rect x="3" y="10" width="9" height="1" fill="#ffe94e"/>
+                      <rect x="3" y="11" width="9" height="1" fill="#ffe94e"/>
+                      <rect x="7" y="4" width="5" height="1" fill="#000000"/>
+                      <rect x="8" y="5" width="4" height="1" fill="#000000"/>
+                      <rect x="4" y="8" width="3" height="2" fill="#ef4444" fill-opacity="0.6"/>
+                      <rect x="5" y="8" width="5" height="3" fill="#ff9800"/>
+                      <rect x="8" y="6" width="4" height="3" fill="#ffffff"/>
+                      <rect x="9" y="7" width="2" height="1.5" fill="#000000"/>
+                      <rect x="11" y="7" width="3" height="3" fill="#f97316"/>
+                      <rect x="11" y="8" width="4" height="1" fill="#f97316"/>
+                      <rect x="3" y="7" width="4" height="3" fill="#fb923c"/>
+                    </svg>
+                  </div>
+                  <div class="selector-item" data-value="cute" title="Cute Sparkle" onclick="selectModel('cute')">
+                    <svg width="22" height="22" viewBox="0 0 16 16" style="image-rendering:pixelated; display:block;">
+                      <rect x="5" y="3" width="7" height="1" fill="#543847"/>
+                      <rect x="3" y="4" width="2" height="1" fill="#543847"/>
+                      <rect x="12" y="4" width="2" height="1" fill="#543847"/>
+                      <rect x="2" y="5" width="1" height="7" fill="#543847"/>
+                      <rect x="14" y="5" width="1" height="1" fill="#543847"/>
+                      <rect x="12" y="6" width="2" height="1" fill="#543847"/>
+                      <rect x="14" y="7" width="1" height="3" fill="#543847"/>
+                      <rect x="12" y="10" width="2" height="1" fill="#543847"/>
+                      <rect x="3" y="12" width="9" height="1" fill="#543847"/>
+                      <rect x="5" y="4" width="7" height="1" fill="#ffc2d1"/>
+                      <rect x="3" y="5" width="11" height="1" fill="#ffc2d1"/>
+                      <rect x="3" y="6" width="9" height="1" fill="#ffc2d1"/>
+                      <rect x="3" y="7" width="11" height="1" fill="#ffc2d1"/>
+                      <rect x="3" y="8" width="11" height="1" fill="#ffc2d1"/>
+                      <rect x="3" y="9" width="11" height="1" fill="#ffc2d1"/>
+                      <rect x="3" y="10" width="9" height="1" fill="#ffc2d1"/>
+                      <rect x="3" y="11" width="9" height="1" fill="#ffc2d1"/>
+                      <rect x="4" y="8" width="3" height="2" fill="#ff70a6"/>
+                      <rect x="5" y="8" width="5" height="3" fill="#ff85a1"/>
+                      <rect x="8" y="5" width="4" height="4" fill="#ffffff"/>
+                      <rect x="9" y="6" width="2.5" height="2.5" fill="#000000"/>
+                      <rect x="10" y="6" width="1" height="1" fill="#ffffff"/>
+                      <rect x="11" y="7" width="3" height="3" fill="#f97316"/>
+                      <rect x="11" y="8" width="4" height="1" fill="#f97316"/>
+                      <rect x="3" y="7" width="4" height="3" fill="#ff85a1"/>
+                    </svg>
+                  </div>
+                  <div class="selector-item" data-value="robot" id="model-robot-tile" title="Cybernetic Robot" onclick="selectModel('robot')">
+                    <svg width="22" height="22" viewBox="0 0 16 16" style="image-rendering:pixelated; display:block;">
+                      <rect x="2" y="2" width="12" height="12" fill="#6366f1" stroke="#543847" stroke-width="1"/>
+                      <rect x="4" y="4" width="8" height="8" fill="#27253d"/>
+                      <rect x="8" y="5" width="5" height="2" fill="#00ffff"/>
+                      <rect x="12" y="7" width="3" height="3" fill="#475569" stroke="#543847" stroke-width="1"/>
+                      <rect x="5" y="3" width="1" height="10" fill="#475569"/>
+                    </svg>
+                  </div>
+                  <div class="selector-item" data-value="golden" id="model-golden-tile" title="Solid Gold" onclick="selectModel('golden')">
+                    <svg width="22" height="22" viewBox="0 0 16 16" style="image-rendering:pixelated; display:block;">
+                      <defs>
+                        <radialGradient id="gold-grad-thumb" cx="30%" cy="30%" r="70%">
+                          <stop offset="0%" stop-color="#ffffff"/>
+                          <stop offset="50%" stop-color="#fff176"/>
+                          <stop offset="100%" stop-color="#996515"/>
+                        </radialGradient>
+                      </defs>
+                      <rect x="5" y="3" width="7" height="1" fill="#543847"/>
+                      <rect x="3" y="4" width="2" height="1" fill="#543847"/>
+                      <rect x="12" y="4" width="2" height="1" fill="#543847"/>
+                      <rect x="2" y="5" width="1" height="7" fill="#543847"/>
+                      <rect x="14" y="5" width="1" height="1" fill="#543847"/>
+                      <rect x="12" y="6" width="2" height="1" fill="#543847"/>
+                      <rect x="14" y="7" width="1" height="3" fill="#543847"/>
+                      <rect x="12" y="10" width="2" height="1" fill="#543847"/>
+                      <rect x="3" y="12" width="9" height="1" fill="#543847"/>
+                      <rect x="3" y="4" width="10" height="8" fill="url(#gold-grad-thumb)"/>
+                      <rect x="8" y="5" width="4" height="4" fill="#ffffff"/>
+                      <rect x="9" y="6" width="2" height="2" fill="#0f2042"/>
+                      <rect x="11" y="7" width="3" height="3" fill="#b57c1e"/>
+                      <rect x="3" y="7" width="4" height="3" fill="#cca300"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="control-group">
+              <div class="control-group-title">Equipment Configuration</div>
+              <div class="control-row">
+                <label>Accessory Attachment</label>
+                <select id="bird-accessory" style="display:none">
+                  <option value="none">None</option>
+                  <option value="crown">+ Imperial Crown</option>
+                  <option value="glasses">+ Cyber Visor</option>
+                </select>
+                <div class="selector-row" id="bird-accessory-selector">
+                  <div class="selector-item" data-value="none" title="No Accessory" onclick="selectAccessory('none')">
+                    <svg width="22" height="22" viewBox="0 0 16 16" style="image-rendering:pixelated; display:block;">
+                      <rect x="3" y="3" width="10" height="10" fill="none" stroke="#475569" stroke-width="1" stroke-dasharray="2 2"/>
+                      <line x1="3" y1="3" x2="13" y2="13" stroke="#ef4444" stroke-width="1"/>
+                    </svg>
+                  </div>
+                  <div class="selector-item" data-value="crown" title="Imperial Crown" onclick="selectAccessory('crown')">
+                    <svg width="22" height="22" viewBox="0 0 16 16" style="image-rendering:pixelated; display:block;">
+                      <path d="M2 13h12v-6l-3 4-3-6-3 6-3-4z" fill="gold" stroke="#543847" stroke-width="1"/>
+                      <rect x="4" y="11" width="1" height="1" fill="#ef4444"/>
+                      <rect x="8" y="11" width="1" height="1" fill="#3b82f6"/>
+                      <rect x="12" y="11" width="1" height="1" fill="#ef4444"/>
+                    </svg>
+                  </div>
+                  <div class="selector-item" data-value="glasses" title="Cyber Visor" onclick="selectAccessory('glasses')">
+                    <svg width="22" height="22" viewBox="0 0 16 16" style="image-rendering:pixelated; display:block;">
+                      <rect x="1" y="5" width="14" height="4" fill="#0f172a" stroke="#543847" stroke-width="1"/>
+                      <rect x="2" y="6" width="5" height="2" fill="#00ffff"/>
+                      <rect x="8" y="6" width="5" height="2" fill="#ec4899"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+              <div class="control-row" style="margin-top: 3px;">
+                <label>Wing Mechanic</label>
+                <select id="bird-wing" style="display:none">
+                  <option value="normal">Standard Wing</option>
+                  <option value="angel">Seraphic Propeller</option>
+                  <option value="bat">Gothic Thruster</option>
+                </select>
+                <div class="selector-row" id="bird-wing-selector">
+                  <div class="selector-item" data-value="normal" title="Standard Wing" onclick="selectWing('normal')">
+                    <svg width="22" height="22" viewBox="0 0 16 16" style="image-rendering:pixelated; display:block;">
+                      <path d="M2 7c0-2.5 5-4 9-2s4 5 1 6c-3 1-8-0.5-10-4z" fill="#ffb703" stroke="#b38600" stroke-width="1"/>
+                      <path d="M4 8l5-2" stroke="#ffffff" stroke-width="1"/>
+                    </svg>
+                  </div>
+                  <div class="selector-item" data-value="angel" id="wing-angel-tile" title="Seraphic Propeller" onclick="selectWing('angel')">
+                    <svg width="22" height="22" viewBox="0 0 16 16" style="image-rendering:pixelated; display:block;">
+                      <path d="M2 10c1-5 6-7 11-4s2 6-1 6c-3 0-7-1-10 1z" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1"/>
+                      <path d="M4 8c2-2 5-1 7 1" stroke="#38bdf8" stroke-width="0.8" fill="none"/>
+                    </svg>
+                  </div>
+                  <div class="selector-item" data-value="bat" id="wing-bat-tile" title="Gothic Thruster" onclick="selectWing('bat')">
+                    <svg width="22" height="22" viewBox="0 0 16 16" style="image-rendering:pixelated; display:block;">
+                      <path d="M2 4l10 3-4 5-5-2-1 3z" fill="#2d1b4e" stroke="#701a75" stroke-width="1"/>
+                      <line x1="2" y1="4" x2="8" y2="12" stroke="#ec4899" stroke-width="0.7"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="control-group">
+              <div class="control-group-title">Audio Rig Settings</div>
+              <div class="control-row-slider">
+                <div class="slider-label-header">
+                  <label>Music Volume</label>
+                  <span id="music-vol-lbl">50%</span>
+                </div>
+                <input type="range" id="music-volume-slider" min="0" max="100" value="50" />
+              </div>
+              <div class="control-row-slider" style="margin-top: 3px;">
+                <div class="slider-label-header">
+                  <label>SFX Volume</label>
+                  <span id="sfx-vol-lbl">50%</span>
+                </div>
+                <input type="range" id="sfx-volume-slider" min="0" max="100" value="50" />
+              </div>
+              <div class="control-row-slider" style="margin-top: 4px; display:flex; flex-direction:row; justify-content:space-between; align-items:center;">
+                <label style="font-size:4.8px; margin:0; text-transform:uppercase; color:#94a3b8; line-height:1.2;">Mute Audio</label>
+                <button id="mute-btn-toggle" class="action-btn btn-secondary" style="height:11px; font-size:4px; padding:0 6px; margin:0; cursor:pointer;" type="button">MUTE AUDIO</button>
+              </div>
+            </div>
+
+            <div class="control-group">
+              <div class="vault-status">
+                <span>COIN VAULT:</span>
+                <span>COINS <span id="coin-count">0</span></span>
+              </div>
+              <div class="control-row" style="margin-top: 3px;">
+                <label>Select Locked Component</label>
+                <select id="shop-skin" style="display:none">
+                  <option value="">-- Choose Module --</option>
+                  <option value="skin_robot">Robot Chassis (25 co)</option>
+                  <option value="skin_golden">Golden Chassis (50 co)</option>
+                  <option value="wing_angel">Seraphic Wings (30 co)</option>
+                  <option value="wing_bat">Gothic Thruster Wings (45 co)</option>
+                </select>
+                <div class="shop-grid" id="shop-skin-selector">
+                  <div class="shop-item-tile" data-shop-value="skin_robot" onclick="selectShopItem('skin_robot')">
+                    <svg width="18" height="18" viewBox="0 0 16 16" style="image-rendering:pixelated; display:block;">
+                      <rect x="2" y="2" width="12" height="12" fill="#6366f1" stroke="#543847" stroke-width="1"/>
+                      <rect x="4" y="4" width="8" height="8" fill="#27253d"/>
+                      <rect x="8" y="5" width="5" height="2" fill="#00ffff"/>
+                    </svg>
+                    <div class="shop-item-title">ROBO UNIT</div>
+                    <div class="shop-item-price">25 C</div>
+                  </div>
+                  <div class="shop-item-tile" data-shop-value="skin_golden" onclick="selectShopItem('skin_golden')">
+                    <svg width="18" height="18" viewBox="0 0 16 16" style="image-rendering:pixelated; display:block;">
+                      <rect x="5" y="3" width="7" height="1" fill="#543847"/>
+                      <rect x="3" y="4" width="2" height="1" fill="#543847"/>
+                      <rect x="12" y="4" width="2" height="1" fill="#543847"/>
+                      <rect x="2" y="5" width="1" height="7" fill="#543847"/>
+                      <rect x="14" y="5" width="1" height="1" fill="#543847"/>
+                      <rect x="12" y="6" width="2" height="1" fill="#543847"/>
+                      <rect x="14" y="7" width="1" height="3" fill="#543847"/>
+                      <rect x="12" y="10" width="2" height="1" fill="#543847"/>
+                      <rect x="3" y="12" width="9" height="1" fill="#543847"/>
+                      <rect x="3" y="4" width="10" height="8" fill="#ffd700"/>
+                      <rect x="8" y="5" width="4" height="4" fill="#ffffff"/>
+                      <rect x="9" y="6" width="2" height="2" fill="#0f2042"/>
+                    </svg>
+                    <div class="shop-item-title">GOLD UNIT</div>
+                    <div class="shop-item-price">50 C</div>
+                  </div>
+                  <div class="shop-item-tile" data-shop-value="wing_angel" onclick="selectShopItem('wing_angel')">
+                    <svg width="18" height="18" viewBox="0 0 16 16" style="image-rendering:pixelated; display:block;">
+                      <path d="M2 10c1-5 6-7 11-4s2 6-1 6c-3 0-7-1-10 1z" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1"/>
+                    </svg>
+                    <div class="shop-item-title">ANGEL FLIGHT</div>
+                    <div class="shop-item-price">30 C</div>
+                  </div>
+                  <div class="shop-item-tile" data-shop-value="wing_bat" onclick="selectShopItem('wing_bat')">
+                    <svg width="18" height="18" viewBox="0 0 16 16" style="image-rendering:pixelated; display:block;">
+                      <path d="M2 4l10 3-4 5-5-2-1 3z" fill="#2d1b4e" stroke="#701a75" stroke-width="1"/>
+                    </svg>
+                    <div class="shop-item-title">BAT JET</div>
+                    <div class="shop-item-price">45 C</div>
+                  </div>
+                </div>
+              </div>
+              <button id="buy-skin" class="action-btn btn-secondary" style="margin-top: 5px;" type="button">DECRYPT LOCKOUT</button>
+            </div>
+          </div>
+
+          <button id="back-to-home-btn" class="action-btn btn-primary" style="font-size: 5px; padding: 6px 4px; margin: 0; width: 100%;">BACK TO MENU</button>
+        </div>
+
+        <!-- 3. Game Over View -->
+        <div id="game-over-screen" class="view-panel hidden">
+          <div style="width:100%; display:flex; flex-direction:column; align-items:center;">
+            <h2 id="gameover-title" class="logo-title" style="font-size: 8px; margin: 0 0 6px 0; line-height: 1.4;">Session Terminated</h2>
+            <div class="score-display" id="overlay-score" style="margin: 0;">
+              SCORE <span id="end-score">0</span> | BEST <span id="end-best">0</span>
+            </div>
+          </div>
+          
+          <div class="button-row">
+            <button id="retry-btn" class="home-action-btn" title="Retry Session">
+              <span class="play-icon"></span>
+            </button>
+            <button id="open-customize-btn-2" class="home-action-btn" title="Chassis Garage" style="display: flex; align-items: center; justify-content: center;">
+              <svg width="18" height="15" viewBox="0 0 16 13" fill="none" xmlns="http://www.w3.org/2000/svg" style="image-rendering: pixelated; display: block;">
+                <!-- Outline -->
+                <path d="M4 0h6v1H4zM2 1h2v1H2zM10 1h2v1h-2zM0 2h2v1H0zM12 2h2v1h-2zM0 3h2v4H0zM12 3h2v1h-2zM10 4h2v1h-2zM12 5h2v1h-2zM10 6h2v1h-2zM12 7h2v1h-2zM2 7h8v1H2z" fill="#543847"/>
+                <!-- Body/Yellow -->
+                <path d="M4 1h6v1H4zM2 2h8v1H2zM2 3h8v1H2zM2 4h8v1H2zM2 5h8v1H2zM2 6h8v1H2z" fill="#ffe94e"/>
+                <!-- Belly/White-Orange -->
+                <path d="M4 5h4v2H4z" fill="#ff9800"/>
+                <!-- Eye -->
+                <path d="M8 2h3v3H8z" fill="#ffffff"/>
+                <path d="M9 3h1v1H9z" fill="#000000"/>
+                <!-- Beak -->
+                <path d="M10 4h3v2h-3z" fill="#f97316"/>
+                <path d="M11 6h1v1h-1z" fill="#fb923c"/>
+                <!-- Wing -->
+                <path d="M2 4h4v2H2z" fill="#fb923c"/>
+              </svg>
+            </button>
+          </div>
+          
+          <div class="home-credits">
+            PRESS SPACE OR ARROW-UP
+          </div>
+
+          <button id="debug-boss-btn-2" style="
+            font-family: 'Orbitron', monospace;
+            font-size: 4.5px;
+            width: 140px;
+            padding: 5px 4px;
+            background: #1a0a0a;
+            color: #ef4444;
+            border: 1.5px dashed #ef4444;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 0 4px rgba(239,68,68,0.3);
+          " title="Debug: Skip to Boss">&#9888; DEBUG: SKIP TO BOSS</button>
+        </div>
+
+        <!-- 4. Paused Screen View -->
+        <div id="paused-screen" class="view-panel hidden">
+          <div style="width:100%; display:flex; flex-direction:column; align-items:center;">
+            <h2 class="logo-title" style="color: #ffd23f; font-size: 8px; margin: 0 0 4px 0;">Session Paused</h2>
+            <div class="subtitle" style="margin-top: 2px;">PRESS P OR CLICK PLAY TO RESUME</div>
+          </div>
+          
+          <div class="button-row" style="margin-top: 10px;">
+            <button id="resume-btn" class="home-action-btn" title="Resume Session">
+              <span class="play-icon"></span>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div id="scanlines"></div>
+    </div>
+  </div>
+</div>
+<script src="game.js"></script>
+</body>
+</html>
