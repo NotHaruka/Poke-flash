@@ -1076,41 +1076,42 @@ async function renderWelcomeDashboard() {
     `;
 
     progressCard.innerHTML = `
-      <div>
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <div style="display:flex; flex-direction:column; gap:20px; width:100%;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
           <span style="font-size:11px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:0.05em;">Today's Study Progress</span>
           <span style="font-size:11px; font-family:var(--font-serif); font-style:italic; color:var(--text3);">${new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span>
         </div>
 
-        <div style="display:flex; gap:16px; align-items:center; margin-bottom:16px; background:var(--surface3); border:1px solid var(--border); padding:12px; border-radius:var(--rs);">
+        <div style="display:flex; gap:16px; align-items:center;">
           <div style="position:relative; width:52px; height:52px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
             <svg width="52" height="52" viewBox="0 0 36 36" style="transform: rotate(-90deg);">
-              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="var(--border)" stroke-width="3" />
+              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="var(--border)" stroke-width="2.5" />
               <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="var(--accent)" stroke-width="3.5" stroke-dasharray="${targetPct}, 100" stroke-linecap="round" />
             </svg>
             <div style="position:absolute; font-family:var(--font-serif); font-weight:700; font-size:13px; color:var(--text);">${todayReviews}</div>
           </div>
           <div style="flex:1;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
-              <span style="font-size:13px; font-weight:700; color:var(--text);">${todayReviews} / 20 reviewed</span>
-              <span style="font-size:11px; font-weight:700; color:var(--accent);">${targetPct}% of goal</span>
+              <span style="font-size:14px; font-weight:700; color:var(--text);">${todayReviews} / 20 reviewed</span>
+              <span style="font-size:12px; font-weight:700; color:var(--accent);">${targetPct}%</span>
             </div>
-            <div style="font-size:10px; color:var(--text3); margin-top:2px;">Target review volume to retain cards.</div>
+            <div style="font-size:11px; color:var(--text3); margin-top:2px;">Target review volume to retain cards.</div>
           </div>
         </div>
 
-        <!-- Metric breakdown grid -->
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
-          <div style="background:var(--surface3); border:1px solid var(--border); border-radius:var(--rs); padding:10px;">
-            <div style="font-size:10px; color:var(--text3); text-transform:uppercase; font-weight:600; letter-spacing:0.02em;">XP Gained</div>
-            <div style="font-size:15px; font-weight:700; color:var(--accent); margin-top:2px; display:flex; align-items:center; gap:4px;">
+        <!-- Metric breakdown row with vertical divider (no nested cards!) -->
+        <div style="display:grid; grid-template-columns:1fr 1px 1fr; align-items:center; gap:12px; border-top:1px solid var(--border); border-bottom:1px solid var(--border); padding:14px 0;">
+          <div style="text-align:center;">
+            <div style="font-size:10px; color:var(--text3); text-transform:uppercase; font-weight:700; letter-spacing:0.04em;">XP Gained</div>
+            <div style="font-size:18px; font-weight:800; color:var(--accent); margin-top:4px; display:flex; align-items:center; justify-content:center; gap:4px;">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:14px;height:14px;color:var(--accent);"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 3.5z"/></svg>
-              <span>+${todayCorrect * 10 + todayIncorrect * 2} XP</span>
+              <span>+${todayCorrect * 10 + todayIncorrect * 2}</span>
             </div>
           </div>
-          <div style="background:var(--surface3); border:1px solid var(--border); border-radius:var(--rs); padding:10px;">
-            <div style="font-size:10px; color:var(--text3); text-transform:uppercase; font-weight:600; letter-spacing:0.02em;">Study Time</div>
-            <div style="font-size:15px; font-weight:700; color:var(--text); margin-top:2px; display:flex; align-items:center; gap:4px;">
+          <div style="background:var(--border); width:1px; height:24px; margin: 0 auto;"></div>
+          <div style="text-align:center;">
+            <div style="font-size:10px; color:var(--text3); text-transform:uppercase; font-weight:700; letter-spacing:0.04em;">Study Time</div>
+            <div style="font-size:18px; font-weight:800; color:var(--text); margin-top:4px; display:flex; align-items:center; justify-content:center; gap:4px;">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:14px;height:14px;color:var(--text3);"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
               <span>${todayTimeStr}</span>
             </div>
@@ -1118,22 +1119,22 @@ async function renderWelcomeDashboard() {
         </div>
 
         <!-- Accuracy meter -->
-        <div style="background:var(--surface3); border:1px solid var(--border); border-radius:var(--rs); padding:10px;">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-size:10px; color:var(--text3); text-transform:uppercase; font-weight:600; letter-spacing:0.02em;">Recall Accuracy</span>
-            <span style="font-size:11px; font-weight:700; color:${todayAccuracy >= 85 ? 'var(--sage)' : (todayAccuracy >= 65 ? 'var(--yellow)' : 'var(--red)')};">${todayTotalAnswered > 0 ? todayAccuracy + '%' : 'N/A'}</span>
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <span style="font-size:10px; color:var(--text3); text-transform:uppercase; font-weight:700; letter-spacing:0.04em;">Recall Accuracy</span>
+            <span style="font-size:12px; font-weight:800; color:${todayAccuracy >= 85 ? 'var(--sage)' : (todayAccuracy >= 65 ? 'var(--yellow)' : 'var(--red)')};">${todayTotalAnswered > 0 ? todayAccuracy + '%' : 'N/A'}</span>
           </div>
           ${todayTotalAnswered > 0 ? `
-            <div style="background:var(--surface); height:5px; border-radius:3px; overflow:hidden; margin-top:6px;">
-              <div style="background:${todayAccuracy >= 85 ? 'var(--sage)' : (todayAccuracy >= 65 ? 'var(--yellow)' : 'var(--red)')}; width:${todayAccuracy}%; height:100%;"></div>
+            <div style="background:var(--border); height:6px; border-radius:3px; overflow:hidden;">
+              <div style="background:${todayAccuracy >= 85 ? 'var(--sage)' : (todayAccuracy >= 65 ? 'var(--yellow)' : 'var(--red)')}; width:${todayAccuracy}%; height:100%; border-radius:3px;"></div>
             </div>
           ` : `
-            <div style="font-size:11px; color:var(--text3); margin-top:4px; font-style:italic;">No responses logged yet today.</div>
+            <div style="font-size:11px; color:var(--text3); font-style:italic;">No responses logged yet today.</div>
           `}
         </div>
       </div>
       
-      <div style="border-top:1px solid var(--border); padding-top:12px; margin-top:14px; display:flex; justify-content:space-between; align-items:center;">
+      <div style="border-top:1px solid var(--border); padding-top:14px; margin-top:6px; display:flex; justify-content:space-between; align-items:center; width:100%;">
         ${levelHtml}
       </div>
     `;

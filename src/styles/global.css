@@ -62,7 +62,7 @@
 
   /* Typography */
   --font-serif: 'Fraunces', Georgia, serif;
-  --font-sans:  'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-sans:  'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono:  'DM Mono', 'Courier New', monospace;
 }
 
@@ -257,12 +257,10 @@ input, textarea, [contenteditable="true"] {
 .nav-item:hover{background:var(--surface2);color:var(--text)}
 .nav-item:hover .nav-icon{color:var(--text2)}
 .nav-item.active{
-  background: rgba(var(--accent-rgb), 0.065) !important;
+  background: rgba(var(--accent-rgb), 0.08) !important;
   color: var(--accent) !important;
   font-weight: 600;
-  border-left: 3px solid var(--accent) !important;
   border-radius: 6px !important;
-  padding-left: 9px !important;
   box-shadow: none !important;
 }
 
@@ -326,11 +324,9 @@ div#app-container:nth-of-type(1) > aside#sidebar:nth-of-type(1) > div:nth-of-typ
 }
 .deck-item:hover{background:var(--surface2);color:var(--text)}
 .deck-item.active{
-  background: rgba(var(--accent-rgb), 0.065) !important;
+  background: rgba(var(--accent-rgb), 0.08) !important;
   color: var(--accent) !important;
-  border-left: 3px solid var(--accent) !important;
-  border-radius: 0 6.5px 6.5px 0 !important;
-  padding-left: 7px !important;
+  border-radius: var(--rs) !important;
 }
 .di-dot{width:5px;height:5px;border-radius:50%;background:var(--text3);flex-shrink:0}
 .deck-item.active .di-dot{background:var(--accent)}

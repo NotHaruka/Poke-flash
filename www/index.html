@@ -33,7 +33,7 @@
 <!-- Scholar's Paper Notebook Aesthetic -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../src/styles/global.css">
 
 <script type="module" src="./entry.ts">
@@ -286,7 +286,7 @@
           </div>
 
           <!-- Section: Need a Break? (Mini Games Recommendation) -->
-          <div style="background:var(--surface2); border:1px solid var(--border); border-radius:var(--rs); padding:20px;">
+          <div>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
               <div>
                 <h2 style="font-family:'Fraunces', serif; font-size:18px; font-weight:700; margin:0;">Need a study break?</h2>
@@ -295,7 +295,7 @@
               <button class="btn btn-b" onclick="showPanel('flash-games', null)" style="font-size:12px; padding:6px 12px;">Open Games Lounge →</button>
             </div>
             <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap:12px;">
-              <button class="welcome-action-btn" onclick="window.triggerGameAction('zengarden')" style="display:flex; align-items:center; gap:10px; background:var(--surface3); border:1px solid var(--border); padding:12px; border-radius:8px; text-align:left; cursor:pointer; font-family:inherit; color:inherit; width:100%;">
+              <button class="welcome-action-btn" onclick="window.triggerGameAction('zengarden')" style="display:flex; align-items:center; gap:12px; background:var(--surface2); border:1.5px solid var(--border); padding:16px; border-radius:var(--rs); text-align:left; cursor:pointer; font-family:inherit; color:inherit; width:100%; transition:all .15s ease;">
                 <div style="font-size:18px; width:32px; height:32px; border-radius:6px; background:rgba(61,122,95,0.15); display:flex; align-items:center; justify-content:center; color:var(--sage)">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/></svg>
                 </div>
@@ -304,7 +304,7 @@
                   <div style="font-size:11px; color:var(--text3); margin-top:2px;">Relaxing procedural garden break (1-3m)</div>
                 </div>
               </button>
-              <button class="welcome-action-btn" onclick="window.triggerGameAction('cyberflap')" style="display:flex; align-items:center; gap:10px; background:var(--surface3); border:1px solid var(--border); padding:12px; border-radius:8px; text-align:left; cursor:pointer; font-family:inherit; color:inherit; width:100%;">
+              <button class="welcome-action-btn" onclick="window.triggerGameAction('cyberflap')" style="display:flex; align-items:center; gap:12px; background:var(--surface2); border:1.5px solid var(--border); padding:16px; border-radius:var(--rs); text-align:left; cursor:pointer; font-family:inherit; color:inherit; width:100%; transition:all .15s ease;">
                 <div style="font-size:18px; width:32px; height:32px; border-radius:6px; background:rgba(196,97,58,0.15); display:flex; align-items:center; justify-content:center; color:var(--accent)">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
                 </div>
@@ -313,7 +313,7 @@
                   <div style="font-size:11px; color:var(--text3); margin-top:2px;">Fast recognition recognition reflexes (2-5m)</div>
                 </div>
               </button>
-              <button class="welcome-action-btn" onclick="window.triggerGameAction('sudoku')" style="display:flex; align-items:center; gap:10px; background:var(--surface3); border:1px solid var(--border); padding:12px; border-radius:8px; text-align:left; cursor:pointer; font-family:inherit; color:inherit; width:100%;">
+              <button class="welcome-action-btn" onclick="window.triggerGameAction('sudoku')" style="display:flex; align-items:center; gap:12px; background:var(--surface2); border:1.5px solid var(--border); padding:16px; border-radius:var(--rs); text-align:left; cursor:pointer; font-family:inherit; color:inherit; width:100%; transition:all .15s ease;">
                 <div style="font-size:18px; width:32px; height:32px; border-radius:6px; background:rgba(196,148,58,0.15); display:flex; align-items:center; justify-content:center; color:var(--yellow)">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>
                 </div>
