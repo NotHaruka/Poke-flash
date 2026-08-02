@@ -45,10 +45,10 @@ import { PixelArtStudioPlugin } from './games/pixelart/PixelArtStudioPlugin';
 const registry = GameRegistry.getInstance();
 (window as any).GameRegistry = GameRegistry;
 
-// Core Arcade Games (Excluded per user request: Blade Bedlam, Cyberflap, Void Survivor)
-// registry.registerGame(new BladeBedlamPlugin());
-// registry.registerGame(new CyberflapPlugin());
-// registry.registerGame(new VoidSurvivorPlugin());
+// Core Arcade Games
+registry.registerGame(new BladeBedlamPlugin());
+registry.registerGame(new CyberflapPlugin());
+registry.registerGame(new VoidSurvivorPlugin());
 registry.registerGame(new RhythmGamePlugin());
 registry.registerGame(new ColosseumDuelPlugin());
 registry.registerGame(new MinesweeperPlugin());
