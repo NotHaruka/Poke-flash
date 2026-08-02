@@ -2,6 +2,8 @@ import { MiniGamePlugin } from '../core/GamePlugin';
 import { GameLaunchContext } from '../core/GameLaunchContext';
 import { GameOverlayManager } from '../core/GameOverlayManager';
 import { resetGameCanvas } from '../../game.js';
+import { GameJuice } from '../core/GameJuice';
+import { GameAudioEngine } from '../core/GameAudioEngine';
 
 export class SokobanPlugin implements MiniGamePlugin {
   id = 'sokoban';
@@ -29,6 +31,7 @@ export class SokobanPlugin implements MiniGamePlugin {
   private animationFrameId: number | null = null;
   private isRunning = false;
   private overlayManager: GameOverlayManager | null = null;
+  private juice = new GameJuice();
 
   private currentLevel = 0;
   private grid: string[][] = [];
@@ -117,6 +120,8 @@ export class SokobanPlugin implements MiniGamePlugin {
           { id: 'moves', label: 'Moves', value: '0' }
         ]);
         this.startLevel();
+        this.juice.reset();
+        this.juice.startCountdown(() => {});
       }
     });
   }
@@ -252,6 +257,7 @@ export class SokobanPlugin implements MiniGamePlugin {
       this.grid[nr][nc] = targetCell === 'T' ? '+' : 'P';
       this.playerPos = [nr, nc];
       this.moves++;
+      GameAudioEngine.getInstance().playSFX('step');
     } else if (targetCell === 'B' || targetCell === '*') {
       // Push box
       const nnr = nr + dr;
@@ -265,6 +271,18 @@ export class SokobanPlugin implements MiniGamePlugin {
         this.grid[r][c] = this.grid[r][c] === '+' ? 'T' : '.';
         this.playerPos = [nr, nc];
         this.moves++;
+
+        // Box placed on target Juice effect
+        if (boxTarget === 'T') {
+          const cx = this.startX + nnc * this.cellSize + this.cellSize / 2;
+          const cy = this.startY + nnr * this.cellSize + this.cellSize / 2;
+          GameAudioEngine.getInstance().playSFX('score');
+          this.juice.spawnExplosion(cx, cy, { count: 12, color: '#eab308', sizeRange: [2, 5], speedRange: [2, 5] });
+          this.juice.shake(4);
+          this.juice.spawnText(cx, cy, 'STORED!', { color: '#eab308', fontSize: 14 });
+        } else {
+          GameAudioEngine.getInstance().playSFX('move');
+        }
       } else {
         this.history.pop(); // Invalid move cancel history
       }
@@ -283,6 +301,7 @@ export class SokobanPlugin implements MiniGamePlugin {
     this.grid = last.grid;
     this.playerPos = last.playerPos;
     this.moves = Math.max(0, this.moves - 1);
+    GameAudioEngine.getInstance().playSFX('swish');
     this.overlayManager?.updateStat('moves', this.moves);
     const scoreVal = document.getElementById('bb-score-val');
     if (scoreVal) scoreVal.textContent = String(this.moves);
@@ -298,6 +317,10 @@ export class SokobanPlugin implements MiniGamePlugin {
     }
     if (!hasUnplacedBox && !this.isWon) {
       this.isWon = true;
+      GameAudioEngine.getInstance().playSFX('win');
+      this.juice.spawnConfetti(this.canvas?.width || 400, this.canvas?.height || 600);
+      this.juice.bounceZoom(1.12);
+      this.juice.shake(10);
       const nextLevel = (this.currentLevel + 1) % this.levels.length;
       setTimeout(() => {
         this.overlayManager?.showResults({
@@ -321,6 +344,7 @@ export class SokobanPlugin implements MiniGamePlugin {
 
   private tick() {
     if (!this.isRunning) return;
+    this.juice.update(1.0);
     this.render();
     this.animationFrameId = requestAnimationFrame(this.tick.bind(this));
   }
@@ -332,6 +356,8 @@ export class SokobanPlugin implements MiniGamePlugin {
 
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    this.juice.applyCameraTransforms(ctx, canvas.width, canvas.height);
 
     const midX = canvas.width / 2;
 
@@ -389,10 +415,14 @@ export class SokobanPlugin implements MiniGamePlugin {
     // Undo & Reset Buttons
     ctx.fillStyle = '#475569';
     ctx.beginPath(); ctx.roundRect(midX - 95, dpadY + 50, 70, 24, 6); ctx.fill();
-    ctx.fillText('UNDO', midX - 60, dpadY + 66);
+    ctx.fillStyle = '#fff'; ctx.fillText('UNDO', midX - 60, dpadY + 66);
 
+    ctx.fillStyle = '#475569';
     ctx.beginPath(); ctx.roundRect(midX + 25, dpadY + 50, 70, 24, 6); ctx.fill();
-    ctx.fillText('RESET', midX + 60, dpadY + 66);
+    ctx.fillStyle = '#fff'; ctx.fillText('RESET', midX + 60, dpadY + 66);
+
+    this.juice.restoreCameraTransforms(ctx);
+    this.juice.draw(ctx);
   }
 
   destroy(): void {

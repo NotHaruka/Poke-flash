@@ -3,6 +3,7 @@ import { GameLaunchContext } from '../core/GameLaunchContext';
 import { resetGameCanvas } from '../../game.js';
 import { GameOverlayManager } from '../core/GameOverlayManager';
 import { GameAudioEngine } from '../core/GameAudioEngine';
+import { GameJuice } from '../core/GameJuice';
 
 export class SnakePlugin implements MiniGamePlugin {
   id = 'snake';
@@ -31,6 +32,8 @@ export class SnakePlugin implements MiniGamePlugin {
   private overlayManager: GameOverlayManager | null = null;
   private context: GameLaunchContext | null = null;
   private difficulty: 'easy' | 'normal' | 'hard' = 'normal';
+  private juice = new GameJuice();
+  private countdownActive = false;
 
   // Snake Logic variables
   private gridWidth = 24;
@@ -115,6 +118,12 @@ export class SnakePlugin implements MiniGamePlugin {
     this.spawnFood();
 
     this.lastTickTime = performance.now();
+
+    // Trigger visual on-canvas countdown overlay
+    this.countdownActive = true;
+    this.juice.startCountdown(() => {
+      this.countdownActive = false;
+    });
 
     // Init Overlay Manager
     this.overlayManager = new GameOverlayManager('game-canvas-container', {
@@ -272,6 +281,13 @@ export class SnakePlugin implements MiniGamePlugin {
     this.overlayManager?.updateStat('score', 0);
     this.overlayManager?.updateStat('high', this.highScore);
     GameAudioEngine.getInstance().playSFX('click');
+    
+    this.juice.reset();
+    this.countdownActive = true;
+    this.juice.startCountdown(() => {
+      this.countdownActive = false;
+    });
+
     this.lastTickTime = performance.now();
   }
 
@@ -321,7 +337,8 @@ export class SnakePlugin implements MiniGamePlugin {
     // 3. Food Collection
     if (head.x === this.food.x && head.y === this.food.y) {
       const isSuper = this.food.type === 'super';
-      this.score += isSuper ? 300 : 100;
+      const pointsAdded = isSuper ? 300 : 100;
+      this.score += pointsAdded;
       this.updateHighscores();
 
       const scoreVal = document.getElementById('bb-score-val');
@@ -333,6 +350,24 @@ export class SnakePlugin implements MiniGamePlugin {
       this.speedMs = Math.max(65, this.baseSpeedMs - Math.floor(this.score / 150) * 4);
 
       GameAudioEngine.getInstance().playSFX(isSuper ? 'powerup' : 'eat');
+
+      // Juice: Spawn beautiful score bubbles and neon eating sparks!
+      const fx = this.startX + this.food.x * this.cellSize + this.cellSize/2;
+      const fy = this.startY + this.food.y * this.cellSize + this.cellSize/2;
+      this.juice.spawnText(fx, fy - 15, `+${pointsAdded}${isSuper ? ' SUPER!' : ''}`, {
+        color: isSuper ? '#f43f5e' : '#ec4899',
+        fontSize: isSuper ? 18 : 14,
+        scale: 1.3
+      });
+      this.juice.spawnExplosion(fx, fy, {
+        color: isSuper ? '#f43f5e' : '#ec4899',
+        count: isSuper ? 15 : 8,
+        sizeRange: [2, 5],
+        speedRange: [2, 5.5]
+      });
+      this.juice.shake(isSuper ? 5 : 2.5);
+      this.juice.bounceZoom(1.02);
+
       this.spawnFood();
     } else {
       // Pop tail segment to maintain length
@@ -343,6 +378,15 @@ export class SnakePlugin implements MiniGamePlugin {
   private triggerGameOver() {
     this.isGameOver = true;
     GameAudioEngine.getInstance().playSFX('gameover');
+
+    // Juice: Spawn massive red debris explosion at the crash site
+    const head = this.snake[0];
+    if (head) {
+      const hx = this.startX + head.x * this.cellSize + this.cellSize/2;
+      const hy = this.startY + head.y * this.cellSize + this.cellSize/2;
+      this.juice.spawnExplosion(hx, hy, { color: '#ef4444', count: 25, sizeRange: [3, 7], speedRange: [2, 6] });
+    }
+    this.juice.shake(15, 0.9); // Heavy structural vibration of defeat
 
     this.overlayManager?.showResults({
       title: 'GAME OVER',
@@ -434,7 +478,7 @@ export class SnakePlugin implements MiniGamePlugin {
     if (!this.isRunning) return;
 
     const now = performance.now();
-    if (!this.isGameOver && !this.isPaused && now - this.lastTickTime >= this.speedMs) {
+    if (!this.isGameOver && !this.isPaused && !this.countdownActive && now - this.lastTickTime >= this.speedMs) {
       this.moveSnake();
       this.lastTickTime = now;
     }
@@ -449,9 +493,15 @@ export class SnakePlugin implements MiniGamePlugin {
     const canvas = this.canvas;
     if (!ctx || !canvas) return;
 
+    // Update particles physics and text fades
+    this.juice.update(1.0);
+
     // Dark canvas background
     ctx.fillStyle = '#0a0915';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Screen shake/tilt thud wrappers
+    this.juice.applyCameraTransforms(ctx, canvas.width, canvas.height);
 
     // 1. Dashboard Top (Highscore / Speed)
     const headerY = this.startY - 35;
@@ -524,19 +574,30 @@ export class SnakePlugin implements MiniGamePlugin {
       }
     });
 
-    // 4. Draw Food Nodes
+    // 4. Draw Food Nodes with custom pulsing wave scale
     const fx = this.startX + this.food.x * this.cellSize;
     const fy = this.startY + this.food.y * this.cellSize;
     const isSuper = this.food.type === 'super';
 
-    ctx.shadowBlur = isSuper ? 12 : 4;
+    // Food pulse animation calculation
+    const pulseFactor = 1.0 + Math.sin(Date.now() * 0.008) * 0.12;
+
+    ctx.save();
+    ctx.shadowBlur = isSuper ? 14 * pulseFactor : 6 * pulseFactor;
     ctx.shadowColor = isSuper ? '#f43f5e' : '#ec4899';
     ctx.fillStyle = isSuper ? '#f43f5e' : '#ec4899'; // Super pink capsule vs normal warning
 
     ctx.beginPath();
-    ctx.arc(fx + this.cellSize/2, fy + this.cellSize/2, isSuper ? this.cellSize/3 : this.cellSize/4.5, 0, Math.PI * 2);
+    const radius = (isSuper ? this.cellSize/3 : this.cellSize/4.5) * pulseFactor;
+    ctx.arc(fx + this.cellSize/2, fy + this.cellSize/2, radius, 0, Math.PI * 2);
     ctx.fill();
-    ctx.shadowBlur = 0; // reset shadow
+    ctx.restore();
+
+    // Restore Camera state before HUD & text overlay triggers
+    this.juice.restoreCameraTransforms(ctx);
+
+    // Draw active particles & countdown text directly on canvas
+    this.juice.draw(ctx);
 
     // 5. Dark Overlay on Game Over or Pause
     if (this.isGameOver || this.isPaused) {

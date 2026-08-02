@@ -2,6 +2,7 @@ import { MiniGamePlugin } from '../core/GamePlugin';
 import { GameLaunchContext } from '../core/GameLaunchContext';
 import { GameOverlayManager } from '../core/GameOverlayManager';
 import { resetGameCanvas } from '../../game.js';
+import { GameJuice } from '../core/GameJuice';
 
 export class Match3Plugin implements MiniGamePlugin {
   id = 'match3';
@@ -28,6 +29,7 @@ export class Match3Plugin implements MiniGamePlugin {
   private animationFrameId: number | null = null;
   private isRunning = false;
   private overlayManager: GameOverlayManager | null = null;
+  private juice = new GameJuice();
 
   private gridSize = 7;
   private grid: number[][] = [];
@@ -88,6 +90,8 @@ export class Match3Plugin implements MiniGamePlugin {
           { id: 'moves', label: 'Moves', value: '20' }
         ]);
         this.startGame();
+        this.juice.reset();
+        this.juice.startCountdown(() => {});
       }
     });
   }
@@ -182,6 +186,9 @@ export class Match3Plugin implements MiniGamePlugin {
             this.overlayManager?.updateStat('moves', this.movesLeft);
             if (this.movesLeft <= 0) {
               this.isGameOver = true;
+              this.juice.spawnConfetti(this.canvas?.width || 400, this.canvas?.height || 600);
+              this.juice.bounceZoom(1.12);
+              this.juice.shake(10);
               setTimeout(() => {
                 this.overlayManager?.showResults({
                   title: 'GAME OVER 💎',
@@ -234,10 +241,28 @@ export class Match3Plugin implements MiniGamePlugin {
 
     if (matches.length > 0) {
       matchedAny = true;
-      this.score += matches.length * 10;
+      const points = matches.length * 10;
+      this.score += points;
       this.overlayManager?.updateStat('score', this.score);
       const scoreVal = document.getElementById('bb-score-val');
       if (scoreVal) scoreVal.textContent = String(this.score);
+
+      // Spawn explosions & score floating text at matched positions
+      this.juice.shake(6);
+      this.juice.bounceZoom(1.04);
+      for (const [r, c] of matches) {
+        const cx = this.startX + c * this.cellSize + this.cellSize / 2;
+        const cy = this.startY + r * this.cellSize + this.cellSize / 2;
+        const gemVal = this.grid[r][c];
+        const color = gemVal >= 0 ? this.gemColors[gemVal] : '#f59e0b';
+        this.juice.spawnExplosion(cx, cy, { count: 8, color: color, sizeRange: [2, 5], speedRange: [2, 5] });
+      }
+      if (matches.length > 0) {
+        const [midR, midC] = matches[Math.floor(matches.length / 2)];
+        const mx = this.startX + midC * this.cellSize + this.cellSize / 2;
+        const my = this.startY + midR * this.cellSize + this.cellSize / 2;
+        this.juice.spawnFloatingScore(mx, my, points);
+      }
 
       // Remove matched
       for (const [r, c] of matches) {
@@ -273,6 +298,7 @@ export class Match3Plugin implements MiniGamePlugin {
 
   private tick() {
     if (!this.isRunning) return;
+    this.juice.update(1.0);
     this.render();
     this.animationFrameId = requestAnimationFrame(this.tick.bind(this));
   }
@@ -284,6 +310,8 @@ export class Match3Plugin implements MiniGamePlugin {
 
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    this.juice.applyCameraTransforms(ctx, canvas.width, canvas.height);
 
     const midX = canvas.width / 2;
 
@@ -310,6 +338,9 @@ export class Match3Plugin implements MiniGamePlugin {
         }
       }
     }
+
+    this.juice.restoreCameraTransforms(ctx);
+    this.juice.draw(ctx);
   }
 
   destroy(): void {

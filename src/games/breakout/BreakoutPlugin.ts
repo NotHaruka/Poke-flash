@@ -3,6 +3,7 @@ import { GameLaunchContext } from '../core/GameLaunchContext';
 import { resetGameCanvas } from '../../game.js';
 import { GameOverlayManager } from '../core/GameOverlayManager';
 import { GameAudioEngine } from '../core/GameAudioEngine';
+import { GameJuice } from '../core/GameJuice';
 
 interface Brick {
   x: number;
@@ -63,6 +64,7 @@ export class BreakoutPlugin implements MiniGamePlugin {
   private isPaused = false;
   private overlayManager: GameOverlayManager | null = null;
   private context: GameLaunchContext | null = null;
+  private juice = new GameJuice();
   private difficulty: 'easy' | 'medium' | 'hard' = 'medium';
 
   private paddle = { x: 0, y: 0, w: 90, h: 12, speed: 8 };
@@ -203,6 +205,8 @@ export class BreakoutPlugin implements MiniGamePlugin {
         this.isPaused = false;
         this.startNewGame();
         GameAudioEngine.getInstance().playSFX('click');
+        this.juice.reset();
+        this.juice.startCountdown(() => {});
       }
     });
   }
@@ -465,6 +469,8 @@ export class BreakoutPlugin implements MiniGamePlugin {
   private tick() {
     if (!this.isRunning) return;
 
+    this.juice.update(1.0);
+
     if (!this.isGameOver && !this.isWon && !this.isPaused) {
       this.updatePhysics();
     }
@@ -537,12 +543,19 @@ export class BreakoutPlugin implements MiniGamePlugin {
             this.updateHeaderScore();
             GameAudioEngine.getInstance().playSFX('score');
 
+            // Brick destruction Juice VFX
+            const brickCx = brick.x + brick.w / 2;
+            const brickCy = brick.y + brick.h / 2;
+            this.juice.spawnExplosion(brickCx, brickCy, { count: 10, color: brick.color, sizeRange: [2, 5], speedRange: [2, 6] });
+            this.juice.spawnText(brickCx, brickCy, `+${brick.points}`, { color: brick.color, fontSize: 14 });
+            this.juice.shake(3);
+
             // Spawn powerup chance
             if (Math.random() < 0.25) {
               const types: ('wide' | 'multiball' | 'life')[] = ['wide', 'multiball', 'life'];
               this.powerUps.push({
-                x: brick.x + brick.w / 2,
-                y: brick.y + brick.h / 2,
+                x: brickCx,
+                y: brickCy,
                 type: types[Math.floor(Math.random() * types.length)],
                 active: true
               });
@@ -551,6 +564,9 @@ export class BreakoutPlugin implements MiniGamePlugin {
             this.bricks.splice(j, 1);
           } else {
             GameAudioEngine.getInstance().playSFX('tap');
+            const brickCx = brick.x + brick.w / 2;
+            const brickCy = brick.y + brick.h / 2;
+            this.juice.spawnExplosion(brickCx, brickCy, { count: 4, color: '#ffffff', sizeRange: [1, 3], speedRange: [1, 3] });
           }
           break;
         }
@@ -566,6 +582,8 @@ export class BreakoutPlugin implements MiniGamePlugin {
     if (this.balls.length === 0) {
       this.lives--;
       this.overlayManager?.updateStat('lives', this.lives);
+      this.juice.shake(10);
+      this.juice.spawnText(width / 2, height / 2, '-1 LIFE', { color: '#ef4444', fontSize: 20 });
       if (this.lives <= 0) {
         this.triggerGameOver(false);
       } else {
@@ -587,6 +605,8 @@ export class BreakoutPlugin implements MiniGamePlugin {
       // Catch powerup
       if (p.y >= this.paddle.y && p.y <= this.paddle.y + this.paddle.h && p.x >= this.paddle.x && p.x <= this.paddle.x + this.paddle.w) {
         this.applyPowerUp(p.type);
+        this.juice.spawnExplosion(p.x, p.y, { count: 8, color: '#eab308', sizeRange: [2, 4], speedRange: [2, 5] });
+        this.juice.spawnText(p.x, p.y - 10, p.type.toUpperCase(), { color: '#eab308', fontSize: 13 });
         this.powerUps.splice(i, 1);
         GameAudioEngine.getInstance().playSFX('powerup');
       } else if (p.y > height) {
@@ -599,9 +619,12 @@ export class BreakoutPlugin implements MiniGamePlugin {
     if (isWin) {
       this.isWon = true;
       GameAudioEngine.getInstance().playSFX('win');
+      this.juice.spawnConfetti(this.canvas?.width || 400, this.canvas?.height || 600);
+      this.juice.bounceZoom(1.12);
     } else {
       this.isGameOver = true;
       GameAudioEngine.getInstance().playSFX('lose');
+      this.juice.shake(14);
     }
 
     this.overlayManager?.showResults({
@@ -651,6 +674,8 @@ export class BreakoutPlugin implements MiniGamePlugin {
 
     ctx.fillStyle = '#0a0915';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    this.juice.applyCameraTransforms(ctx, canvas.width, canvas.height);
 
     const midX = canvas.width / 2;
 
@@ -705,6 +730,9 @@ export class BreakoutPlugin implements MiniGamePlugin {
       ctx.fillStyle = 'rgba(8, 9, 18, 0.5)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
+
+    this.juice.restoreCameraTransforms(ctx);
+    this.juice.draw(ctx);
   }
 
   destroy(): void {

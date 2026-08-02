@@ -3,6 +3,7 @@ import { GameLaunchContext } from '../core/GameLaunchContext';
 import { resetGameCanvas } from '../../game.js';
 import { GameOverlayManager } from '../core/GameOverlayManager';
 import { GameAudioEngine } from '../core/GameAudioEngine';
+import { GameJuice } from '../core/GameJuice';
 
 type TetrominoType = 'I' | 'J' | 'L' | 'O' | 'S' | 'T' | 'Z';
 
@@ -55,6 +56,7 @@ export class TetrisPlugin implements MiniGamePlugin {
 
   private overlayManager: GameOverlayManager | null = null;
   private context: GameLaunchContext | null = null;
+  private juice = new GameJuice();
 
   // Layout metrics
   private boardWidth = 0;
@@ -170,7 +172,10 @@ export class TetrisPlugin implements MiniGamePlugin {
         this.isPaused = false;
         this.startNewGame();
         GameAudioEngine.getInstance().playSFX('click');
-        this.lastDropTime = performance.now();
+        this.juice.reset();
+        this.juice.startCountdown(() => {
+          this.lastDropTime = performance.now();
+        });
       }
     });
   }
@@ -402,7 +407,16 @@ export class TetrisPlugin implements MiniGamePlugin {
   }
 
   private hardDrop() {
-    while (this.movePiece(0, 1)) {}
+    let rowsDropped = 0;
+    while (this.movePiece(0, 1)) {
+      rowsDropped++;
+    }
+    if (this.currentPiece) {
+      const cx = this.startX + (this.currentPiece.x + 1) * this.cellSize;
+      const cy = this.startY + (this.currentPiece.y + 1) * this.cellSize;
+      this.juice.spawnExplosion(cx, cy, { count: 8, color: this.currentPiece.color, sizeRange: [2, 4], speedRange: [1, 4] });
+      this.juice.shake(4);
+    }
     this.lockPiece();
   }
 
@@ -446,6 +460,14 @@ export class TetrisPlugin implements MiniGamePlugin {
 
     for (let r = 19; r >= 0; r--) {
       if (this.grid[r].every(cell => cell !== '')) {
+        // Spawn line clear particles across row
+        const rowY = this.startY + r * this.cellSize + this.cellSize / 2;
+        for (let c = 0; c < 10; c += 2) {
+          const colX = this.startX + c * this.cellSize + this.cellSize / 2;
+          const color = this.grid[r][c] || '#38bdf8';
+          this.juice.spawnExplosion(colX, rowY, { count: 6, color, sizeRange: [2, 5], speedRange: [2, 6] });
+        }
+
         this.grid.splice(r, 1);
         this.grid.unshift(Array(10).fill(''));
         cleared++;
@@ -456,9 +478,33 @@ export class TetrisPlugin implements MiniGamePlugin {
     if (cleared > 0) {
       this.linesCleared += cleared;
       const scores = [0, 100, 300, 500, 800];
-      this.score += (scores[cleared] || 1000) * this.level;
+      const addedScore = (scores[cleared] || 1000) * this.level;
+      this.score += addedScore;
+      const prevLevel = this.level;
       this.level = Math.floor(this.linesCleared / 10) + 1;
       this.dropInterval = Math.max(100, 800 - (this.level - 1) * 70);
+
+      // Juice effects based on cleared lines
+      const midBoardX = this.startX + this.boardWidth / 2;
+      const midBoardY = this.startY + this.boardHeight / 2;
+
+      if (cleared === 4) {
+        this.juice.shake(16);
+        this.juice.bounceZoom(1.12);
+        this.juice.spawnText(midBoardX, midBoardY, 'TETRIS! +800', { color: '#38bdf8', fontSize: 24, scale: 1.5 });
+        this.juice.spawnConfetti(this.canvas?.width || 400, this.canvas?.height || 600);
+      } else if (cleared >= 2) {
+        this.juice.shake(8);
+        this.juice.bounceZoom(1.06);
+        this.juice.spawnText(midBoardX, midBoardY, `DOUBLE CLEAR! +${addedScore}`, { color: '#eab308', fontSize: 18 });
+      } else {
+        this.juice.shake(4);
+        this.juice.spawnText(midBoardX, midBoardY, `+${addedScore}`, { color: '#22c55e', fontSize: 16 });
+      }
+
+      if (this.level > prevLevel) {
+        this.juice.spawnText(midBoardX, midBoardY - 40, `LEVEL UP! Level ${this.level}`, { color: '#a855f7', fontSize: 20 });
+      }
 
       this.updateHeaderScore();
       this.overlayManager?.updateHUD([
@@ -498,6 +544,8 @@ export class TetrisPlugin implements MiniGamePlugin {
   private tick(time: number) {
     if (!this.isRunning) return;
 
+    this.juice.update(1.0);
+
     if (!this.isGameOver && !this.isPaused) {
       if (time - this.lastDropTime > this.dropInterval) {
         if (!this.movePiece(0, 1)) {
@@ -518,6 +566,8 @@ export class TetrisPlugin implements MiniGamePlugin {
 
     ctx.fillStyle = '#0a0915';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    this.juice.applyCameraTransforms(ctx, canvas.width, canvas.height);
 
     const midX = canvas.width / 2;
 
@@ -623,6 +673,9 @@ export class TetrisPlugin implements MiniGamePlugin {
     // New Game Button
     const restartY = touchControlsY + 45;
     this.drawButton(midX, restartY, 76, 26, 'NEW GAME', false);
+
+    this.juice.restoreCameraTransforms(ctx);
+    this.juice.draw(ctx);
   }
 
   private drawBlock(x: number, y: number, size: number, color: string) {

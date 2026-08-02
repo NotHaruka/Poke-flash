@@ -2,6 +2,8 @@ import { MiniGamePlugin } from '../core/GamePlugin';
 import { GameLaunchContext } from '../core/GameLaunchContext';
 import { GameOverlayManager } from '../core/GameOverlayManager';
 import { resetGameCanvas } from '../../game.js';
+import { GameJuice } from '../core/GameJuice';
+import { GameAudioEngine } from '../core/GameAudioEngine';
 
 export class MancalaPlugin implements MiniGamePlugin {
   id = 'mancala';
@@ -30,6 +32,7 @@ export class MancalaPlugin implements MiniGamePlugin {
   private animationFrameId: number | null = null;
   private isRunning = false;
   private overlayManager: GameOverlayManager | null = null;
+  private juice = new GameJuice();
 
   // Board layout: pits 0-5 (P1 bottom), pit 6 (P1 store), pits 7-12 (P2 top), pit 13 (P2 store)
   private board: number[] = [];
@@ -90,6 +93,8 @@ export class MancalaPlugin implements MiniGamePlugin {
           { id: 'p2Score', label: 'AI Store', value: '0' }
         ]);
         this.startGame();
+        this.juice.reset();
+        this.juice.startCountdown(() => {});
       }
     });
   }
@@ -200,6 +205,12 @@ export class MancalaPlugin implements MiniGamePlugin {
     let seeds = this.board[pitIdx];
     this.board[pitIdx] = 0;
 
+    // Seed sow Juice VFX & SFX
+    const midX = this.canvas ? this.canvas.width / 2 : 200;
+    const midY = this.canvas ? this.canvas.height / 2 : 300;
+    GameAudioEngine.getInstance().playSFX('step');
+    this.juice.spawnExplosion(midX, midY, { count: 8, color: '#f59e0b', sizeRange: [2, 4], speedRange: [1, 4] });
+
     let curr = pitIdx;
     while (seeds > 0) {
       curr = (curr + 1) % 14;
@@ -212,12 +223,14 @@ export class MancalaPlugin implements MiniGamePlugin {
     }
 
     // Capture rule: if last seed lands in an empty pit on player's side
+    let captured = false;
     if (this.currentPlayer === 1 && curr >= 0 && curr <= 5 && this.board[curr] === 1) {
       const oppIdx = 12 - curr;
       if (this.board[oppIdx] > 0) {
         this.board[6] += this.board[oppIdx] + 1;
         this.board[oppIdx] = 0;
         this.board[curr] = 0;
+        captured = true;
       }
     } else if (this.currentPlayer === 2 && curr >= 7 && curr <= 12 && this.board[curr] === 1) {
       const oppIdx = 12 - curr;
@@ -225,11 +238,22 @@ export class MancalaPlugin implements MiniGamePlugin {
         this.board[13] += this.board[oppIdx] + 1;
         this.board[oppIdx] = 0;
         this.board[curr] = 0;
+        captured = true;
       }
+    }
+
+    if (captured) {
+      GameAudioEngine.getInstance().playSFX('coin');
+      this.juice.shake(6);
+      this.juice.spawnText(midX, midY - 20, 'CAPTURE!', { color: '#ef4444', fontSize: 20 });
     }
 
     // Extra turn rule: if last seed landed in player's store
     const extraTurn = (this.currentPlayer === 1 && curr === 6) || (this.currentPlayer === 2 && curr === 13);
+    if (extraTurn) {
+      GameAudioEngine.getInstance().playSFX('score');
+      this.juice.spawnText(midX, midY, 'FREE TURN!', { color: '#38bdf8', fontSize: 18 });
+    }
 
     this.checkEndGame();
 
@@ -296,10 +320,21 @@ export class MancalaPlugin implements MiniGamePlugin {
       if (this.board[6] > this.board[13]) {
         this.statusMessage = `P1 Wins! (${this.board[6]} - ${this.board[13]})`;
         winTitle = 'PLAYER 1 VICTORY! 🏆';
+        GameAudioEngine.getInstance().playSFX('win');
+        this.juice.spawnConfetti(this.canvas?.width || 400, this.canvas?.height || 600);
+        this.juice.bounceZoom(1.12);
+        this.juice.shake(10);
       } else if (this.board[13] > this.board[6]) {
         this.statusMessage = `P2 Wins! (${this.board[13]} - ${this.board[6]})`;
         winTitle = this.gameMode === 'vsAI' ? 'AI VICTORY' : 'PLAYER 2 VICTORY! 🏆';
         if (this.gameMode === 'vsAI') isWin = false;
+        GameAudioEngine.getInstance().playSFX(isWin ? 'win' : 'lose');
+        if (isWin) {
+          this.juice.spawnConfetti(this.canvas?.width || 400, this.canvas?.height || 600);
+          this.juice.bounceZoom(1.12);
+        } else {
+          this.juice.shake(12);
+        }
       } else {
         this.statusMessage = `Tie Game! (${this.board[6]} - ${this.board[13]})`;
       }
@@ -324,6 +359,7 @@ export class MancalaPlugin implements MiniGamePlugin {
 
   private tick() {
     if (!this.isRunning) return;
+    this.juice.update(1.0);
     this.render();
     this.animationFrameId = requestAnimationFrame(this.tick.bind(this));
   }
@@ -335,6 +371,8 @@ export class MancalaPlugin implements MiniGamePlugin {
 
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    this.juice.applyCameraTransforms(ctx, canvas.width, canvas.height);
 
     const midX = canvas.width / 2;
 
@@ -376,7 +414,10 @@ export class MancalaPlugin implements MiniGamePlugin {
 
     ctx.fillStyle = this.gameMode === 'local' ? '#10b981' : '#334155';
     ctx.beginPath(); ctx.roundRect(midX + 10, btnY - 14, 90, 28, 6); ctx.fill();
-    ctx.fillText('LOCAL 2P', midX + 55, btnY + 3);
+    ctx.fillStyle = '#fff'; ctx.fillText('LOCAL 2P', midX + 55, btnY + 3);
+
+    this.juice.restoreCameraTransforms(ctx);
+    this.juice.draw(ctx);
   }
 
   private drawPit(x: number, y: number, count: number, activeTurn: boolean) {

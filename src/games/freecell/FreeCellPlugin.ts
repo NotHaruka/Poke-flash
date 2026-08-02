@@ -2,6 +2,7 @@ import { MiniGamePlugin } from '../core/GamePlugin';
 import { GameLaunchContext } from '../core/GameLaunchContext';
 import { GameOverlayManager } from '../core/GameOverlayManager';
 import { resetGameCanvas } from '../../game.js';
+import { GameJuice } from '../core/GameJuice';
 
 interface Card {
   suit: '♠' | '♥' | '♦' | '♣';
@@ -34,6 +35,7 @@ export class FreeCellPlugin implements MiniGamePlugin {
   private animationFrameId: number | null = null;
   private isRunning = false;
   private overlayManager: GameOverlayManager | null = null;
+  private juice = new GameJuice();
 
   private freeCells: (Card | null)[] = [null, null, null, null];
   private foundations: Card[][] = [[], [], [], []]; // ♠, ♥, ♦, ♣
@@ -96,6 +98,8 @@ export class FreeCellPlugin implements MiniGamePlugin {
           { id: 'moves', label: 'Moves', value: '0' }
         ]);
         this.startGame();
+        this.juice.reset();
+        this.juice.startCountdown(() => {});
       }
     });
   }
@@ -274,6 +278,12 @@ export class FreeCellPlugin implements MiniGamePlugin {
       if (this.selectedCard.type === 'free') this.freeCells[this.selectedCard.idx] = null;
       this.moves++;
       this.overlayManager?.updateStat('moves', this.moves);
+
+      const fx = this.startX + (fIdx + 4) * (this.cardW + 4) + this.cardW / 2;
+      const fy = this.startY + this.cardH / 2;
+      this.juice.spawnExplosion(fx, fy, { count: 10, color: '#38bdf8', sizeRange: [2, 5], speedRange: [2, 5] });
+      this.juice.shake(3);
+
       this.checkWin();
     }
     this.selectedCard = null;
@@ -302,6 +312,10 @@ export class FreeCellPlugin implements MiniGamePlugin {
       if (this.selectedCard.type === 'free') this.freeCells[this.selectedCard.idx] = null;
       this.moves++;
       this.overlayManager?.updateStat('moves', this.moves);
+
+      const tx = this.startX + targetCol * (this.cardW + 4) + this.cardW / 2;
+      const ty = this.startY + this.cardH + 20 + targetStack.length * 16;
+      this.juice.spawnExplosion(tx, ty, { count: 5, color: '#f8fafc', sizeRange: [1, 3], speedRange: [1, 3] });
     }
     this.selectedCard = null;
   }
@@ -311,6 +325,9 @@ export class FreeCellPlugin implements MiniGamePlugin {
     if (totalFoundations === 52 && !this.isWon) {
       this.isWon = true;
       this.statusMessage = 'ALL CARDS CLEARED!';
+      this.juice.spawnConfetti(this.canvas?.width || 400, this.canvas?.height || 600);
+      this.juice.bounceZoom(1.12);
+      this.juice.shake(10);
       setTimeout(() => {
         this.overlayManager?.showResults({
           title: 'FREECELL VICTORY! 🃏',
@@ -330,6 +347,7 @@ export class FreeCellPlugin implements MiniGamePlugin {
 
   private tick() {
     if (!this.isRunning) return;
+    this.juice.update(1.0);
     this.render();
     this.animationFrameId = requestAnimationFrame(this.tick.bind(this));
   }
@@ -341,6 +359,8 @@ export class FreeCellPlugin implements MiniGamePlugin {
 
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    this.juice.applyCameraTransforms(ctx, canvas.width, canvas.height);
 
     const midX = canvas.width / 2;
 
@@ -376,6 +396,9 @@ export class FreeCellPlugin implements MiniGamePlugin {
         this.drawCard(tx, cy, stack[j], isSel);
       }
     }
+
+    this.juice.restoreCameraTransforms(ctx);
+    this.juice.draw(ctx);
   }
 
   private drawCardSlot(x: number, y: number, card: Card | null, isSelected: boolean) {

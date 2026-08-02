@@ -3,6 +3,7 @@ import { GameLaunchContext } from '../core/GameLaunchContext';
 import { resetGameCanvas } from '../../game.js';
 import { GameOverlayManager } from '../core/GameOverlayManager';
 import { GameAudioEngine } from '../core/GameAudioEngine';
+import { GameJuice } from '../core/GameJuice';
 
 export class MinesweeperPlugin implements MiniGamePlugin {
   id = 'minesweeper';
@@ -62,17 +63,9 @@ export class MinesweeperPlugin implements MiniGamePlugin {
   private startX = 0;
   private startY = 0;
 
-  // Particles for explosions
-  private particles: Array<{
-    x: number;
-    y: number;
-    vx: number;
-    vy: number;
-    color: string;
-    size: number;
-    alpha: number;
-    life: number;
-  }> = [];
+  // GameJuice for visual effects & animations
+  private juice = new GameJuice();
+  private countdownActive = false;
 
   // Listeners
   private boundMouseDown: any;
@@ -124,7 +117,7 @@ export class MinesweeperPlugin implements MiniGamePlugin {
     this.firstClick = true;
     this.gameOver = false;
     this.victory = false;
-    this.particles = [];
+    this.juice.reset();
     this.timeElapsed = 0;
     this.faceState = 'smile';
 
@@ -295,7 +288,11 @@ export class MinesweeperPlugin implements MiniGamePlugin {
     this.firstClick = true;
     this.gameOver = false;
     this.victory = false;
-    this.particles = [];
+    this.juice.reset();
+    this.countdownActive = true;
+    this.juice.startCountdown(() => {
+      this.countdownActive = false;
+    });
     this.timeElapsed = 0;
     this.faceState = 'smile';
     this.minesRemaining = this.minesCount;
@@ -422,7 +419,7 @@ export class MinesweeperPlugin implements MiniGamePlugin {
       return;
     }
 
-    if (this.gameOver || this.victory) return;
+    if (this.gameOver || this.victory || this.countdownActive) return;
 
     // Grid coordinates
     const gx = Math.floor((mx - this.startX) / this.cellSize);
@@ -465,6 +462,27 @@ export class MinesweeperPlugin implements MiniGamePlugin {
     }
 
     this.playSynthSFX('reveal');
+
+    const cx = this.startX + c * this.cellSize + this.cellSize / 2;
+    const cy = this.startY + r * this.cellSize + this.cellSize / 2;
+    if (cell.neighborMines > 0) {
+      const countColors = [
+        '', '#38bdf8', '#22c55e', '#f43f5e', '#818cf8', 
+        '#ec4899', '#06b6d4', '#eab308', '#ffffff'
+      ];
+      this.juice.spawnText(cx, cy, `+${cell.neighborMines}`, {
+        color: countColors[cell.neighborMines] || '#ffffff',
+        fontSize: 14,
+        scale: 1.1
+      });
+    } else {
+      this.juice.spawnExplosion(cx, cy, {
+        color: 'rgba(56, 189, 248, 0.5)',
+        count: 4,
+        sizeRange: [1, 3],
+        speedRange: [0.5, 2]
+      });
+    }
 
     // If zero neighbors, sweep auto-reveal
     if (cell.neighborMines === 0) {
@@ -510,6 +528,9 @@ export class MinesweeperPlugin implements MiniGamePlugin {
       if (scoreVal) scoreVal.textContent = '0';
       this.playSynthSFX('victory');
 
+      // Spawn magnificent confetti cascades!
+      this.juice.spawnConfetti(this.canvas?.width || 400, this.canvas?.height || 400);
+
       this.overlayManager?.showResults({
         title: 'VICTORY',
         subtitle: 'Cyber logic grid fully cleared!',
@@ -537,10 +558,19 @@ export class MinesweeperPlugin implements MiniGamePlugin {
     this.faceState = 'dead';
     this.playSynthSFX('explode');
 
-    // Create explosion shockwave particles
+    // Create explosion shockwave particles in juice
     const cellX = this.startX + mineC * this.cellSize + this.cellSize / 2;
     const cellY = this.startY + mineR * this.cellSize + this.cellSize / 2;
-    this.createExplosionParticles(cellX, cellY);
+    this.juice.spawnExplosion(cellX, cellY, {
+      color: ['#f43f5e', '#ef4444', '#f97316', '#ffedd5'],
+      count: 35,
+      sizeRange: [3, 7],
+      speedRange: [2.5, 6.5],
+      gravity: 0.1,
+      shape: 'circle'
+    });
+    this.juice.shake(12);
+    this.juice.bounceZoom(0.96);
 
     // Reveal all mines
     for (let r = 0; r < this.rows; r++) {
@@ -577,108 +607,21 @@ export class MinesweeperPlugin implements MiniGamePlugin {
   }
 
   private createExplosionParticles(x: number, y: number) {
-    const colors = ['#f43f5e', '#f97316', '#eab308', '#ffffff'];
-    for (let i = 0; i < 40; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const speed = 1.5 + Math.random() * 4;
-      this.particles.push({
-        x,
-        y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        color: colors[Math.floor(Math.random() * colors.length)],
-        size: 2 + Math.random() * 4,
-        alpha: 1.0,
-        life: 0.8 + Math.random() * 0.4
-      });
-    }
+    this.juice.spawnExplosion(x, y, {
+      color: ['#f43f5e', '#f97316', '#eab308', '#ffffff'],
+      count: 20,
+      sizeRange: [2, 5],
+      speedRange: [1.5, 4.5]
+    });
   }
 
   private playSynthSFX(type: 'reveal' | 'flag' | 'click' | 'explode' | 'victory') {
-    try {
-      const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtxClass) return;
-      const ctx = new AudioCtxClass();
-      
-      if (type === 'reveal') {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(330, ctx.currentTime);
-        osc.frequency.setValueAtTime(440, ctx.currentTime + 0.04);
-        gain.gain.setValueAtTime(0.04, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.08);
-      } else if (type === 'flag') {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(180, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.1);
-        gain.gain.setValueAtTime(0.08, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.12);
-      } else if (type === 'click') {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(600, ctx.currentTime);
-        gain.gain.setValueAtTime(0.05, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.03);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.03);
-      } else if (type === 'explode') {
-        // Red noise explosion rumble
-        const bufferSize = ctx.sampleRate * 0.4;
-        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-        let lastOut = 0.0;
-        for (let i = 0; i < bufferSize; i++) {
-          const white = Math.random() * 2 - 1;
-          data[i] = (lastOut + (0.02 * white)) / 1.02;
-          lastOut = data[i];
-          data[i] *= 3.5; // Amplify noise
-        }
-        const noise = ctx.createBufferSource();
-        noise.buffer = buffer;
-        const filter = ctx.createBiquadFilter();
-        filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(300, ctx.currentTime);
-        filter.frequency.exponentialRampToValueAtTime(10, ctx.currentTime + 0.35);
-
-        const gain = ctx.createGain();
-        gain.gain.setValueAtTime(0.3, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
-
-        noise.connect(filter);
-        filter.connect(gain);
-        gain.connect(ctx.destination);
-        noise.start();
-      } else if (type === 'victory') {
-        const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6 arpeggio
-        notes.forEach((freq, idx) => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.type = 'triangle';
-          osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.08);
-          gain.gain.setValueAtTime(0, ctx.currentTime);
-          gain.gain.setValueAtTime(0.06, ctx.currentTime + idx * 0.08);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.08 + 0.25);
-          osc.start(ctx.currentTime + idx * 0.08);
-          osc.stop(ctx.currentTime + idx * 0.08 + 0.25);
-        });
-      }
-    } catch(e) {}
+    const engine = GameAudioEngine.getInstance();
+    if (type === 'reveal') engine.playSFX('step');
+    else if (type === 'flag') engine.playSFX('select');
+    else if (type === 'click') engine.playSFX('click');
+    else if (type === 'explode') engine.playSFX('explosion');
+    else if (type === 'victory') engine.playSFX('win');
   }
 
   private tick() {
@@ -696,6 +639,9 @@ export class MinesweeperPlugin implements MiniGamePlugin {
   }
 
   private update() {
+    // Update juice physics and text drifts
+    this.juice.update(1.0);
+
     // Update exploding cell particles
     const now = performance.now();
     for (let r = 0; r < this.rows; r++) {
@@ -706,20 +652,11 @@ export class MinesweeperPlugin implements MiniGamePlugin {
           const cx = this.startX + c * this.cellSize + this.cellSize / 2;
           const cy = this.startY + r * this.cellSize + this.cellSize / 2;
           this.createExplosionParticles(cx, cy);
+          this.juice.shake(1.5);
           this.playSynthSFX('reveal');
         }
       }
     }
-
-    // Particle physics
-    this.particles = this.particles.filter(p => {
-      p.x += p.vx;
-      p.y += p.vy;
-      p.vy += 0.08; // gravity
-      p.life -= 0.016;
-      p.alpha = Math.max(0, p.life);
-      return p.life > 0;
-    });
   }
 
   private render() {
@@ -778,6 +715,8 @@ export class MinesweeperPlugin implements MiniGamePlugin {
     ctx.fillText(faceEmoji, faceX, headerY);
 
     // 2. Draw Minesweeper Grid
+    this.juice.applyCameraTransforms(ctx, canvas.width, canvas.height);
+
     for (let r = 0; r < this.rows; r++) {
       for (let c = 0; c < this.cols; c++) {
         const cell = this.grid[r][c];
@@ -856,15 +795,10 @@ export class MinesweeperPlugin implements MiniGamePlugin {
       }
     }
 
-    // 3. Draw explosion particles
-    this.particles.forEach(p => {
-      ctx.fillStyle = p.color;
-      ctx.globalAlpha = p.alpha;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-      ctx.fill();
-    });
-    ctx.globalAlpha = 1.0; // reset
+    this.juice.restoreCameraTransforms(ctx);
+
+    // 3. Draw juice floating texts & particles on top
+    this.juice.draw(ctx);
 
     // 4. Game-over text overlay
     if (this.gameOver) {

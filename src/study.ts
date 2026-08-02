@@ -96,17 +96,20 @@ function renderStudy() {
     ?`<div class="adapt-box"><div class="adapt-label">You've missed this ${card.mistakes} times</div><div class="adapt-text"><button class="btn btn-p" onclick="getAdaptExplain()">Ask AI to explain simply</button></div></div>`
     :'';
  
+  const isFoil = (card.interval || 0) > 30;
+  const foilClass = isFoil ? ' foil-card' : '';
+
   if(S.mode==='flip'){
     el.innerHTML=`${prog}${adapt}
       <div class="card-scene">
         <div class="card-wrap${S.flipped?' flipped':''}" onclick="flipCard()" ontouchstart="handleTouchStart(event)" ontouchend="handleTouchEnd(event)">
-          <div class="card-face cfront" style="position:relative">
+          <div class="card-face cfront${foilClass}" style="position:relative">
             ${(card.difficulty && card.difficulty !== 'none') ? `<div class="cf-diff"><span class="diff-pill ${card.difficulty}" onclick="event.stopPropagation();cycleCardDiffInStudy()" title="Difficulty — click to change">${card.difficulty === 'easy' ? '▲ Easy' : card.difficulty === 'medium' ? '● Med' : '▼ Hard'}</span></div>` : ''}
             <div class="cf-label">${isClozeCard(card) ? 'Fill in the blank' : 'Question'}</div>
             <div class="cf-text${isClozeCard(card) ? ' cloze-text' : ''}">${isClozeCard(card) ? renderClozeQuestion(card.q) : escH(card.q)}</div>
             <div class="cf-hint">${isClozeCard(card) ? 'Tap each blank to reveal · flip for full answer' : 'Click card to reveal answer'}</div>
           </div>
-          <div class="card-face cback">
+          <div class="card-face cback${foilClass}">
             <div class="cf-label">Answer</div>
             <div class="cf-text${isClozeCard(card) ? ' cloze-text' : ''}">${isClozeCard(card) ? renderClozeAnswer(card.q) : escH(card.a)}${card.a && isClozeCard(card) ? '<div style="margin-top:10px;font-size:13px;color:var(--text3)">'+escH(card.a)+'</div>' : ''}</div>
             ${meta}
@@ -154,11 +157,11 @@ function renderStudy() {
     el.innerHTML=`${prog}${adapt}
       <div class="card-scene">
         <div class="card-wrap${S.flipped?' flipped':''}" style="cursor:default">
-          <div class="card-face cfront">
+          <div class="card-face cfront${foilClass}">
             <div class="cf-label">Question</div>
             <div class="cf-text">${escH(card.q)}</div>
           </div>
-          <div class="card-face cback">
+          <div class="card-face cback${foilClass}">
             <div class="cf-label">Answer</div>
             <div class="cf-text">${escH(card.a)}</div>
             ${S.userAns?`<div class="cf-user">Your answer: "${escH(S.userAns)}"</div>`:''}

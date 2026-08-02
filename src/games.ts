@@ -45,10 +45,10 @@ import { PixelArtStudioPlugin } from './games/pixelart/PixelArtStudioPlugin';
 const registry = GameRegistry.getInstance();
 (window as any).GameRegistry = GameRegistry;
 
-// Core Arcade Games
-registry.registerGame(new BladeBedlamPlugin());
-registry.registerGame(new CyberflapPlugin());
-registry.registerGame(new VoidSurvivorPlugin());
+// Core Arcade Games (Excluded per user request: Blade Bedlam, Cyberflap, Void Survivor)
+// registry.registerGame(new BladeBedlamPlugin());
+// registry.registerGame(new CyberflapPlugin());
+// registry.registerGame(new VoidSurvivorPlugin());
 registry.registerGame(new RhythmGamePlugin());
 registry.registerGame(new ColosseumDuelPlugin());
 registry.registerGame(new MinesweeperPlugin());
@@ -170,11 +170,11 @@ function renderQuickPlayRecommendation(): void {
   // Match games based on break duration
   let recommendedGames: GameDefinition[] = [];
   if (quickPlayDuration === 'short') {
-    recommendedGames = games.filter(g => ['tictactoe', 'memorymatch', 'pong', 'connectfour', 'cyberflap', 'whackamole', 'watersort', 'lightsout'].includes(g.id));
+    recommendedGames = games.filter(g => ['tictactoe', 'memorymatch', 'pong', 'connectfour', 'whackamole', 'watersort', 'lightsout'].includes(g.id));
   } else if (quickPlayDuration === 'medium') {
     recommendedGames = games.filter(g => ['snake', 'minesweeper', 'reversi', 'checkers', 'sudoku', 'breakout', 'tetris', 'match3', 'sokoban', 'nonogram', 'gomoku', 'asteroids', 'mancala'].includes(g.id));
   } else {
-    recommendedGames = games.filter(g => ['chess', 'solitaire', 'game2048', 'blade_bedlam', 'void_survivor', 'rhythm_game', 'colosseum_duel', 'battleship', 'freecell', 'zengarden', 'pixelart'].includes(g.id));
+    recommendedGames = games.filter(g => ['chess', 'solitaire', 'game2048', 'rhythm_game', 'colosseum_duel', 'battleship', 'freecell', 'zengarden', 'pixelart'].includes(g.id));
   }
 
   // Fallback if no matching game

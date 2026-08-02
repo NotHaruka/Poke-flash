@@ -2,6 +2,7 @@ import { MiniGamePlugin } from '../core/GamePlugin';
 import { GameLaunchContext } from '../core/GameLaunchContext';
 import { GameOverlayManager } from '../core/GameOverlayManager';
 import { resetGameCanvas } from '../../game.js';
+import { GameJuice } from '../core/GameJuice';
 
 export class WaterSortPlugin implements MiniGamePlugin {
   id = 'watersort';
@@ -28,6 +29,7 @@ export class WaterSortPlugin implements MiniGamePlugin {
   private animationFrameId: number | null = null;
   private isRunning = false;
   private overlayManager: GameOverlayManager | null = null;
+  private juice = new GameJuice();
 
   private selectedTube: number | null = null;
   private tubes: string[][] = [];
@@ -91,6 +93,8 @@ export class WaterSortPlugin implements MiniGamePlugin {
           { id: 'moves', label: 'Moves', value: '0' }
         ]);
         this.startGame();
+        this.juice.reset();
+        this.juice.startCountdown(() => {});
       }
     });
   }
@@ -229,6 +233,12 @@ export class WaterSortPlugin implements MiniGamePlugin {
     this.moves++;
     this.overlayManager?.updateStat('moves', this.moves);
 
+    // Liquid pour Juice effect
+    const tx = this.startX + to * (this.tubeWidth * 1.5) + this.tubeWidth / 2;
+    const ty = this.startY + this.tubeHeight / 2;
+    this.juice.spawnExplosion(tx, ty, { count: 8, color: topColor, sizeRange: [2, 5], speedRange: [2, 5] });
+    this.juice.shake(2);
+
     this.checkWin();
   }
 
@@ -242,6 +252,9 @@ export class WaterSortPlugin implements MiniGamePlugin {
     if (won && !this.isWon) {
       this.isWon = true;
       this.statusMessage = 'ALL TUBES SORTED!';
+      this.juice.spawnConfetti(this.canvas?.width || 400, this.canvas?.height || 600);
+      this.juice.bounceZoom(1.12);
+      this.juice.shake(10);
       const nextLvl = this.currentLevel + 1;
       setTimeout(() => {
         this.overlayManager?.showResults({
@@ -263,6 +276,7 @@ export class WaterSortPlugin implements MiniGamePlugin {
 
   private tick() {
     if (!this.isRunning) return;
+    this.juice.update(1.0);
     this.render();
     this.animationFrameId = requestAnimationFrame(this.tick.bind(this));
   }
@@ -274,6 +288,8 @@ export class WaterSortPlugin implements MiniGamePlugin {
 
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    this.juice.applyCameraTransforms(ctx, canvas.width, canvas.height);
 
     const midX = canvas.width / 2;
 
@@ -312,6 +328,9 @@ export class WaterSortPlugin implements MiniGamePlugin {
     const btnY = this.startY + this.tubeHeight + 45;
     ctx.fillStyle = '#334155'; ctx.beginPath(); ctx.roundRect(midX - 40, btnY - 14, 80, 28, 6); ctx.fill();
     ctx.font = 'bold 11px sans-serif'; ctx.fillStyle = '#fff'; ctx.fillText('RESET', midX, btnY + 3);
+
+    this.juice.restoreCameraTransforms(ctx);
+    this.juice.draw(ctx);
   }
 
   destroy(): void {

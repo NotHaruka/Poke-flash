@@ -3,6 +3,7 @@ import { GameLaunchContext } from '../core/GameLaunchContext';
 import { resetGameCanvas } from '../../game.js';
 import { GameOverlayManager } from '../core/GameOverlayManager';
 import { GameAudioEngine } from '../core/GameAudioEngine';
+import { GameJuice } from '../core/GameJuice';
 
 type DiscColor = 'black' | 'white';
 
@@ -43,6 +44,9 @@ export class ReversiPlugin implements MiniGamePlugin {
   private currentPlayer: DiscColor = 'black'; // Black moves first
   private gameMode: 'vsAI' | 'local' = 'vsAI';
   private difficulty: 'easy' | 'medium' | 'hard' = 'medium';
+
+  private juice = new GameJuice();
+  private countdownActive = false;
 
   private validMoves: { r: number; c: number; flips: { r: number; c: number }[] }[] = [];
   private flippingDiscs: AnimatedFlip[] = [];
@@ -173,6 +177,11 @@ export class ReversiPlugin implements MiniGamePlugin {
     this.overlayManager?.resume();
     this.isGameOver = false;
     this.isPaused = false;
+    this.juice.reset();
+    this.countdownActive = true;
+    this.juice.startCountdown(() => {
+      this.countdownActive = false;
+    });
     this.resetBoard();
   }
 
@@ -208,6 +217,14 @@ export class ReversiPlugin implements MiniGamePlugin {
     this.currentPlayer = 'black';
     this.flippingDiscs = [];
     this.isGameOver = false;
+
+    if (!this.countdownActive) {
+      this.juice.reset();
+      this.countdownActive = true;
+      this.juice.startCountdown(() => {
+        this.countdownActive = false;
+      });
+    }
 
     this.updateScores();
     this.computeValidMoves();
@@ -266,7 +283,7 @@ export class ReversiPlugin implements MiniGamePlugin {
       return;
     }
 
-    if (this.isGameOver) return;
+    if (this.isGameOver || this.countdownActive) return;
     if (this.gameMode === 'vsAI' && this.currentPlayer === 'white') return;
 
     const col = Math.floor((mx - this.startX) / this.cellSize);
@@ -318,6 +335,22 @@ export class ReversiPlugin implements MiniGamePlugin {
     this.board[move.r][move.c] = this.currentPlayer;
     const oppColor = this.currentPlayer === 'black' ? 'white' : 'black';
 
+    const placedX = this.startX + move.c * this.cellSize + this.cellSize / 2;
+    const placedY = this.startY + move.r * this.cellSize + this.cellSize / 2;
+    this.juice.spawnExplosion(placedX, placedY, {
+      color: this.currentPlayer === 'black' ? ['#1e293b', '#0f172a', '#475569'] : ['#ffffff', '#f1f5f9', '#94a3b8'],
+      count: 14,
+      sizeRange: [2, 5],
+      speedRange: [1, 3.5]
+    });
+    this.juice.spawnText(placedX, placedY - 15, `FLIP +${move.flips.length}!`, {
+      color: this.currentPlayer === 'black' ? '#38bdf8' : '#f59e0b',
+      fontSize: 14,
+      scale: 1.2
+    });
+    this.juice.shake(5);
+    this.juice.bounceZoom(1.02);
+
     // Start flip animations and update board
     for (const f of move.flips) {
       this.board[f.r][f.c] = this.currentPlayer;
@@ -351,6 +384,7 @@ export class ReversiPlugin implements MiniGamePlugin {
         if (this.blackCount > this.whiteCount) {
           this.statusMessage = `GAME OVER! BLACK WINS (${this.blackCount}-${this.whiteCount})`;
           this.playSFX('win');
+          this.juice.spawnConfetti(this.canvas?.width || 400, this.canvas?.height || 400);
           this.overlayManager?.showResults({
             title: 'VICTORY!',
             score: 1000 + (this.blackCount * 50),
@@ -363,6 +397,7 @@ export class ReversiPlugin implements MiniGamePlugin {
         } else if (this.whiteCount > this.blackCount) {
           this.statusMessage = `GAME OVER! WHITE WINS (${this.whiteCount}-${this.blackCount})`;
           this.playSFX('lose');
+          this.juice.shake(12);
           this.overlayManager?.showResults({
             title: 'GAME OVER',
             score: 0,
@@ -459,10 +494,11 @@ export class ReversiPlugin implements MiniGamePlugin {
         engine.playSFX('click');
         break;
     }
-  }
-
-  private tick() {
+  }  private tick() {
     if (!this.isRunning) return;
+
+    // Update GameJuice particles and camera state
+    this.juice.update(1.0);
 
     // Update flip animations
     for (let i = this.flippingDiscs.length - 1; i >= 0; i--) {
@@ -495,6 +531,9 @@ export class ReversiPlugin implements MiniGamePlugin {
     ctx.font = 'bold 12px "Space Grotesk", sans-serif';
     ctx.fillStyle = this.isGameOver ? '#ef4444' : '#cda250';
     ctx.fillText(this.statusMessage, midX, this.startY - 10);
+
+    // Apply Camera Transforms
+    this.juice.applyCameraTransforms(ctx, canvas.width, canvas.height);
 
     // Green Felt Reversi Board
     ctx.fillStyle = '#15803d'; // Deep Green
@@ -568,6 +607,12 @@ export class ReversiPlugin implements MiniGamePlugin {
         }
       }
     }
+
+    // Restore Camera Transforms
+    this.juice.restoreCameraTransforms(ctx);
+
+    // Draw visual juice particles on top of the board
+    this.juice.draw(ctx);
 
     // Bottom Controls
     const controlsY = this.startY + this.boardSize + 28;

@@ -3,6 +3,7 @@ import { GameLaunchContext } from '../core/GameLaunchContext';
 import { resetGameCanvas } from '../../game.js';
 import { GameOverlayManager } from '../core/GameOverlayManager';
 import { GameAudioEngine } from '../core/GameAudioEngine';
+import { GameJuice } from '../core/GameJuice';
 
 type Player = 'yellow' | 'red';
 
@@ -51,6 +52,10 @@ export class ConnectFourPlugin implements MiniGamePlugin {
   private currentPlayer: Player = 'yellow';
   private gameMode: 'vsAI' | 'local' = 'vsAI';
   private difficulty: 'easy' | 'medium' | 'hard' = 'medium';
+
+  // GameJuice effects
+  private juice = new GameJuice();
+  private countdownActive = false;
 
   private hoverCol: number | null = null;
   private droppingDisc: DroppingDisc | null = null;
@@ -186,6 +191,11 @@ export class ConnectFourPlugin implements MiniGamePlugin {
     this.overlayManager?.resume();
     this.isGameOver = false;
     this.isPaused = false;
+    this.juice.reset();
+    this.countdownActive = true;
+    this.juice.startCountdown(() => {
+      this.countdownActive = false;
+    });
     this.resetBoard();
   }
 
@@ -220,6 +230,13 @@ export class ConnectFourPlugin implements MiniGamePlugin {
     this.winningCells = null;
     this.isGameOver = false;
     this.statusMessage = "Your Turn (Yellow)";
+    if (!this.countdownActive) {
+      this.juice.reset();
+      this.countdownActive = true;
+      this.juice.startCountdown(() => {
+        this.countdownActive = false;
+      });
+    }
     this.updateHUD();
   }
 
@@ -288,7 +305,7 @@ export class ConnectFourPlugin implements MiniGamePlugin {
       return;
     }
 
-    if (this.isGameOver || this.droppingDisc) return;
+    if (this.isGameOver || this.droppingDisc || this.countdownActive) return;
     if (this.gameMode === 'vsAI' && this.currentPlayer === 'red') return;
 
     if (mx >= this.startX && mx <= this.startX + this.boardWidth) {
@@ -332,6 +349,18 @@ export class ConnectFourPlugin implements MiniGamePlugin {
     this.board[targetRow][col] = player;
     this.droppingDisc = null;
 
+    // Trigger visual thud collision juice
+    const cx = this.startX + col * this.cellSize + this.cellSize / 2;
+    const cy = this.startY + targetRow * this.cellSize + this.cellSize / 2;
+    this.juice.spawnExplosion(cx, cy, {
+      color: player === 'yellow' ? ['#eab308', '#fef08a', '#ffffff'] : ['#ef4444', '#fca5a5', '#ffffff'],
+      count: 12,
+      sizeRange: [2.5, 4.5],
+      speedRange: [1, 3]
+    });
+    this.juice.shake(4);
+    this.juice.bounceZoom(1.02);
+
     // Check Win
     const win = this.checkWin(this.board, player);
     if (win) {
@@ -342,6 +371,7 @@ export class ConnectFourPlugin implements MiniGamePlugin {
         this.statusMessage = "YELLOW WINS!";
         this.updateHUD();
         this.playSFX('win');
+        this.juice.spawnConfetti(this.canvas?.width || 400, this.canvas?.height || 400);
         this.overlayManager?.showResults({
           title: 'VICTORY!',
           score: 1000 + (this.winsYellow * 200),
@@ -356,6 +386,7 @@ export class ConnectFourPlugin implements MiniGamePlugin {
         this.statusMessage = "RED WINS!";
         this.updateHUD();
         this.playSFX('lose');
+        this.juice.shake(12);
         this.overlayManager?.showResults({
           title: 'GAME OVER',
           score: 0,
@@ -504,10 +535,11 @@ export class ConnectFourPlugin implements MiniGamePlugin {
         engine.playSFX('click');
         break;
     }
-  }
-
-  private tick() {
+  }  private tick() {
     if (!this.isRunning) return;
+
+    // Update GameJuice particles and state
+    this.juice.update(1.0);
 
     // Update drop physics animation
     if (this.droppingDisc) {
@@ -537,6 +569,9 @@ export class ConnectFourPlugin implements MiniGamePlugin {
     ctx.font = 'bold 13px "Space Grotesk", sans-serif';
     ctx.fillStyle = this.isGameOver ? '#ef4444' : '#cda250';
     ctx.fillText(this.statusMessage, midX, this.startY - 22);
+
+    // Apply Camera Transforms
+    this.juice.applyCameraTransforms(ctx, canvas.width, canvas.height);
 
     // Hover Column Arrow / Preview Token
     if (this.hoverCol !== null && !this.isGameOver && !this.droppingDisc) {
@@ -599,6 +634,12 @@ export class ConnectFourPlugin implements MiniGamePlugin {
         ctx.shadowBlur = 0;
       }
     }
+
+    // Restore Camera Transforms
+    this.juice.restoreCameraTransforms(ctx);
+
+    // Draw visual juice particles on top of the grid
+    this.juice.draw(ctx);
 
     // Bottom Controls
     const controlsY = this.startY + this.boardHeight + 32;

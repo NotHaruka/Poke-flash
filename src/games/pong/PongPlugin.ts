@@ -3,6 +3,7 @@ import { GameLaunchContext } from '../core/GameLaunchContext';
 import { resetGameCanvas } from '../../game.js';
 import { GameOverlayManager } from '../core/GameOverlayManager';
 import { GameAudioEngine } from '../core/GameAudioEngine';
+import { GameJuice } from '../core/GameJuice';
 
 export class PongPlugin implements MiniGamePlugin {
   id = 'pong';
@@ -32,10 +33,18 @@ export class PongPlugin implements MiniGamePlugin {
   private isPaused = false;
   private overlayManager: GameOverlayManager | null = null;
   private context: GameLaunchContext | null = null;
+  private juice = new GameJuice();
 
   private playerPaddle = { y: 0, w: 12, h: 70, speed: 8 };
   private aiPaddle = { y: 0, w: 12, h: 70, speed: 5 };
   private ball = { x: 0, y: 0, vx: 5, vy: 3, radius: 7, speed: 6 };
+
+  // Squash & Stretch animations
+  private playerPaddleSquash = 1.0;
+  private aiPaddleSquash = 1.0;
+  private ballSquashX = 1.0;
+  private ballSquashY = 1.0;
+  private countdownActive = false;
 
   private playerScore = 0;
   private aiScore = 0;
@@ -248,9 +257,16 @@ export class PongPlugin implements MiniGamePlugin {
     this.rallyCount = 0;
     this.isGameOver = false;
     this.statusMessage = "First to 7 points wins";
+    this.juice.reset();
 
     this.resetBall(1);
     this.updateHeaderScore();
+
+    // Trigger visual on-canvas countdown overlay
+    this.countdownActive = true;
+    this.juice.startCountdown(() => {
+      this.countdownActive = false;
+    });
   }
 
   private resetBall(direction: number) {
@@ -388,7 +404,7 @@ export class PongPlugin implements MiniGamePlugin {
   }
 
   private updatePhysics() {
-    if (!this.canvas || this.isPaused) return;
+    if (!this.canvas || this.isPaused || this.countdownActive) return;
     const width = this.canvas.width;
     const height = this.canvas.height;
 
@@ -401,10 +417,22 @@ export class PongPlugin implements MiniGamePlugin {
       this.ball.y = this.ball.radius;
       this.ball.vy = Math.abs(this.ball.vy);
       this.playSFX('hit');
+      
+      // Juice: Wall Spark & Camera Thud & Ball Squash
+      this.juice.spawnExplosion(this.ball.x, this.ball.y, { color: '#cbd5e1', count: 6, sizeRange: [1.5, 3.5], speedRange: [1, 3.5] });
+      this.juice.shake(2);
+      this.ballSquashX = 1.25;
+      this.ballSquashY = 0.75;
     } else if (this.ball.y + this.ball.radius >= height) {
       this.ball.y = height - this.ball.radius;
       this.ball.vy = -Math.abs(this.ball.vy);
       this.playSFX('hit');
+
+      // Juice: Wall Spark & Camera Thud & Ball Squash
+      this.juice.spawnExplosion(this.ball.x, this.ball.y, { color: '#cbd5e1', count: 6, sizeRange: [1.5, 3.5], speedRange: [1, 3.5] });
+      this.juice.shake(2);
+      this.ballSquashX = 1.25;
+      this.ballSquashY = 0.75;
     }
 
     // AI Paddle Movement (Smooth tracking with delay)
@@ -432,6 +460,14 @@ export class PongPlugin implements MiniGamePlugin {
         this.rallyCount++;
         this.overlayManager?.updateStat('rally', this.rallyCount);
         GameAudioEngine.getInstance().playSFX('hit');
+
+        // Juice: Paddle Sparks, squash, screen shake, ball squash
+        this.juice.spawnExplosion(this.ball.x, this.ball.y, { color: '#38bdf8', count: 12, sizeRange: [2, 5], speedRange: [2.5, 5.5] });
+        this.juice.shake(5);
+        this.juice.bounceZoom(1.02);
+        this.playerPaddleSquash = 0.55;
+        this.ballSquashX = 0.7;
+        this.ballSquashY = 1.3;
       }
     }
 
@@ -451,6 +487,14 @@ export class PongPlugin implements MiniGamePlugin {
         this.rallyCount++;
         this.overlayManager?.updateStat('rally', this.rallyCount);
         GameAudioEngine.getInstance().playSFX('hit');
+
+        // Juice: Paddle Sparks, squash, screen shake, ball squash
+        this.juice.spawnExplosion(this.ball.x, this.ball.y, { color: '#f59e0b', count: 12, sizeRange: [2, 5], speedRange: [2.5, 5.5] });
+        this.juice.shake(5);
+        this.juice.bounceZoom(1.02);
+        this.aiPaddleSquash = 0.55;
+        this.ballSquashX = 0.7;
+        this.ballSquashY = 1.3;
       }
     }
 
@@ -461,6 +505,11 @@ export class PongPlugin implements MiniGamePlugin {
       this.overlayManager?.updateStat('opponent', this.aiScore);
       this.updateHeaderScore();
       GameAudioEngine.getInstance().playSFX('mismatch');
+
+      // Juice: Floating score text, screen shake, red border thud
+      this.juice.spawnText(width * 0.35, height / 2, 'AI SCORES!', { color: '#ef4444', fontSize: 26, scale: 1.4 });
+      this.juice.spawnExplosion(20, this.ball.y, { color: '#ef4444', count: 18, sizeRange: [3, 6] });
+      this.juice.shake(10);
 
       if (this.aiScore >= this.maxScore) {
         this.triggerGameOver(false);
@@ -474,6 +523,11 @@ export class PongPlugin implements MiniGamePlugin {
       this.updateHeaderScore();
       GameAudioEngine.getInstance().playSFX('score');
 
+      // Juice: Floating score text, screen shake, green celebrate thud
+      this.juice.spawnText(width * 0.65, height / 2, 'POINT SCORED!', { color: '#10b981', fontSize: 26, scale: 1.4 });
+      this.juice.spawnExplosion(width - 20, this.ball.y, { color: '#10b981', count: 18, sizeRange: [3, 6] });
+      this.juice.shake(10);
+
       if (this.playerScore >= this.maxScore) {
         this.triggerGameOver(true);
       } else {
@@ -486,8 +540,15 @@ export class PongPlugin implements MiniGamePlugin {
     this.isGameOver = true;
     if (playerWon) {
       GameAudioEngine.getInstance().playSFX('win');
+      if (this.canvas) {
+        this.juice.spawnConfetti(this.canvas.width, this.canvas.height);
+        // Cascading confetti
+        setTimeout(() => { if (this.isRunning && this.canvas) this.juice.spawnConfetti(this.canvas.width, this.canvas.height); }, 250);
+        setTimeout(() => { if (this.isRunning && this.canvas) this.juice.spawnConfetti(this.canvas.width, this.canvas.height); }, 500);
+      }
     } else {
       GameAudioEngine.getInstance().playSFX('lose');
+      this.juice.shake(18, 0.9);
     }
 
     this.overlayManager?.showResults({
@@ -514,8 +575,23 @@ export class PongPlugin implements MiniGamePlugin {
     const canvas = this.canvas;
     if (!ctx || !canvas) return;
 
+    // Update animation states & juice physics
+    this.juice.update(1.0);
+    this.playerPaddleSquash += (1.0 - this.playerPaddleSquash) * 0.15;
+    this.aiPaddleSquash += (1.0 - this.aiPaddleSquash) * 0.15;
+    this.ballSquashX += (1.0 - this.ballSquashX) * 0.12;
+    this.ballSquashY += (1.0 - this.ballSquashY) * 0.12;
+
+    // Ball Trails (spawn custom dust trail particles)
+    if (!this.isPaused && !this.isGameOver && !this.countdownActive) {
+      this.juice.spawnTrail(this.ball.x, this.ball.y, 'rgba(255, 255, 255, 0.4)', 5);
+    }
+
     ctx.fillStyle = '#0a0915';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Camera Shakes & Bouncy Screen Zoom Wrap
+    this.juice.applyCameraTransforms(ctx, canvas.width, canvas.height);
 
     const midX = canvas.width / 2;
 
@@ -535,23 +611,48 @@ export class PongPlugin implements MiniGamePlugin {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Player Paddle (Left)
+    // Player Paddle (Left) with squash-and-stretch
+    ctx.save();
     ctx.fillStyle = '#38bdf8';
+    const pcx = 20 + this.playerPaddle.w / 2;
+    const pcy = this.playerPaddle.y + this.playerPaddle.h / 2;
+    ctx.translate(pcx, pcy);
+    ctx.scale(this.playerPaddleSquash, 2.0 - this.playerPaddleSquash);
+    ctx.translate(-pcx, -pcy);
     ctx.beginPath();
     ctx.roundRect(20, this.playerPaddle.y, this.playerPaddle.w, this.playerPaddle.h, 4);
     ctx.fill();
+    ctx.restore();
 
-    // AI / Right Paddle
-    ctx.fillStyle = '#ef4444';
+    // AI / Right Paddle with squash-and-stretch
+    ctx.save();
+    ctx.fillStyle = '#f59e0b';
+    const acx = canvas.width - 20 - this.aiPaddle.w / 2;
+    const acy = this.aiPaddle.y + this.aiPaddle.h / 2;
+    ctx.translate(acx, acy);
+    ctx.scale(this.aiPaddleSquash, 2.0 - this.aiPaddleSquash);
+    ctx.translate(-acx, -acy);
     ctx.beginPath();
     ctx.roundRect(canvas.width - 20 - this.aiPaddle.w, this.aiPaddle.y, this.aiPaddle.w, this.aiPaddle.h, 4);
     ctx.fill();
+    ctx.restore();
 
-    // Ball
+    // Ball with squash-and-stretch
+    ctx.save();
     ctx.fillStyle = '#ffffff';
+    ctx.translate(this.ball.x, this.ball.y);
+    ctx.scale(this.ballSquashX, this.ballSquashY);
+    ctx.translate(-this.ball.x, -this.ball.y);
     ctx.beginPath();
     ctx.arc(this.ball.x, this.ball.y, this.ball.radius, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
+
+    // Restore Camera Transformations before overlays
+    this.juice.restoreCameraTransforms(ctx);
+
+    // Draw active particle clouds & text scores
+    this.juice.draw(ctx);
 
     // Draw standard Pause Button info or tips
     if (this.isPaused && !this.isGameOver) {

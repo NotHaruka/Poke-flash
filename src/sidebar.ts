@@ -62,6 +62,18 @@ function showPanel(name, btn) {
   if (name !== 'game') {
     (window as any).previousPanel = name;
   }
+  // Exit any running mini-game and pause Phaser game loop if navigating away from game views
+  if (name !== 'game' && name !== 'rhythm-game' && name !== 'void-survivor') {
+    try {
+      const reg = (window as any).GameRegistry?.getInstance?.();
+      if (reg && reg.getActiveGameId()) {
+        reg.exitActiveGame().catch(() => {});
+      }
+      if (typeof (window as any).pauseGame === 'function') {
+        (window as any).pauseGame();
+      }
+    } catch (e) {}
+  }
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
   const panel = document.getElementById('panel-'+name);
@@ -1220,11 +1232,13 @@ async function renderWelcomeDashboard() {
       recentDecksContainer.innerHTML = sorted.map(d => {
         const color = d.color || '#3D7A5F';
         const dBadge = d.dueCount > 0 ? `<span style="background:rgba(234,179,8,0.12); color:#ffd700; font-size:11px; font-weight:700; padding:1px 6px; border-radius:6px;">${d.dueCount} due</span>` : '';
+        const isFoil = d.cards && d.cards.some((c: any) => (c.interval || 0) > 30);
+        const foilClass = isFoil ? ' foil-card' : '';
         return `
-          <div style="background:var(--surface2); border:1.5px solid var(--border); border-radius:var(--rs); padding:16px; position:relative; display:flex; flex-direction:column; justify-content:space-between; cursor:pointer;"
+          <div class="dashboard-bento-card${foilClass}" style="background:var(--surface2); border:1.5px solid var(--border); border-radius:var(--rs); padding:16px; position:relative; display:flex; flex-direction:column; justify-content:space-between; cursor:pointer;"
                onclick="selectDeck('${d.id}')"
-               onmouseover="this.style.borderColor='var(--accent)'"
-               onmouseout="this.style.borderColor='var(--border)'">
+               onmouseover="if(!this.classList.contains('foil-card')) this.style.borderColor='var(--accent)'"
+               onmouseout="if(!this.classList.contains('foil-card')) this.style.borderColor='var(--border)'">
             
             <div style="position:absolute; top:0; left:12px; right:12px; height:3px; background:${color}; border-radius:0 0 2px 2px;"></div>
             

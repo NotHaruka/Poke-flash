@@ -2,6 +2,8 @@ import { MiniGamePlugin } from '../core/GamePlugin';
 import { GameLaunchContext } from '../core/GameLaunchContext';
 import { GameOverlayManager } from '../core/GameOverlayManager';
 import { resetGameCanvas } from '../../game.js';
+import { GameJuice } from '../core/GameJuice';
+import { GameAudioEngine } from '../core/GameAudioEngine';
 
 export class GomokuPlugin implements MiniGamePlugin {
   id = 'gomoku';
@@ -29,6 +31,7 @@ export class GomokuPlugin implements MiniGamePlugin {
   private animationFrameId: number | null = null;
   private isRunning = false;
   private overlayManager: GameOverlayManager | null = null;
+  private juice = new GameJuice();
 
   private boardSize = 15;
   private board: Array<Array<'black' | 'white' | null>> = [];
@@ -90,6 +93,8 @@ export class GomokuPlugin implements MiniGamePlugin {
           { id: 'mode', label: 'Mode', value: 'VS AI' }
         ]);
         this.startGame();
+        this.juice.reset();
+        this.juice.startCountdown(() => {});
       }
     });
   }
@@ -192,6 +197,13 @@ export class GomokuPlugin implements MiniGamePlugin {
   private makeMove(r: number, c: number) {
     this.board[r][c] = this.currentPlayer;
 
+    // Stone drop juice effect
+    const cx = this.startX + c * this.cellSize;
+    const cy = this.startY + r * this.cellSize;
+    const color = this.currentPlayer === 'black' ? '#38bdf8' : '#f8fafc';
+    GameAudioEngine.getInstance().playSFX('step');
+    this.juice.spawnExplosion(cx, cy, { count: 8, color, sizeRange: [2, 4], speedRange: [1, 4] });
+
     const winLine = this.checkWin(r, c, this.currentPlayer);
     if (winLine) {
       this.winningLine = winLine;
@@ -199,6 +211,12 @@ export class GomokuPlugin implements MiniGamePlugin {
       const winnerName = this.currentPlayer === 'black' ? 'Black' : 'White';
       this.statusMessage = `${winnerName} Wins!`;
       const isPlayerWin = this.gameMode === 'local' || this.currentPlayer === 'black';
+
+      GameAudioEngine.getInstance().playSFX(isPlayerWin ? 'win' : 'lose');
+      this.juice.shake(12);
+      this.juice.bounceZoom(1.1);
+      this.juice.spawnConfetti(this.canvas?.width || 400, this.canvas?.height || 600);
+      this.juice.spawnText(cx, cy - 20, '5 IN A ROW!', { color: '#10b981', fontSize: 22 });
 
       setTimeout(() => {
         this.overlayManager?.showResults({
@@ -314,6 +332,7 @@ export class GomokuPlugin implements MiniGamePlugin {
 
   private tick() {
     if (!this.isRunning) return;
+    this.juice.update(1.0);
     this.render();
     this.animationFrameId = requestAnimationFrame(this.tick.bind(this));
   }
@@ -325,6 +344,8 @@ export class GomokuPlugin implements MiniGamePlugin {
 
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    this.juice.applyCameraTransforms(ctx, canvas.width, canvas.height);
 
     const midX = canvas.width / 2;
 
@@ -406,7 +427,7 @@ export class GomokuPlugin implements MiniGamePlugin {
 
     ctx.fillStyle = this.gameMode === 'local' ? '#10b981' : '#334155';
     ctx.beginPath(); ctx.roundRect(midX + 10, btnY - 14, 90, 28, 6); ctx.fill();
-    ctx.fillText('LOCAL 2P', midX + 55, btnY + 3);
+    ctx.fillStyle = '#fff'; ctx.fillText('LOCAL 2P', midX + 55, btnY + 3);
 
     // Match over popup
     if (this.isMatchOver) {
@@ -419,6 +440,9 @@ export class GomokuPlugin implements MiniGamePlugin {
       ctx.fillStyle = '#f59e0b'; ctx.beginPath(); ctx.roundRect(midX - 50, midY + 10, 100, 24, 12); ctx.fill();
       ctx.font = 'bold 11px sans-serif'; ctx.fillStyle = '#0f172a'; ctx.fillText('RESTART', midX, midY + 26);
     }
+
+    this.juice.restoreCameraTransforms(ctx);
+    this.juice.draw(ctx);
   }
 
   destroy(): void {

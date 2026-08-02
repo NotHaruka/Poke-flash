@@ -2,6 +2,7 @@ import { MiniGamePlugin } from '../core/GamePlugin';
 import { GameLaunchContext } from '../core/GameLaunchContext';
 import { GameOverlayManager } from '../core/GameOverlayManager';
 import { resetGameCanvas } from '../../game.js';
+import { GameJuice } from '../core/GameJuice';
 
 export class PixelArtStudioPlugin implements MiniGamePlugin {
   id = 'pixelart';
@@ -28,6 +29,7 @@ export class PixelArtStudioPlugin implements MiniGamePlugin {
   private animationFrameId: number | null = null;
   private isRunning = false;
   private overlayManager: GameOverlayManager | null = null;
+  private juice = new GameJuice();
 
   private gridSize = 16;
   private grid: string[][] = [];
@@ -92,6 +94,8 @@ export class PixelArtStudioPlugin implements MiniGamePlugin {
           { id: 'pixels', label: 'Painted Pixels', value: '0' }
         ]);
         this.startGame();
+        this.juice.reset();
+        this.juice.startCountdown(() => {});
       }
     });
   }
@@ -207,7 +211,10 @@ export class PixelArtStudioPlugin implements MiniGamePlugin {
       this.tool = 'bucket'; return;
     }
     if (Math.abs(mx - (midX + 110)) <= 25 && Math.abs(my - toolY) <= 12) {
-      this.resetGrid(); return;
+      this.resetGrid();
+      this.juice.spawnExplosion(midX + 110, toolY, { count: 12, color: '#ef4444', sizeRange: [2, 5], speedRange: [2, 5] });
+      this.juice.shake(5);
+      return;
     }
 
     // Grid painting
@@ -217,11 +224,18 @@ export class PixelArtStudioPlugin implements MiniGamePlugin {
     if (col >= 0 && col < 16 && row >= 0 && row < 16) {
       if (isInitialTap) this.isDrawing = true;
 
-      if (this.tool === 'bucket') {
-        this.floodFill(row, col, this.grid[row][col], this.currentColor);
-      } else {
-        const color = this.tool === 'eraser' ? '#ffffff' : this.currentColor;
-        this.grid[row][col] = color;
+      const color = this.tool === 'eraser' ? '#ffffff' : this.currentColor;
+      if (this.grid[row][col] !== color) {
+        if (this.tool === 'bucket') {
+          this.floodFill(row, col, this.grid[row][col], this.currentColor);
+          this.juice.shake(3);
+          this.juice.bounceZoom(1.03);
+        } else {
+          this.grid[row][col] = color;
+          const px = this.startX + col * this.cellSize + this.cellSize / 2;
+          const py = this.startY + row * this.cellSize + this.cellSize / 2;
+          this.juice.spawnExplosion(px, py, { count: 4, color: color === '#ffffff' ? '#cbd5e1' : color, sizeRange: [1, 3], speedRange: [1, 3] });
+        }
       }
 
       // Count painted non-white pixels
@@ -252,6 +266,7 @@ export class PixelArtStudioPlugin implements MiniGamePlugin {
 
   private tick() {
     if (!this.isRunning) return;
+    this.juice.update(1.0);
     this.render();
     this.animationFrameId = requestAnimationFrame(this.tick.bind(this));
   }
@@ -263,6 +278,8 @@ export class PixelArtStudioPlugin implements MiniGamePlugin {
 
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    this.juice.applyCameraTransforms(ctx, canvas.width, canvas.height);
 
     const midX = canvas.width / 2;
 
@@ -300,15 +317,18 @@ export class PixelArtStudioPlugin implements MiniGamePlugin {
 
     ctx.fillStyle = this.tool === 'eraser' ? '#38bdf8' : '#334155';
     ctx.beginPath(); ctx.roundRect(midX - 35, toolY - 10, 50, 20, 4); ctx.fill();
-    ctx.fillText('ERASER', midX - 10, toolY + 4);
+    ctx.fillStyle = '#fff'; ctx.fillText('ERASER', midX - 10, toolY + 4);
 
     ctx.fillStyle = this.tool === 'bucket' ? '#38bdf8' : '#334155';
     ctx.beginPath(); ctx.roundRect(midX + 25, toolY - 10, 50, 20, 4); ctx.fill();
-    ctx.fillText('FILL', midX + 50, toolY + 4);
+    ctx.fillStyle = '#fff'; ctx.fillText('FILL', midX + 50, toolY + 4);
 
     ctx.fillStyle = '#ef4444';
     ctx.beginPath(); ctx.roundRect(midX + 85, toolY - 10, 50, 20, 4); ctx.fill();
-    ctx.fillText('CLEAR', midX + 110, toolY + 4);
+    ctx.fillStyle = '#fff'; ctx.fillText('CLEAR', midX + 110, toolY + 4);
+
+    this.juice.restoreCameraTransforms(ctx);
+    this.juice.draw(ctx);
   }
 
   destroy(): void {

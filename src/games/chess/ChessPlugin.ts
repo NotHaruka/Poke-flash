@@ -5,6 +5,7 @@ import { Chess, Square, Move } from 'chess.js';
 import { GameOverlayManager } from '../core/GameOverlayManager';
 import { GameAudioEngine } from '../core/GameAudioEngine';
 import { getGameTheme } from '../core/GameTheme';
+import { GameJuice } from '../core/GameJuice';
 
 export class ChessPlugin implements MiniGamePlugin {
   id = 'chess';
@@ -39,6 +40,10 @@ export class ChessPlugin implements MiniGamePlugin {
   private isPaused = false;
   private overlayManager: GameOverlayManager | null = null;
   private context: GameLaunchContext | null = null;
+
+  // GameJuice effects
+  private juice = new GameJuice();
+  private countdownActive = false;
   private difficulty: 'easy' | 'medium' | 'hard' = 'medium';
   private playerColor: 'w' | 'b' = 'w';
 
@@ -202,6 +207,11 @@ export class ChessPlugin implements MiniGamePlugin {
     this.lastMove = null;
     this.history = [];
     this.isGameOver = false;
+    this.juice.reset();
+    this.countdownActive = true;
+    this.juice.startCountdown(() => {
+      this.countdownActive = false;
+    });
     this.statusMessage = "White's Turn";
     this.updateCapturedScore();
     this.updateHUD();
@@ -284,7 +294,7 @@ export class ChessPlugin implements MiniGamePlugin {
       return;
     }
 
-    if (this.isGameOver) return;
+    if (this.isGameOver || this.countdownActive) return;
 
     // Turn check for vsAI
     if (this.gameMode === 'vsAI' && this.chess.turn() !== this.playerColor) {
@@ -331,8 +341,32 @@ export class ChessPlugin implements MiniGamePlugin {
     this.selectedSquare = null;
     this.legalMoves = [];
 
-    if (isCapture) this.playSFX('capture');
-    else this.playSFX('move');
+    // Visual juice on landing/capturing
+    const col = move.to.charCodeAt(0) - 'a'.charCodeAt(0);
+    const row = 8 - parseInt(move.to.substring(1));
+    const cx = this.startX + col * this.cellSize + this.cellSize / 2;
+    const cy = this.startY + row * this.cellSize + this.cellSize / 2;
+
+    if (isCapture) {
+      this.playSFX('capture');
+      this.juice.spawnExplosion(cx, cy, {
+        color: ['#f59e0b', '#d97706', '#78350f', '#fef3c7'],
+        count: 18,
+        sizeRange: [2, 5],
+        speedRange: [1.5, 4.5]
+      });
+      this.juice.shake(6);
+      this.juice.bounceZoom(1.02);
+    } else {
+      this.playSFX('move');
+      this.juice.spawnExplosion(cx, cy, {
+        color: ['rgba(255, 255, 255, 0.4)'],
+        count: 6,
+        sizeRange: [1, 3],
+        speedRange: [0.5, 2]
+      });
+      this.juice.bounceZoom(1.01);
+    }
 
     this.updateGameState();
 
@@ -367,6 +401,12 @@ export class ChessPlugin implements MiniGamePlugin {
       this.isGameOver = true;
       this.playSFX(winner === 'White' && this.playerColor === 'w' ? 'win' : 'lose');
 
+      if (winner === 'White' && this.playerColor === 'w') {
+        this.juice.spawnConfetti(this.canvas?.width || 400, this.canvas?.height || 400);
+      } else {
+        this.juice.shake(12);
+      }
+
       this.overlayManager?.showResults({
         title: 'CHECKMATE',
         score: winner === 'White' ? 1000 : 0,
@@ -394,6 +434,34 @@ export class ChessPlugin implements MiniGamePlugin {
       const turnStr = this.chess.turn() === 'w' ? 'White' : 'Black';
       this.statusMessage = `CHECK! ${turnStr}'s turn`;
       this.playSFX('check');
+
+      // Find Checked King on the board
+      let kingRow = 0, kingCol = 0;
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+          const piece = this.chess.board()[r][c];
+          if (piece && piece.type === 'k' && piece.color === this.chess.turn()) {
+            kingRow = r;
+            kingCol = c;
+            break;
+          }
+        }
+      }
+      const kx = this.startX + kingCol * this.cellSize + this.cellSize / 2;
+      const ky = this.startY + kingRow * this.cellSize + this.cellSize / 2;
+
+      this.juice.spawnText(kx, ky - 12, 'CHECK!', {
+        color: '#ef4444',
+        fontSize: 16,
+        scale: 1.3
+      });
+      this.juice.spawnExplosion(kx, ky, {
+        color: ['#ef4444', '#f87171'],
+        count: 12,
+        sizeRange: [2, 4],
+        speedRange: [1, 3]
+      });
+      this.juice.shake(8);
     } else {
       const turnStr = this.chess.turn() === 'w' ? 'White' : 'Black';
       this.statusMessage = `${turnStr}'s Turn`;
@@ -515,6 +583,7 @@ export class ChessPlugin implements MiniGamePlugin {
 
   private tick() {
     if (!this.isRunning) return;
+    this.juice.update(1.0);
     this.render();
     this.animationFrameId = requestAnimationFrame(this.tick.bind(this));
   }
@@ -539,6 +608,8 @@ export class ChessPlugin implements MiniGamePlugin {
     ctx.fillText(this.statusMessage, midX, this.startY - 14);
 
     // 2. Draw Chessboard
+    this.juice.applyCameraTransforms(ctx, canvas.width, canvas.height);
+
     const lightColor = theme.isDark ? '#e2d6b5' : '#f0e6d2';
     const darkColor = theme.isDark ? '#7a6651' : '#b58863';
 
@@ -608,6 +679,11 @@ export class ChessPlugin implements MiniGamePlugin {
     ctx.strokeStyle = theme.border2;
     ctx.lineWidth = 2;
     ctx.strokeRect(this.startX, this.startY, this.boardSize, this.boardSize);
+
+    this.juice.restoreCameraTransforms(ctx);
+
+    // Render GameJuice particles & check alert popups on top
+    this.juice.draw(ctx);
 
     // 8. Bottom Control Toolbar Buttons
     const controlsY = this.startY + this.boardSize + 28;

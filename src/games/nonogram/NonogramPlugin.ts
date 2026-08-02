@@ -2,6 +2,8 @@ import { MiniGamePlugin } from '../core/GamePlugin';
 import { GameLaunchContext } from '../core/GameLaunchContext';
 import { GameOverlayManager } from '../core/GameOverlayManager';
 import { resetGameCanvas } from '../../game.js';
+import { GameJuice } from '../core/GameJuice';
+import { GameAudioEngine } from '../core/GameAudioEngine';
 
 export class NonogramPlugin implements MiniGamePlugin {
   id = 'nonogram';
@@ -28,6 +30,7 @@ export class NonogramPlugin implements MiniGamePlugin {
   private animationFrameId: number | null = null;
   private isRunning = false;
   private overlayManager: GameOverlayManager | null = null;
+  private juice = new GameJuice();
 
   private gridSize = 5;
   private solution: boolean[][] = [];
@@ -90,6 +93,8 @@ export class NonogramPlugin implements MiniGamePlugin {
           { id: 'mistakes', label: 'Mistakes', value: '0' }
         ]);
         this.startGame();
+        this.juice.reset();
+        this.juice.startCountdown(() => {});
       }
     });
   }
@@ -191,9 +196,11 @@ export class NonogramPlugin implements MiniGamePlugin {
     // Toggle fill/cross mode
     const btnY = this.startY + this.gridSize * this.cellSize + 35;
     if (Math.abs(mx - (midX - 55)) <= 45 && Math.abs(my - btnY) <= 15) {
+      GameAudioEngine.getInstance().playSFX('click');
       this.mode = 'fill'; return;
     }
     if (Math.abs(mx - (midX + 55)) <= 45 && Math.abs(my - btnY) <= 15) {
+      GameAudioEngine.getInstance().playSFX('click');
       this.mode = 'cross'; return;
     }
 
@@ -206,9 +213,13 @@ export class NonogramPlugin implements MiniGamePlugin {
     const row = Math.floor((my - this.startY) / this.cellSize);
 
     if (col >= 0 && col < this.gridSize && row >= 0 && row < this.gridSize) {
+      const cx = this.startX + col * this.cellSize + this.cellSize / 2;
+      const cy = this.startY + row * this.cellSize + this.cellSize / 2;
+
       if (this.mode === 'fill') {
         if (this.playerGrid[row][col] === 'fill') {
           this.playerGrid[row][col] = 'empty';
+          GameAudioEngine.getInstance().playSFX('pop');
         } else {
           this.playerGrid[row][col] = 'fill';
           if (!this.solution[row][col]) {
@@ -216,10 +227,24 @@ export class NonogramPlugin implements MiniGamePlugin {
             this.overlayManager?.updateStat('mistakes', this.mistakes);
             const scoreVal = document.getElementById('bb-score-val');
             if (scoreVal) scoreVal.textContent = String(this.mistakes);
+
+            GameAudioEngine.getInstance().playSFX('invalid');
+            this.juice.shake(8);
+            this.juice.spawnExplosion(cx, cy, { count: 8, color: '#ef4444', sizeRange: [2, 5], speedRange: [2, 5] });
+            this.juice.spawnText(cx, cy, 'MISMATCH!', { color: '#ef4444', fontSize: 13 });
+          } else {
+            GameAudioEngine.getInstance().playSFX('pop');
+            this.juice.spawnExplosion(cx, cy, { count: 6, color: '#38bdf8', sizeRange: [2, 4], speedRange: [1, 4] });
           }
         }
       } else {
         this.playerGrid[row][col] = this.playerGrid[row][col] === 'cross' ? 'empty' : 'cross';
+        if (this.playerGrid[row][col] === 'cross') {
+          GameAudioEngine.getInstance().playSFX('select');
+          this.juice.spawnExplosion(cx, cy, { count: 4, color: '#94a3b8', sizeRange: [1, 3], speedRange: [1, 3] });
+        } else {
+          GameAudioEngine.getInstance().playSFX('pop');
+        }
       }
 
       this.checkWin();
@@ -237,6 +262,10 @@ export class NonogramPlugin implements MiniGamePlugin {
     if (won && !this.isWon) {
       this.isWon = true;
       this.statusMessage = 'PUZZLE SOLVED!';
+      GameAudioEngine.getInstance().playSFX('win');
+      this.juice.spawnConfetti(this.canvas?.width || 400, this.canvas?.height || 600);
+      this.juice.bounceZoom(1.12);
+      this.juice.shake(10);
       const nextSize = this.gridSize === 5 ? 10 : 5;
       setTimeout(() => {
         this.overlayManager?.showResults({
@@ -258,6 +287,7 @@ export class NonogramPlugin implements MiniGamePlugin {
 
   private tick() {
     if (!this.isRunning) return;
+    this.juice.update(1.0);
     this.render();
     this.animationFrameId = requestAnimationFrame(this.tick.bind(this));
   }
@@ -269,6 +299,8 @@ export class NonogramPlugin implements MiniGamePlugin {
 
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    this.juice.applyCameraTransforms(ctx, canvas.width, canvas.height);
 
     const midX = canvas.width / 2;
 
@@ -321,7 +353,10 @@ export class NonogramPlugin implements MiniGamePlugin {
 
     ctx.fillStyle = this.mode === 'cross' ? '#ef4444' : '#334155';
     ctx.beginPath(); ctx.roundRect(midX + 10, btnY - 14, 90, 28, 6); ctx.fill();
-    ctx.fillText('MODE: X', midX + 55, btnY + 3);
+    ctx.fillStyle = '#fff'; ctx.fillText('MODE: X', midX + 55, btnY + 3);
+
+    this.juice.restoreCameraTransforms(ctx);
+    this.juice.draw(ctx);
   }
 
   destroy(): void {

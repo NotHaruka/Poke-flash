@@ -3,6 +3,7 @@ import { GameLaunchContext } from '../core/GameLaunchContext';
 import { resetGameCanvas } from '../../game.js';
 import { GameOverlayManager } from '../core/GameOverlayManager';
 import { GameAudioEngine } from '../core/GameAudioEngine';
+import { GameJuice } from '../core/GameJuice';
 
 export class TicTacToePlugin implements MiniGamePlugin {
   id = 'tictactoe';
@@ -33,6 +34,7 @@ export class TicTacToePlugin implements MiniGamePlugin {
   private isPaused = false;
   private overlayManager: GameOverlayManager | null = null;
   private context: GameLaunchContext | null = null;
+  private juice = new GameJuice();
 
   // Board variables
   private board: Array<'X' | 'O' | null> = Array(9).fill(null);
@@ -43,6 +45,9 @@ export class TicTacToePlugin implements MiniGamePlugin {
   private winsO = 0;
   private ties = 0;
   private statusMessage = "Your Turn (X)";
+  
+  // Visual effects state
+  private placedAnimation: number[] = Array(9).fill(0); // 0 to 1 for drop animation scale bouncy overshoot
 
   // Layout metrics
   private boardSize = 0;
@@ -265,6 +270,17 @@ export class TicTacToePlugin implements MiniGamePlugin {
     this.board[index] = this.currentPlayer;
     this.playSynthSFX(this.currentPlayer === 'X' ? 'drawX' : 'drawO');
 
+    // Spawn visual thuds, floating texts, and glowing particles
+    const r = Math.floor(index / 3);
+    const c = index % 3;
+    const cx = this.startX + c * this.cellSize + this.cellSize / 2;
+    const cy = this.startY + r * this.cellSize + this.cellSize / 2;
+    this.placedAnimation[index] = 1.0;
+    this.juice.spawnText(cx, cy, this.currentPlayer, { color: this.currentPlayer === 'X' ? '#38bdf8' : '#f59e0b', fontSize: 36, scale: 1.5 });
+    this.juice.spawnExplosion(cx, cy, { color: this.currentPlayer === 'X' ? '#38bdf8' : '#f59e0b', count: 14, sizeRange: [2.5, 6] });
+    this.juice.shake(4);
+    this.juice.bounceZoom(1.03);
+
     if (this.checkWin(this.board, this.currentPlayer)) {
       this.endMatch(this.currentPlayer);
       return;
@@ -301,6 +317,17 @@ export class TicTacToePlugin implements MiniGamePlugin {
     if (moveIndex !== -1) {
       this.board[moveIndex] = 'O';
       this.playSynthSFX('drawO');
+
+      // Spawn visual thuds, floating texts, and glowing particles for AI move
+      const r = Math.floor(moveIndex / 3);
+      const c = moveIndex % 3;
+      const cx = this.startX + c * this.cellSize + this.cellSize / 2;
+      const cy = this.startY + r * this.cellSize + this.cellSize / 2;
+      this.placedAnimation[moveIndex] = 1.0;
+      this.juice.spawnText(cx, cy, 'O', { color: '#f59e0b', fontSize: 36, scale: 1.5 });
+      this.juice.spawnExplosion(cx, cy, { color: '#f59e0b', count: 14, sizeRange: [2.5, 6] });
+      this.juice.shake(4);
+      this.juice.bounceZoom(1.03);
 
       if (this.checkWin(this.board, 'O')) {
         this.endMatch('O');
@@ -387,14 +414,24 @@ export class TicTacToePlugin implements MiniGamePlugin {
       this.winsX++;
       this.statusMessage = "Victory for X!";
       this.playSynthSFX('win');
+      if (this.canvas) {
+        this.juice.spawnConfetti(this.canvas.width, this.canvas.height);
+        // Triple cascade of confetti
+        setTimeout(() => { if (this.isRunning && this.canvas) this.juice.spawnConfetti(this.canvas.width, this.canvas.height); }, 200);
+        setTimeout(() => { if (this.isRunning && this.canvas) this.juice.spawnConfetti(this.canvas.width, this.canvas.height); }, 400);
+      }
     } else if (winner === 'O') {
       this.winsO++;
       this.statusMessage = "Victory for O!";
       this.playSynthSFX('lose');
+      this.juice.shake(15, 0.9); // Deep thud of defeat
     } else {
       this.ties++;
       this.statusMessage = "Match is a Tie!";
       this.playSynthSFX('drawMatch');
+      if (this.canvas) {
+        this.juice.spawnExplosion(this.canvas.width / 2, this.canvas.height / 2, { color: '#eab308', count: 25, sizeRange: [3, 7] });
+      }
     }
 
     this.overlayManager?.updateStat('winsX', this.winsX);
@@ -538,9 +575,15 @@ export class TicTacToePlugin implements MiniGamePlugin {
     const canvas = this.canvas;
     if (!ctx || !canvas) return;
 
+    // Update juice physics
+    this.juice.update(1.0);
+
     // Background
     ctx.fillStyle = '#0a0915';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Apply Camera Screen Shakes & Zoom Transitions
+    this.juice.applyCameraTransforms(ctx, canvas.width, canvas.height);
 
     // 1. Render Top Header Score Tallies
     const headerY = this.startY - 35;
@@ -575,6 +618,12 @@ export class TicTacToePlugin implements MiniGamePlugin {
     // 3. Render Tokens (X and O)
     for (let i = 0; i < 9; i++) {
       const val = this.board[i];
+      
+      // Update pop animation interpolation
+      if (this.placedAnimation[i] > 0) {
+        this.placedAnimation[i] = Math.max(0, this.placedAnimation[i] - 0.07);
+      }
+
       if (val === null) continue;
 
       const r = Math.floor(i / 3);
@@ -582,6 +631,14 @@ export class TicTacToePlugin implements MiniGamePlugin {
       const cx = this.startX + c * this.cellSize + this.cellSize / 2;
       const cy = this.startY + r * this.cellSize + this.cellSize / 2;
       const pad = this.cellSize * 0.22;
+
+      ctx.save();
+      
+      // Apply spring-like bounce overshoot
+      const scale = 1.0 + Math.sin(this.placedAnimation[i] * Math.PI) * 0.35;
+      ctx.translate(cx, cy);
+      ctx.scale(scale, scale);
+      ctx.translate(-cx, -cy);
 
       ctx.lineWidth = 6;
       ctx.lineCap = 'round';
@@ -610,6 +667,7 @@ export class TicTacToePlugin implements MiniGamePlugin {
         ctx.stroke();
         ctx.shadowBlur = 0; // reset
       }
+      ctx.restore();
     }
 
     // 4. Render Victory combo line if exists
@@ -638,6 +696,12 @@ export class TicTacToePlugin implements MiniGamePlugin {
       ctx.stroke();
       ctx.shadowBlur = 0;
     }
+
+    // Restore Camera Transformations before overlays
+    this.juice.restoreCameraTransforms(ctx);
+
+    // Draw active particles & floating scores on top
+    this.juice.draw(ctx);
 
     if (this.isPaused && !this.isMatchOver) {
       ctx.fillStyle = 'rgba(8, 9, 18, 0.5)';

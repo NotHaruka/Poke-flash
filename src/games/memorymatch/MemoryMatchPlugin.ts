@@ -3,6 +3,7 @@ import { GameLaunchContext } from '../core/GameLaunchContext';
 import { resetGameCanvas } from '../../game.js';
 import { GameOverlayManager } from '../core/GameOverlayManager';
 import { GameAudioEngine } from '../core/GameAudioEngine';
+import { GameJuice } from '../core/GameJuice';
 
 interface MemoryCard {
   id: number;
@@ -40,6 +41,9 @@ export class MemoryMatchPlugin implements MiniGamePlugin {
   private isPaused = false;
   private overlayManager: GameOverlayManager | null = null;
   private context: GameLaunchContext | null = null;
+
+  private juice = new GameJuice();
+  private countdownActive = false;
 
   private cards: MemoryCard[] = [];
   private selectedIndices: number[] = [];
@@ -258,6 +262,14 @@ export class MemoryMatchPlugin implements MiniGamePlugin {
     this.selectedIndices = [];
     this.statusMessage = "Tap cards to uncover matching pairs";
 
+    if (!this.countdownActive) {
+      this.juice.reset();
+      this.countdownActive = true;
+      this.juice.startCountdown(() => {
+        this.countdownActive = false;
+      });
+    }
+
     this.overlayManager?.updateStat('moves', this.movesCount);
     this.overlayManager?.updateStat('matches', `0 / ${this.totalPairs}`);
     this.overlayManager?.updateStat('timer', '0s');
@@ -265,7 +277,7 @@ export class MemoryMatchPlugin implements MiniGamePlugin {
     this.timerSeconds = 0;
     if (this.timerInterval) clearInterval(this.timerInterval);
     this.timerInterval = setInterval(() => {
-      if (!this.isWon && this.isRunning && !this.isPaused) {
+      if (!this.isWon && this.isRunning && !this.isPaused && !this.countdownActive) {
         this.timerSeconds++;
         this.overlayManager?.updateStat('timer', `${this.timerSeconds}s`);
       }
@@ -320,7 +332,7 @@ export class MemoryMatchPlugin implements MiniGamePlugin {
   private processInputAt(mx: number, my: number) {
     if (!this.canvas) return;
 
-    if (this.isWon || this.isPaused || this.isLockInput) return;
+    if (this.isWon || this.isPaused || this.isLockInput || this.countdownActive) return;
 
     // Card grid touch
     const gap = 10;
@@ -348,6 +360,15 @@ export class MemoryMatchPlugin implements MiniGamePlugin {
     this.selectedIndices.push(index);
     GameAudioEngine.getInstance().playSFX('tap');
 
+    // Spawn subtle flip explosion sparks
+    const row = Math.floor(index / this.gridCols);
+    const col = index % this.gridCols;
+    const gap = 10;
+    const cx = this.startX + col * (this.cardWidth + gap) + this.cardWidth / 2;
+    const cy = this.startY + row * (this.cardHeight + gap) + this.cardHeight / 2;
+    this.juice.spawnExplosion(cx, cy, { color: ['#6366f1', '#4f46e5', '#ffffff'], count: 6, sizeRange: [1.5, 3], speedRange: [1, 2] });
+    this.juice.bounceZoom(1.006);
+
     if (this.selectedIndices.length === 2) {
       this.movesCount++;
       this.overlayManager?.updateStat('moves', this.movesCount);
@@ -358,6 +379,16 @@ export class MemoryMatchPlugin implements MiniGamePlugin {
       const idx2 = this.selectedIndices[1];
       const card1 = this.cards[idx1];
       const card2 = this.cards[idx2];
+
+      const row1 = Math.floor(idx1 / this.gridCols);
+      const col1 = idx1 % this.gridCols;
+      const cx1 = this.startX + col1 * (this.cardWidth + gap) + this.cardWidth / 2;
+      const cy1 = this.startY + row1 * (this.cardHeight + gap) + this.cardHeight / 2;
+
+      const row2 = Math.floor(idx2 / this.gridCols);
+      const col2 = idx2 % this.gridCols;
+      const cx2 = this.startX + col2 * (this.cardWidth + gap) + this.cardWidth / 2;
+      const cy2 = this.startY + row2 * (this.cardHeight + gap) + this.cardHeight / 2;
 
       if (card1.icon === card2.icon) {
         // Match found!
@@ -370,10 +401,18 @@ export class MemoryMatchPlugin implements MiniGamePlugin {
           this.isLockInput = false;
           GameAudioEngine.getInstance().playSFX('score');
 
+          // Match visual juice!
+          this.juice.spawnText(cx1, cy1 - 15, "MATCH!", { color: '#10b981', fontSize: 13, scale: 1.2 });
+          this.juice.spawnText(cx2, cy2 - 15, "MATCH!", { color: '#10b981', fontSize: 13, scale: 1.2 });
+          this.juice.spawnExplosion(cx1, cy1, { color: ['#10b981', '#34d399', '#ffffff'], count: 12, sizeRange: [2, 4], speedRange: [1, 3] });
+          this.juice.spawnExplosion(cx2, cy2, { color: ['#10b981', '#34d399', '#ffffff'], count: 12, sizeRange: [2, 4], speedRange: [1, 3] });
+          this.juice.bounceZoom(1.02);
+
           if (this.matchesFound === this.totalPairs) {
             this.isWon = true;
             this.statusMessage = "ALL PAIRS MATCHED! CONGRATULATIONS!";
             GameAudioEngine.getInstance().playSFX('win');
+            this.juice.spawnConfetti(this.canvas?.width || 400, this.canvas?.height || 400);
 
             this.overlayManager?.showResults({
               title: 'VICTORY',
@@ -402,6 +441,11 @@ export class MemoryMatchPlugin implements MiniGamePlugin {
           this.selectedIndices = [];
           this.isLockInput = false;
           GameAudioEngine.getInstance().playSFX('bounce');
+
+          // Mismatch visual feedback!
+          this.juice.shake(6);
+          this.juice.spawnText(cx1, cy1 - 15, "TRY AGAIN", { color: '#ef4444', fontSize: 10, scale: 1.05 });
+          this.juice.spawnText(cx2, cy2 - 15, "TRY AGAIN", { color: '#ef4444', fontSize: 10, scale: 1.05 });
         }, 900);
       }
     }
@@ -409,6 +453,8 @@ export class MemoryMatchPlugin implements MiniGamePlugin {
 
   private tick() {
     if (!this.isRunning) return;
+
+    this.juice.update(1.0);
 
     if (!this.isPaused) {
       // Update 3D card flip progress animations
@@ -441,6 +487,9 @@ export class MemoryMatchPlugin implements MiniGamePlugin {
     ctx.font = 'bold 12px "Space Grotesk", sans-serif';
     ctx.fillStyle = this.isWon ? '#10b981' : '#cda250';
     ctx.fillText(`${this.statusMessage} (${this.matchesFound}/${this.totalPairs} Pairs)`, midX, this.startY - 16);
+
+    // Apply Camera Transforms (for shaking and bouncing the board)
+    this.juice.applyCameraTransforms(ctx, canvas.width, canvas.height);
 
     // Render Cards Grid
     for (let r = 0; r < this.gridRows; r++) {
@@ -496,6 +545,12 @@ export class MemoryMatchPlugin implements MiniGamePlugin {
         ctx.restore();
       }
     }
+
+    // Restore Camera Transforms
+    this.juice.restoreCameraTransforms(ctx);
+
+    // Draw visual juice particles/text/countdown over the grid
+    this.juice.draw(ctx);
 
     if (this.isPaused && !this.isWon) {
       ctx.fillStyle = 'rgba(8, 9, 18, 0.5)';

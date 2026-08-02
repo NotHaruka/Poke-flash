@@ -1,30 +1,30 @@
 :root {
-  /* FOLIO Palette */
-  --cream:  #FAF7F2;
-  --cream2: #F2EDE4;
-  --cream3: #E8E0D3;
-  --cream4: #DDD4C5;
+  /* TCG Print & Foil Palette */
+  --cream:  #EFF1F5; /* Cool unbleached cotton-pulp cardstock */
+  --cream2: #E3E6EB; /* Matte card border/surface */
+  --cream3: #D5DBE2; /* Nested card plate/backing */
+  --cream4: #C4CDD5; /* Inner slot/shadow containers */
 
-  --ink:  #1C1C2E;
-  --ink2: #3A3A52;
-  --ink3: #6B6B8A;
-  --ink4: #9898B0;
+  --ink:  #1A222D; /* Heavy engraving carbon plate ink */
+  --ink2: #3E4A5B; /* Slate secondary printing ink */
+  --ink3: #647081; /* Lighter slate ink for captions */
+  --ink4: #8F9EAE; /* Muted guide ink */
 
-  --terra:     #C4613A;
-  --terra-dim: rgba(196, 97, 58, 0.12);
-  --terra-mid: rgba(196, 97, 58, 0.25);
+  --terra:     #DB543C; /* Vivid print warm-vermilion (Fire element) */
+  --terra-dim: rgba(219, 84, 60, 0.12);
+  --terra-mid: rgba(219, 84, 60, 0.25);
 
-  --sage:       #3D7A5F;
-  --sage-dim:   rgba(61, 122, 95, 0.12);
-  --sage-mid:   rgba(61, 122, 95, 0.25);
-  --amber:      #C4943A;
-  --amber-dim:  rgba(196, 148, 58, 0.10);
-  --navy:       #2C3E7A;
-  --navy-dim:   rgba(44, 62, 122, 0.10);
-  --purple:     #7B5EA7;
-  --purple-dim: rgba(123, 94, 167, 0.10);
-  --red:        #B84040;
-  --red-dim:    rgba(184, 64, 64, 0.10);
+  --sage:       #38825F; /* Uncoated leaf organic green (Grass element) */
+  --sage-dim:   rgba(56, 130, 95, 0.12);
+  --sage-mid:   rgba(56, 130, 95, 0.25);
+  --amber:      #D1941F; /* Gold foil element (Lightning/Rare element) */
+  --amber-dim:  rgba(209, 148, 31, 0.10);
+  --navy:       #3065AC; /* Cobalt blue print ink (Water element) */
+  --navy-dim:   rgba(48, 101, 172, 0.10);
+  --purple:     #79579E; /* Psychic print purple element */
+  --purple-dim: rgba(121, 87, 158, 0.10);
+  --red:        #C23B3B; /* Error / critical crimson */
+  --red-dim:    rgba(194, 59, 59, 0.10);
 
   /* Original variable mappings for maximum compatibility */
   --bg: var(--cream);
@@ -32,8 +32,8 @@
   --surface2: var(--cream3);
   --surface3: var(--cream4);
   
-  --border: rgba(28, 28, 46, 0.10);
-  --border2: rgba(28, 28, 46, 0.20);
+  --border: rgba(26, 34, 45, 0.12);
+  --border2: rgba(26, 34, 45, 0.24);
   
   --text: var(--ink);
   --text2: var(--ink2);
@@ -41,7 +41,7 @@
   
   --accent: var(--terra);
   --accent-dim: var(--terra-dim);
-  --accent-rgb: 196, 97, 58; /* rgb of #C4613A */
+  --accent-rgb: 219, 84, 60; /* rgb of #DB543C */
   
   --red: var(--red);
   --red-dim: var(--red-dim);
@@ -55,56 +55,56 @@
   --purple: var(--purple);
   --purple-dim: var(--purple-dim);
 
-  /* Sizing and Radii */
-  --r: 12px;
-  --rs: 8px;
+  /* Sizing and Radii (un-competed rounded corners and thick borders) */
+  --r: 10px;
+  --rs: 6px;
   --sidebar-w: 260px;
 
-  /* Typography */
-  --font-serif: 'Fraunces', Georgia, serif;
+  /* Typography (modern trading card publishing fonts) */
+  --font-serif: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-sans:  'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono:  'DM Mono', 'Courier New', monospace;
 }
 
 /* ─── DARK MODE SYSTEM ──────────────────────────────────────────────── */
 body.dark {
-  /* Dark FOLIO Palette */
-  --bg: #14141d;
-  --surface: #1e1e2c;
-  --surface2: #28283a;
-  --surface3: #34344d;
+  /* Dark Matte Sleeve / Obsidian Deck Box Palette */
+  --bg: #121417; /* Slate obsidian deck box background */
+  --surface: #1B1E22; /* Premium matte carbon sleeve */
+  --surface2: #24282F; /* Card backing shadow */
+  --surface3: #313740; /* Nested pocket depth container */
   
   --border: rgba(255, 255, 255, 0.08);
   --border2: rgba(255, 255, 255, 0.16);
   
-  --text: #f0eef5;
-  --text2: #cfcbdc;
-  --text3: #9d99b2;
+  --text: #EFF2F5;
+  --text2: #C7CED6;
+  --text3: #939CA6;
   
-  --accent: #e07048;
-  --accent-dim: rgba(224, 112, 72, 0.15);
-  --accent-rgb: 224, 112, 72; /* rgb of #e07048 */
+  --accent: #E56952;
+  --accent-dim: rgba(229, 105, 82, 0.15);
+  --accent-rgb: 229, 105, 82; /* rgb of #E56952 */
   
-  --red: #e05e5e;
-  --red-dim: rgba(224, 94, 94, 0.15);
+  --red: #E25E5E;
+  --red-dim: rgba(226, 94, 94, 0.15);
   
-  --blue: #5b87e6;
-  --blue-dim: rgba(91, 135, 230, 0.15);
+  --blue: #4B89DD;
+  --blue-dim: rgba(75, 137, 221, 0.15);
   
-  --yellow: #e6b251;
-  --yellow-dim: rgba(230, 178, 81, 0.15);
+  --yellow: #E2A935;
+  --yellow-dim: rgba(226, 169, 53, 0.15);
   
-  --purple: #9d7fe6;
+  --purple: #9D7FE6;
   --purple-dim: rgba(157, 127, 230, 0.15);
 
-  --ink: #f0eef5;
-  --ink2: #cfcbdc;
-  --ink3: #9d99b2;
+  --ink: #EFF2F5;
+  --ink2: #C7CED6;
+  --ink3: #939CA6;
 
-  --cream: #14141d;
-  --cream2: #1e1e2c;
-  --cream3: #28283a;
-  --cream4: #34344d;
+  --cream: #121417;
+  --cream2: #1B1E22;
+  --cream3: #24282F;
+  --cream4: #313740;
 }
 
 /* Dark mode specific component styles */
@@ -156,6 +156,81 @@ body.dark .theme-swatches .theme-swatch {
 
 body.dark pre, body.dark code {
   background: rgba(255, 255, 255, 0.06);
+}
+
+/* ─── TCG FOIL RARITY SYSTEM ────────────────────────────────────────── */
+.foil-card {
+  position: relative !important;
+  overflow: hidden !important;
+  z-index: 1;
+  border: 1.5px solid var(--amber) !important; /* Gold border for rare/mastered cards */
+  box-shadow: 0 4px 18px rgba(209, 148, 31, 0.15) !important;
+}
+
+/* Highly disciplined directional foil sheen: simulates actual 135-deg light reflection */
+.foil-card::before {
+  content: "" !important;
+  position: absolute !important;
+  top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
+  pointer-events: none !important;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0) 30%,
+    rgba(255, 255, 255, 0.08) 40%,
+    rgba(255, 255, 255, 0.22) 45%,
+    rgba(255, 255, 255, 0.40) 50%,
+    rgba(255, 255, 255, 0.22) 55%,
+    rgba(255, 255, 255, 0.08) 60%,
+    rgba(255, 255, 255, 0) 70%
+  ) !important;
+  background-size: 300% 300% !important;
+  background-position: 0% 0% !important;
+  mix-blend-mode: color-dodge !important;
+  transition: background-position 0.6s cubic-bezier(0.1, 0.8, 0.3, 1), opacity 0.6s ease !important;
+  opacity: 0.15 !important;
+  z-index: 2 !important;
+}
+
+/* Hover effect triggers a realistic light-sweep catch */
+.foil-card:hover::before {
+  background-position: 100% 100% !important;
+  opacity: 0.55 !important;
+}
+
+/* Dark mode adjustments for foil card sleeves */
+body.dark .foil-card {
+  border-color: #E2A935 !important;
+  box-shadow: 0 4px 20px rgba(226, 169, 53, 0.25) !important;
+}
+body.dark .foil-card::before {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0) 30%,
+    rgba(147, 197, 253, 0.15) 40%,
+    rgba(244, 114, 182, 0.28) 45%,
+    rgba(255, 255, 255, 0.50) 50%,
+    rgba(196, 181, 253, 0.28) 55%,
+    rgba(147, 197, 253, 0.15) 60%,
+    rgba(255, 255, 255, 0) 70%
+  ) !important;
+  mix-blend-mode: overlay !important;
+  opacity: 0.18 !important;
+}
+body.dark .foil-card:hover::before {
+  background-position: 100% 100% !important;
+  opacity: 0.65 !important;
+}
+
+/* ─── SHARED GAME PANEL HEADER ───────────────────────────────────────── */
+.game-panel-header {
+  flex-shrink: 0 !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  padding: 10px 16px !important;
+  border-bottom: 1px solid var(--border) !important;
+  background: var(--surface) !important;
+  margin-bottom: 0 !important;
 }
 
 *{box-sizing:border-box;margin:0;padding:0}
@@ -641,7 +716,7 @@ body.game-panel-active #panel-game {
   display:flex;flex-direction:column;justify-content:center;align-items:center;
   padding:40px 52px;text-align:center;overflow:hidden;box-sizing:border-box;
   -webkit-transform:translateZ(0);transform:translateZ(0);
-  background:#fff;
+  background:var(--surface);
   box-shadow:var(--shadow-md);
 }
 .card-face::before {

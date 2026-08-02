@@ -116,17 +116,19 @@ export class GameOverlayManager {
       position: absolute;
       inset: 0;
       background: var(--bg);
-      opacity: 0.96;
+      opacity: 0.98;
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
       display: none;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      padding: 20px;
+      justify-content: flex-start;
+      padding: 16px 12px;
       pointer-events: auto;
       z-index: 50;
       overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      box-sizing: border-box;
       color: var(--text);
     `;
     this.overlayRoot.appendChild(this.instructionsElement);
@@ -144,10 +146,13 @@ export class GameOverlayManager {
       display: none;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      padding: 20px;
+      justify-content: flex-start;
+      padding: 16px 12px;
       pointer-events: auto;
       z-index: 60;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      box-sizing: border-box;
       color: var(--text);
     `;
     this.overlayRoot.appendChild(this.pauseElement);
@@ -159,17 +164,19 @@ export class GameOverlayManager {
       position: absolute;
       inset: 0;
       background: var(--bg);
-      opacity: 0.96;
+      opacity: 0.98;
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
       display: none;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      padding: 20px;
+      justify-content: flex-start;
+      padding: 16px 12px;
       pointer-events: auto;
       z-index: 70;
       overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      box-sizing: border-box;
       color: var(--text);
     `;
     this.overlayRoot.appendChild(this.resultsElement);
@@ -306,6 +313,39 @@ export class GameOverlayManager {
           .join('')
       : '';
 
+    const formatOptionLabel = (v: string): string => {
+      if (v === 'vsAI') return 'VS AI';
+      if (v === 'local') return 'Local PvP';
+      // Fallback: turn camelCase/snake_case into Title Case words
+      return v
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .replace(/[_-]/g, ' ')
+        .replace(/\b\w/g, c => c.toUpperCase());
+    };
+
+    let modeHTML = '';
+    if (config.options?.modes) {
+      modeHTML = `
+        <div style="margin-top: 12px; width: 100%;">
+          <div style="font-size: 10px; font-weight: 800; color: var(--text3); text-transform: uppercase; margin-bottom: 6px;">Select Mode</div>
+          <div style="display: flex; gap: 8px; justify-content: center;">
+            ${config.options.modes
+              .map(
+                m => `
+              <button class="ftp-mode-btn" data-mode="${m}" style="
+                flex: 1; padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; text-transform: uppercase;
+                background: ${m === config.options?.currentMode ? 'var(--accent)' : 'var(--surface2)'};
+                color: ${m === config.options?.currentMode ? 'var(--bg)' : 'var(--text)'};
+                border: 1px solid ${m === config.options?.currentMode ? 'var(--accent)' : 'var(--border)'};
+              ">${formatOptionLabel(m)}</button>
+            `
+              )
+              .join('')}
+          </div>
+        </div>
+      `;
+    }
+
     let diffHTML = '';
     if (config.options?.difficulties) {
       diffHTML = `
@@ -330,23 +370,23 @@ export class GameOverlayManager {
     }
 
     this.instructionsElement.innerHTML = `
-      <div style="background: var(--surface); border: 1.5px solid var(--accent); border-radius: 16px; padding: 24px; max-width: 460px; width: 100%; text-align: center; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; gap: 16px;">
+      <div style="background: var(--surface); border: 1.5px solid var(--accent); border-radius: 16px; padding: clamp(14px, 3vh, 22px); max-width: 460px; width: 100%; text-align: center; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; gap: clamp(10px, 2vh, 14px); margin: auto 0; box-sizing: border-box;">
         <div>
           <div style="font-size: 10px; font-weight: 800; color: var(--accent); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 2px;">HOW TO PLAY</div>
-          <h2 style="font-size: 24px; font-weight: 800; color: var(--text); margin: 0;">${config.title}</h2>
-          ${config.subtitle ? `<p style="font-size: 12px; color: var(--text3); margin: 4px 0 0 0;">${config.subtitle}</p>` : ''}
+          <h2 style="font-size: clamp(18px, 5vw, 24px); font-weight: 800; color: var(--text); margin: 0; line-height: 1.2;">${config.title}</h2>
+          ${config.subtitle ? `<p style="font-size: clamp(11px, 3vw, 12px); color: var(--text3); margin: 4px 0 0 0;">${config.subtitle}</p>` : ''}
         </div>
 
-        <p style="font-size: 13px; color: var(--text2); line-height: 1.5; margin: 0; text-align: left; background: var(--surface2); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border);">
+        <p style="font-size: clamp(11.5px, 3.2vw, 13px); color: var(--text2); line-height: 1.45; margin: 0; text-align: left; background: var(--surface2); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); overflow-wrap: break-word; word-break: break-word;">
           ${config.description}
         </p>
 
         ${
           config.objective
             ? `
-          <div style="text-align: left; background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 8px 12px; border-radius: 4px;">
-            <div style="font-size: 10px; font-weight: 800; color: var(--accent); text-transform: uppercase;">OBJECTIVE</div>
-            <div style="font-size: 12px; color: var(--text); margin-top: 2px;">${config.objective}</div>
+          <div style="text-align: left; background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 6px 10px; border-radius: 4px;">
+            <div style="font-size: 9.5px; font-weight: 800; color: var(--accent); text-transform: uppercase;">OBJECTIVE</div>
+            <div style="font-size: clamp(11px, 3vw, 12px); color: var(--text); margin-top: 2px;">${config.objective}</div>
           </div>
         `
             : ''
@@ -356,7 +396,7 @@ export class GameOverlayManager {
           controlsHTML
             ? `
           <div style="text-align: left;">
-            <div style="font-size: 10px; font-weight: 800; color: var(--text3); text-transform: uppercase; margin-bottom: 6px;">CONTROLS</div>
+            <div style="font-size: 9.5px; font-weight: 800; color: var(--text3); text-transform: uppercase; margin-bottom: 4px;">CONTROLS</div>
             <div style="display: flex; flex-direction: column; gap: 4px;">${controlsHTML}</div>
           </div>
         `
@@ -367,22 +407,44 @@ export class GameOverlayManager {
           rulesHTML
             ? `
           <div style="text-align: left;">
-            <div style="font-size: 10px; font-weight: 800; color: var(--text3); text-transform: uppercase; margin-bottom: 4px;">RULES & TIPS</div>
-            <ul style="margin: 0; padding-left: 18px;">${rulesHTML}</ul>
+            <div style="font-size: 9.5px; font-weight: 800; color: var(--text3); text-transform: uppercase; margin-bottom: 4px;">RULES & TIPS</div>
+            <ul style="margin: 0; padding-left: 18px; font-size: clamp(11px, 3vw, 12px); color: var(--text2); line-height: 1.4;">${rulesHTML}</ul>
           </div>
         `
             : ''
         }
 
+        ${modeHTML}
+
         ${diffHTML}
 
         <button id="ftp-btn-start-game" style="
-          margin-top: 8px; width: 100%; height: 42px; background: var(--accent); border: none; border-radius: 8px; color: var(--bg); font-weight: 800; font-size: 14px; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; box-shadow: 0 4px 14px rgba(var(--accent-rgb), 0.35); transition: transform 0.1s;
+          margin-top: 4px; width: 100%; min-height: 42px; background: var(--accent); border: none; border-radius: 8px; color: var(--bg); font-weight: 800; font-size: clamp(12.5px, 3.5vw, 14px); letter-spacing: 1px; text-transform: uppercase; cursor: pointer; box-shadow: 0 4px 14px rgba(var(--accent-rgb), 0.35); transition: transform 0.1s; flex-shrink: 0;
         ">START PLAYING ▶</button>
       </div>
     `;
 
     this.instructionsElement.style.display = 'flex';
+
+    // Mode listener
+    if (config.options?.onSelectMode) {
+      const modeBtns = this.instructionsElement.querySelectorAll('.ftp-mode-btn');
+      modeBtns.forEach(btn => {
+        btn.addEventListener('click', (e: any) => {
+          this.audio.playSFX('select');
+          const m = e.target.getAttribute('data-mode');
+          modeBtns.forEach(b => {
+            (b as HTMLElement).style.background = 'var(--surface2)';
+            (b as HTMLElement).style.color = 'var(--text)';
+            (b as HTMLElement).style.borderColor = 'var(--border)';
+          });
+          e.target.style.background = 'var(--accent)';
+          e.target.style.color = 'var(--bg)';
+          e.target.style.borderColor = 'var(--accent)';
+          if (config.options?.onSelectMode) config.options.onSelectMode(m);
+        });
+      });
+    }
 
     // Difficulty listener
     if (config.options?.onSelectDifficulty) {
@@ -464,19 +526,19 @@ export class GameOverlayManager {
       : '';
 
     this.resultsElement.innerHTML = `
-      <div style="background: var(--surface); border: 1.5px solid ${titleColor}; border-radius: 16px; padding: 24px; max-width: 420px; width: 100%; text-align: center; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; gap: 16px;">
+      <div style="background: var(--surface); border: 1.5px solid ${titleColor}; border-radius: 16px; padding: clamp(14px, 3vh, 22px); max-width: 420px; width: 100%; text-align: center; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; gap: clamp(10px, 2vh, 14px); margin: auto 0; box-sizing: border-box;">
         <div>
           <div style="font-size: 10px; font-weight: 800; color: ${titleColor}; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 2px;">${tagText}</div>
-          <h2 style="font-size: 28px; font-weight: 800; color: var(--text); margin: 0;">${config.title}</h2>
-          ${config.subtitle ? `<p style="font-size: 12px; color: var(--text3); margin: 4px 0 0 0;">${config.subtitle}</p>` : ''}
+          <h2 style="font-size: clamp(20px, 5vw, 28px); font-weight: 800; color: var(--text); margin: 0; line-height: 1.2;">${config.title}</h2>
+          ${config.subtitle ? `<p style="font-size: clamp(11px, 3vw, 12px); color: var(--text3); margin: 4px 0 0 0;">${config.subtitle}</p>` : ''}
         </div>
 
         ${
           config.score !== undefined
             ? `
-          <div style="background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 12px;">
-            <div style="font-size: 10px; font-weight: 800; color: var(--text3); text-transform: uppercase;">FINAL SCORE</div>
-            <div style="font-family: 'DM Mono', monospace; font-size: 32px; font-weight: 900; color: ${titleColor}; margin-top: 2px;">${config.score}</div>
+          <div style="background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 10px;">
+            <div style="font-size: 9.5px; font-weight: 800; color: var(--text3); text-transform: uppercase;">FINAL SCORE</div>
+            <div style="font-family: 'DM Mono', monospace; font-size: clamp(24px, 6vw, 32px); font-weight: 900; color: ${titleColor}; margin-top: 2px;">${config.score}</div>
             ${config.highScore !== undefined ? `<div style="font-size: 11px; color: var(--yellow, #eab308); margin-top: 2px;">🏆 Best Score: ${config.highScore}</div>` : ''}
           </div>
         `
@@ -493,9 +555,9 @@ export class GameOverlayManager {
             : ''
         }
 
-        <div style="display: flex; gap: 10px; margin-top: 6px;">
-          <button id="ftp-results-restart" style="flex: 1; height: 42px; background: ${titleColor}; border: none; border-radius: 8px; color: var(--bg); font-weight: 800; font-size: 13px; text-transform: uppercase; cursor: pointer; box-shadow: var(--shadow-md);">PLAY AGAIN 🔄</button>
-          <button id="ftp-results-exit" style="height: 42px; padding: 0 16px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-weight: 700; font-size: 12px; cursor: pointer;">EXIT 🚪</button>
+        <div style="display: flex; gap: 10px; margin-top: 4px;">
+          <button id="ftp-results-restart" style="flex: 1; min-height: 42px; background: ${titleColor}; border: none; border-radius: 8px; color: var(--bg); font-weight: 800; font-size: clamp(11.5px, 3vw, 13px); text-transform: uppercase; cursor: pointer; box-shadow: var(--shadow-md);">PLAY AGAIN 🔄</button>
+          <button id="ftp-results-exit" style="min-height: 42px; padding: 0 16px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-weight: 700; font-size: clamp(11px, 3vw, 12px); cursor: pointer;">EXIT 🚪</button>
         </div>
       </div>
     `;

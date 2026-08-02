@@ -2,6 +2,8 @@ import { MiniGamePlugin } from '../core/GamePlugin';
 import { GameLaunchContext } from '../core/GameLaunchContext';
 import { GameOverlayManager } from '../core/GameOverlayManager';
 import { resetGameCanvas } from '../../game.js';
+import { GameJuice } from '../core/GameJuice';
+import { GameAudioEngine } from '../core/GameAudioEngine';
 
 interface Hole {
   x: number; y: number; moleTime: number; type: 'normal' | 'gold' | 'bomb';
@@ -32,6 +34,7 @@ export class WhackAMolePlugin implements MiniGamePlugin {
   private animationFrameId: number | null = null;
   private isRunning = false;
   private overlayManager: GameOverlayManager | null = null;
+  private juice = new GameJuice();
 
   private holes: Hole[] = [];
   private score = 0;
@@ -86,6 +89,8 @@ export class WhackAMolePlugin implements MiniGamePlugin {
           { id: 'time', label: 'Time', value: '30s' }
         ]);
         this.startGame();
+        this.juice.reset();
+        this.juice.startCountdown(() => {});
       }
     });
   }
@@ -123,6 +128,10 @@ export class WhackAMolePlugin implements MiniGamePlugin {
         this.overlayManager?.updateStat('time', `${this.timeLeft}s`);
         if (this.timeLeft <= 0) {
           this.isGameOver = true;
+          GameAudioEngine.getInstance().playSFX(this.score > 500 ? 'win' : 'lose');
+          this.juice.spawnConfetti(this.canvas?.width || 400, this.canvas?.height || 600);
+          this.juice.bounceZoom(1.12);
+          this.juice.shake(10);
           clearInterval(this.timerInterval);
           setTimeout(() => {
             this.overlayManager?.showResults({
@@ -201,10 +210,23 @@ export class WhackAMolePlugin implements MiniGamePlugin {
       if (hole.moleTime > 0 && Math.hypot(mx - hole.x, my - hole.y) <= 35) {
         if (hole.type === 'gold') {
           this.score += 300;
+          GameAudioEngine.getInstance().playSFX('coin');
+          this.juice.spawnExplosion(hole.x, hole.y - 10, { count: 12, color: '#f59e0b', sizeRange: [2, 6], speedRange: [2, 5] });
+          this.juice.spawnFloatingScore(hole.x, hole.y - 10, 300);
+          this.juice.shake(6);
+          this.juice.bounceZoom(1.05);
         } else if (hole.type === 'bomb') {
           this.score = Math.max(0, this.score - 200);
+          GameAudioEngine.getInstance().playSFX('explosion');
+          this.juice.spawnExplosion(hole.x, hole.y - 10, { count: 16, color: '#ef4444', sizeRange: [3, 7], speedRange: [3, 7] });
+          this.juice.spawnText(hole.x, hole.y - 10, '-200 BOMB!', { color: '#ef4444', fontSize: 16 });
+          this.juice.shake(12);
         } else {
           this.score += 100;
+          GameAudioEngine.getInstance().playSFX('hit');
+          this.juice.spawnExplosion(hole.x, hole.y - 10, { count: 8, color: '#a855f7', sizeRange: [2, 5], speedRange: [2, 5] });
+          this.juice.spawnFloatingScore(hole.x, hole.y - 10, 100);
+          this.juice.shake(4);
         }
         hole.moleTime = 0;
         this.overlayManager?.updateStat('score', this.score);
@@ -236,6 +258,7 @@ export class WhackAMolePlugin implements MiniGamePlugin {
 
   private tick() {
     if (!this.isRunning) return;
+    this.juice.update(1.0);
     this.update();
     this.render();
     this.animationFrameId = requestAnimationFrame(this.tick.bind(this));
@@ -248,6 +271,8 @@ export class WhackAMolePlugin implements MiniGamePlugin {
 
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    this.juice.applyCameraTransforms(ctx, canvas.width, canvas.height);
 
     const midX = canvas.width / 2;
 
@@ -273,6 +298,9 @@ export class WhackAMolePlugin implements MiniGamePlugin {
         ctx.beginPath(); ctx.arc(hole.x + 8, hole.y - 14, 4, 0, Math.PI * 2); ctx.fill();
       }
     }
+
+    this.juice.restoreCameraTransforms(ctx);
+    this.juice.draw(ctx);
   }
 
   destroy(): void {

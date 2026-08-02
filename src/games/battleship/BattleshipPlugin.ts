@@ -3,6 +3,7 @@ import { GameLaunchContext } from '../core/GameLaunchContext';
 import { resetGameCanvas } from '../../game.js';
 import { GameOverlayManager } from '../core/GameOverlayManager';
 import { GameAudioEngine } from '../core/GameAudioEngine';
+import { GameJuice } from '../core/GameJuice';
 
 interface Ship {
   name: string;
@@ -59,6 +60,7 @@ export class BattleshipPlugin implements MiniGamePlugin {
 
   private overlayManager: GameOverlayManager | null = null;
   private context: GameLaunchContext | null = null;
+  private juice = new GameJuice();
 
   private boundMouseDown: any;
   private boundTouchStart: any;
@@ -158,6 +160,8 @@ export class BattleshipPlugin implements MiniGamePlugin {
         this.isPaused = false;
         this.resetGame();
         GameAudioEngine.getInstance().playSFX('click');
+        this.juice.reset();
+        this.juice.startCountdown(() => {});
       }
     });
   }
@@ -380,13 +384,21 @@ export class BattleshipPlugin implements MiniGamePlugin {
         if (this.aiGrid[row][col] === 'empty' || this.aiGrid[row][col] === 'ship') {
           const hit = this.aiGrid[row][col] === 'ship';
           this.aiGrid[row][col] = hit ? 'hit' : 'miss';
+          const strikeX = this.aiStartX + col * this.cellSize + this.cellSize / 2;
+          const strikeY = this.aiStartY + row * this.cellSize + this.cellSize / 2;
+
           if (hit) {
             engine.playSFX('hit');
             this.statusMessage = 'DIRECT HIT on enemy vessel!';
-            this.checkShipSunk(this.aiShips, row, col);
+            this.juice.spawnExplosion(strikeX, strikeY, { count: 12, color: '#ef4444', sizeRange: [2, 5], speedRange: [2, 6] });
+            this.juice.shake(6);
+            this.juice.spawnText(strikeX, strikeY, 'HIT!', { color: '#ef4444', fontSize: 16 });
+            this.checkShipSunk(this.aiShips, row, col, strikeX, strikeY);
           } else {
             engine.playSFX('pop');
             this.statusMessage = 'SPLASH! Missed target.';
+            this.juice.spawnExplosion(strikeX, strikeY, { count: 6, color: '#38bdf8', sizeRange: [1, 4], speedRange: [1, 4] });
+            this.juice.spawnText(strikeX, strikeY, 'MISS', { color: '#38bdf8', fontSize: 12 });
           }
 
           this.updateHUD();
@@ -398,6 +410,8 @@ export class BattleshipPlugin implements MiniGamePlugin {
             this.statusMessage = 'VICTORY! All enemy ships destroyed.';
             this.updateHUD();
             engine.playSFX('win');
+            this.juice.spawnConfetti(this.canvas?.width || 400, this.canvas?.height || 600);
+            this.juice.bounceZoom(1.12);
 
             this.overlayManager?.showResults({
               title: 'FLEET VICTORY!',
@@ -421,13 +435,18 @@ export class BattleshipPlugin implements MiniGamePlugin {
     }
   }
 
-  private checkShipSunk(ships: Ship[], r: number, c: number) {
+  private checkShipSunk(ships: Ship[], r: number, c: number, strikeX?: number, strikeY?: number) {
     for (const ship of ships) {
       if (ship.coords.some(([sr, sc]) => sr === r && sc === c)) {
         ship.hits++;
         if (ship.hits >= ship.size) {
           this.statusMessage = `SUNK! Enemy ${ship.name} destroyed!`;
           GameAudioEngine.getInstance().playSFX('explosion');
+          if (strikeX !== undefined && strikeY !== undefined) {
+            this.juice.shake(12);
+            this.juice.spawnText(strikeX, strikeY - 15, `${ship.name.toUpperCase()} SUNK!`, { color: '#f59e0b', fontSize: 18 });
+            this.juice.spawnExplosion(strikeX, strikeY, { count: 20, color: '#f59e0b', sizeRange: [3, 7], speedRange: [3, 8] });
+          }
         }
       }
     }
@@ -448,16 +467,22 @@ export class BattleshipPlugin implements MiniGamePlugin {
 
     const hit = this.playerGrid[r][c] === 'ship';
     this.playerGrid[r][c] = hit ? 'hit' : 'miss';
+    const strikeX = this.playerStartX + c * this.cellSize + this.cellSize / 2;
+    const strikeY = this.playerStartY + r * this.cellSize + this.cellSize / 2;
     
     if (hit) {
       GameAudioEngine.getInstance().playSFX('hit');
-      this.checkShipSunk(this.playerShips, r, c);
+      this.juice.spawnExplosion(strikeX, strikeY, { count: 12, color: '#ef4444', sizeRange: [2, 5], speedRange: [2, 6] });
+      this.juice.shake(8);
+      this.juice.spawnText(strikeX, strikeY, 'INCOMING HIT!', { color: '#ef4444', fontSize: 14 });
+      this.checkShipSunk(this.playerShips, r, c, strikeX, strikeY);
       this.updateHUD();
       if (this.checkAllSunk(this.playerShips)) {
         this.phase = 'gameover';
         this.isGameOver = true;
         this.statusMessage = 'DEFEAT! Your fleet has been destroyed.';
         GameAudioEngine.getInstance().playSFX('lose');
+        this.juice.shake(16);
 
         this.overlayManager?.showResults({
           title: 'FLEET DEFEATED',
@@ -474,11 +499,13 @@ export class BattleshipPlugin implements MiniGamePlugin {
       }
     } else {
       GameAudioEngine.getInstance().playSFX('pop');
+      this.juice.spawnExplosion(strikeX, strikeY, { count: 6, color: '#38bdf8', sizeRange: [1, 4], speedRange: [1, 4] });
     }
   }
 
   private tick() {
     if (!this.isRunning) return;
+    this.juice.update(1.0);
     this.render();
     this.animationFrameId = requestAnimationFrame(this.tick.bind(this));
   }
@@ -492,6 +519,8 @@ export class BattleshipPlugin implements MiniGamePlugin {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     if (this.isPaused) return;
+
+    this.juice.applyCameraTransforms(ctx, canvas.width, canvas.height);
 
     ctx.font = 'bold 12px "Space Grotesk", sans-serif';
     ctx.fillStyle = '#38bdf8';
@@ -523,6 +552,9 @@ export class BattleshipPlugin implements MiniGamePlugin {
       ctx.fillStyle = '#38bdf8';
       ctx.fillText(this.isHorizontal ? 'DIR: HORIZ' : 'DIR: VERT', midX + 60, btnY + 1);
     }
+
+    this.juice.restoreCameraTransforms(ctx);
+    this.juice.draw(ctx);
   }
 
   private renderGrid(startX: number, startY: number, title: string, grid: string[][], showShips: boolean) {

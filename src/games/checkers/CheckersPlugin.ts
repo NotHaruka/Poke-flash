@@ -3,6 +3,7 @@ import { GameLaunchContext } from '../core/GameLaunchContext';
 import { resetGameCanvas } from '../../game.js';
 import { GameOverlayManager } from '../core/GameOverlayManager';
 import { GameAudioEngine } from '../core/GameAudioEngine';
+import { GameJuice } from '../core/GameJuice';
 
 interface CheckerPiece {
   player: 'red' | 'black'; // 'red' moves UP, 'black' moves DOWN
@@ -68,6 +69,10 @@ export class CheckersPlugin implements MiniGamePlugin {
   private blackCount = 12;
   private statusMessage = "Your Turn (Red)";
   private isGameOver = false;
+
+  // GameJuice effects
+  private juice = new GameJuice();
+  private countdownActive = false;
 
   // Board layout metrics
   private boardSize = 0;
@@ -189,6 +194,11 @@ export class CheckersPlugin implements MiniGamePlugin {
     this.overlayManager?.resume();
     this.isGameOver = false;
     this.isPaused = false;
+    this.juice.reset();
+    this.countdownActive = true;
+    this.juice.startCountdown(() => {
+      this.countdownActive = false;
+    });
     this.resetBoard();
   }
 
@@ -221,6 +231,13 @@ export class CheckersPlugin implements MiniGamePlugin {
     this.validJumps = [];
     this.mustJumpSequence = null;
     this.isGameOver = false;
+    if (!this.countdownActive) {
+      this.juice.reset();
+      this.countdownActive = true;
+      this.juice.startCountdown(() => {
+        this.countdownActive = false;
+      });
+    }
     this.updateHUD();
 
     // Place Black pieces (top 3 rows on dark squares)
@@ -288,7 +305,7 @@ export class CheckersPlugin implements MiniGamePlugin {
       return;
     }
 
-    if (this.isGameOver) return;
+    if (this.isGameOver || this.countdownActive) return;
     if (this.gameMode === 'vsAI' && this.currentPlayer === 'black') return;
 
     const col = Math.floor((mx - this.startX) / this.cellSize);
@@ -412,12 +429,21 @@ export class CheckersPlugin implements MiniGamePlugin {
     this.board[move.fromR][move.fromC] = null;
     this.board[move.toR][move.toC] = piece;
 
+    const toX = this.startX + move.toC * this.cellSize + this.cellSize / 2;
+    const toY = this.startY + move.toR * this.cellSize + this.cellSize / 2;
+
     // King promotion check
     if ((piece.player === 'red' && move.toR === 0) || (piece.player === 'black' && move.toR === 7)) {
       if (!piece.isKing) {
         piece.isKing = true;
         this.playSFX('king');
+        this.juice.spawnText(toX, toY - 15, 'CROWNED!', { color: '#f59e0b', fontSize: 16, scale: 1.3 });
+        this.juice.spawnExplosion(toX, toY, { color: ['#f59e0b', '#d97706', '#fef3c7'], count: 12, sizeRange: [2, 5], speedRange: [1, 3] });
+        this.juice.shake(6);
+        this.juice.bounceZoom(1.03);
       }
+    } else {
+      this.juice.bounceZoom(1.01);
     }
 
     this.playSFX('move');
@@ -435,12 +461,28 @@ export class CheckersPlugin implements MiniGamePlugin {
     this.board[jump.capR][jump.capC] = null; // Remove captured piece
     this.board[jump.toR][jump.toC] = piece;
 
+    const capX = this.startX + jump.capC * this.cellSize + this.cellSize / 2;
+    const capY = this.startY + jump.capR * this.cellSize + this.cellSize / 2;
+    const toX = this.startX + jump.toC * this.cellSize + this.cellSize / 2;
+    const toY = this.startY + jump.toR * this.cellSize + this.cellSize / 2;
+
+    this.juice.spawnExplosion(capX, capY, {
+      color: piece.player === 'red' ? ['#1e293b', '#475569', '#cbd5e1'] : ['#ef4444', '#fca5a5', '#ffffff'],
+      count: 15,
+      sizeRange: [2, 6],
+      speedRange: [1.5, 4.5]
+    });
+    this.juice.shake(6);
+    this.juice.bounceZoom(1.02);
+
     let promoted = false;
     if ((piece.player === 'red' && jump.toR === 0) || (piece.player === 'black' && jump.toR === 7)) {
       if (!piece.isKing) {
         piece.isKing = true;
         promoted = true;
         this.playSFX('king');
+        this.juice.spawnText(toX, toY - 15, 'CROWNED!', { color: '#f59e0b', fontSize: 16, scale: 1.3 });
+        this.juice.spawnExplosion(toX, toY, { color: ['#f59e0b', '#d97706', '#fef3c7'], count: 12, sizeRange: [2, 5], speedRange: [1, 3] });
       }
     }
 
@@ -494,6 +536,7 @@ export class CheckersPlugin implements MiniGamePlugin {
       this.isGameOver = true;
       this.updateHUD();
       this.playSFX('lose');
+      this.juice.shake(12);
       this.overlayManager?.showResults({
         title: 'GAME OVER',
         score: 0,
@@ -508,6 +551,7 @@ export class CheckersPlugin implements MiniGamePlugin {
       this.isGameOver = true;
       this.updateHUD();
       this.playSFX('win');
+      this.juice.spawnConfetti(this.canvas?.width || 400, this.canvas?.height || 400);
       this.overlayManager?.showResults({
         title: 'VICTORY!',
         score: 1000 + (this.redCount * 100),
@@ -652,6 +696,7 @@ export class CheckersPlugin implements MiniGamePlugin {
 
   private tick() {
     if (!this.isRunning) return;
+    this.juice.update(1.0);
     this.render();
     this.animationFrameId = requestAnimationFrame(this.tick.bind(this));
   }
@@ -675,6 +720,9 @@ export class CheckersPlugin implements MiniGamePlugin {
     ctx.font = 'bold 12px "Space Grotesk", sans-serif';
     ctx.fillStyle = this.isGameOver ? '#ef4444' : '#cda250';
     ctx.fillText(this.statusMessage, midX, this.startY - 10);
+
+    // Apply Camera Transforms
+    this.juice.applyCameraTransforms(ctx, canvas.width, canvas.height);
 
     // Render Checkerboard
     const lightColor = '#f0d9b5';
@@ -761,6 +809,12 @@ export class CheckersPlugin implements MiniGamePlugin {
     ctx.strokeStyle = '#3a385e';
     ctx.lineWidth = 2;
     ctx.strokeRect(this.startX, this.startY, this.boardSize, this.boardSize);
+
+    // Restore Camera Transforms
+    this.juice.restoreCameraTransforms(ctx);
+
+    // Draw visual juice particles and text overlays on top of board
+    this.juice.draw(ctx);
 
     // Bottom Control Buttons
     const controlsY = this.startY + this.boardSize + 28;

@@ -2,6 +2,8 @@ import { MiniGamePlugin } from '../core/GamePlugin';
 import { GameLaunchContext } from '../core/GameLaunchContext';
 import { GameOverlayManager } from '../core/GameOverlayManager';
 import { resetGameCanvas } from '../../game.js';
+import { GameJuice } from '../core/GameJuice';
+import { GameAudioEngine } from '../core/GameAudioEngine';
 
 export class LightsOutPlugin implements MiniGamePlugin {
   id = 'lightsout';
@@ -28,6 +30,7 @@ export class LightsOutPlugin implements MiniGamePlugin {
   private animationFrameId: number | null = null;
   private isRunning = false;
   private overlayManager: GameOverlayManager | null = null;
+  private juice = new GameJuice();
 
   private gridSize = 5;
   private grid: boolean[][] = [];
@@ -85,6 +88,8 @@ export class LightsOutPlugin implements MiniGamePlugin {
           { id: 'moves', label: 'Moves', value: '0' }
         ]);
         this.startGame();
+        this.juice.reset();
+        this.juice.startCountdown(() => {});
       }
     });
   }
@@ -140,6 +145,13 @@ export class LightsOutPlugin implements MiniGamePlugin {
       this.overlayManager?.updateStat('moves', this.moves);
       const scoreVal = document.getElementById('bb-score-val');
       if (scoreVal) scoreVal.textContent = String(this.moves);
+
+      const cx = this.startX + c * this.cellSize + this.cellSize / 2;
+      const cy = this.startY + r * this.cellSize + this.cellSize / 2;
+      GameAudioEngine.getInstance().playSFX('pop');
+      this.juice.spawnExplosion(cx, cy, { count: 8, color: '#f59e0b', sizeRange: [2, 5], speedRange: [2, 5] });
+      this.juice.shake(2);
+
       this.checkWin();
     }
   }
@@ -149,6 +161,10 @@ export class LightsOutPlugin implements MiniGamePlugin {
     if (allOff && !this.isWon) {
       this.isWon = true;
       this.statusMessage = 'ALL LIGHTS OFF!';
+      GameAudioEngine.getInstance().playSFX('win');
+      this.juice.spawnConfetti(this.canvas?.width || 400, this.canvas?.height || 600);
+      this.juice.bounceZoom(1.12);
+      this.juice.shake(10);
       setTimeout(() => {
         this.overlayManager?.showResults({
           title: 'PUZZLE CLEARED! 💡',
@@ -213,6 +229,7 @@ export class LightsOutPlugin implements MiniGamePlugin {
 
   private tick() {
     if (!this.isRunning) return;
+    this.juice.update(1.0);
     this.render();
     this.animationFrameId = requestAnimationFrame(this.tick.bind(this));
   }
@@ -224,6 +241,8 @@ export class LightsOutPlugin implements MiniGamePlugin {
 
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    this.juice.applyCameraTransforms(ctx, canvas.width, canvas.height);
 
     const midX = canvas.width / 2;
 
@@ -252,6 +271,9 @@ export class LightsOutPlugin implements MiniGamePlugin {
         }
       }
     }
+
+    this.juice.restoreCameraTransforms(ctx);
+    this.juice.draw(ctx);
   }
 
   destroy(): void {

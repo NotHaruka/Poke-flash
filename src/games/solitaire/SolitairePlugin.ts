@@ -2,6 +2,8 @@ import { MiniGamePlugin } from '../core/GamePlugin';
 import { GameLaunchContext } from '../core/GameLaunchContext';
 import { GameOverlayManager } from '../core/GameOverlayManager';
 import { resetGameCanvas } from '../../game.js';
+import { GameJuice } from '../core/GameJuice';
+import { GameAudioEngine } from '../core/GameAudioEngine';
 
 type Suit = 'H' | 'D' | 'C' | 'S'; // Hearts, Diamonds, Clubs, Spades
 
@@ -38,6 +40,9 @@ export class SolitairePlugin implements MiniGamePlugin {
   private isRunning = false;
   private overlayManager: GameOverlayManager | null = null;
   private context: GameLaunchContext | null = null;
+
+  private juice = new GameJuice();
+  private countdownActive = false;
 
   private stock: Card[] = [];
   private waste: Card[] = [];
@@ -165,7 +170,7 @@ export class SolitairePlugin implements MiniGamePlugin {
 
     if (this.timerInterval) clearInterval(this.timerInterval);
     this.timerInterval = setInterval(() => {
-      if (!this.isWon && this.isRunning) {
+      if (!this.isWon && this.isRunning && !this.countdownActive) {
         this.timerSeconds++;
         this.overlayManager?.updateStat('time', `${this.timerSeconds}s`);
       }
@@ -174,6 +179,14 @@ export class SolitairePlugin implements MiniGamePlugin {
     this.isWon = false;
     this.selectedCard = null;
     this.statusMessage = "Tap cards to move or deal";
+
+    if (!this.countdownActive) {
+      this.juice.reset();
+      this.countdownActive = true;
+      this.juice.startCountdown(() => {
+        this.countdownActive = false;
+      });
+    }
 
     // Create 52 deck
     const suits: Suit[] = ['H', 'D', 'C', 'S'];
@@ -244,7 +257,7 @@ export class SolitairePlugin implements MiniGamePlugin {
       return;
     }
 
-    if (this.isWon) return;
+    if (this.isWon || this.countdownActive) return;
 
     // 1. Stock Pile Click
     const stockX = this.startX;
@@ -297,11 +310,16 @@ export class SolitairePlugin implements MiniGamePlugin {
   }
 
   private handleStockClick() {
+    const stockX = this.startX + this.cardWidth / 2;
+    const stockY = this.startY + 10 + this.cardHeight / 2;
+
     if (this.stock.length > 0) {
       const card = this.stock.pop()!;
       card.faceUp = true;
       this.waste.push(card);
       this.playSFX('deal');
+      this.juice.spawnExplosion(stockX, stockY, { color: ['#3b82f6', '#1d4ed8', '#ffffff'], count: 8, sizeRange: [1.5, 3.5], speedRange: [1, 2.5] });
+      this.juice.bounceZoom(1.008);
     } else if (this.waste.length > 0) {
       // Recycle waste back to stock
       while (this.waste.length > 0) {
@@ -310,6 +328,8 @@ export class SolitairePlugin implements MiniGamePlugin {
         this.stock.push(card);
       }
       this.playSFX('deal');
+      this.juice.spawnExplosion(stockX, stockY, { color: ['#10b981', '#047857', '#ffffff'], count: 12, sizeRange: [2, 4], speedRange: [1, 3] });
+      this.juice.shake(4);
     }
   }
 
@@ -390,6 +410,27 @@ export class SolitairePlugin implements MiniGamePlugin {
       this.tableau[targetIndex].push(...cards);
     }
 
+    // Spawn card placement animation particles and text!
+    const targetX = targetType === 'foundation' 
+      ? this.startX + (3 + targetIndex) * (this.cardWidth + 6) + this.cardWidth / 2
+      : this.startX + targetIndex * (this.cardWidth + 6) + this.cardWidth / 2;
+    const targetY = targetType === 'foundation'
+      ? this.startY + 10 + this.cardHeight / 2
+      : this.startY + 10 + this.cardHeight + 16 + (this.tableau[targetIndex].length * 18);
+
+    this.juice.bounceZoom(1.01);
+    this.juice.spawnText(targetX, targetY - 10, targetType === 'foundation' ? 'FOUNDATION!' : 'SEQUENCED!', {
+      color: targetType === 'foundation' ? '#10b981' : '#f59e0b',
+      fontSize: 10,
+      scale: 1.15
+    });
+    this.juice.spawnExplosion(targetX, targetY, {
+      color: targetType === 'foundation' ? ['#10b981', '#34d399', '#ffffff'] : ['#f59e0b', '#fbbf24', '#ffffff'],
+      count: 10,
+      sizeRange: [1.5, 3.5],
+      speedRange: [1, 2.5]
+    });
+
     this.movesCount++;
     this.updateHeaderScore();
     this.overlayManager?.updateStat('moves', this.movesCount);
@@ -413,6 +454,7 @@ export class SolitairePlugin implements MiniGamePlugin {
       this.isWon = true;
       this.statusMessage = "SOLITAIRE VICTORIOUS!";
       this.playSFX('win');
+      this.juice.spawnConfetti(this.canvas?.width || 400, this.canvas?.height || 400);
       setTimeout(() => {
         this.overlayManager?.showResults({
           title: 'KLONDIKE VICTORY! 🎴',
@@ -435,62 +477,17 @@ export class SolitairePlugin implements MiniGamePlugin {
   }
 
   private playSFX(type: 'deal' | 'move' | 'flip' | 'win' | 'click') {
-    try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      const now = ctx.currentTime;
-
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      if (type === 'deal') {
-        osc.frequency.setValueAtTime(300, now);
-        osc.frequency.exponentialRampToValueAtTime(150, now + 0.05);
-        gain.gain.setValueAtTime(0.04, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
-        osc.start(now);
-        osc.stop(now + 0.05);
-      } else if (type === 'move') {
-        osc.frequency.setValueAtTime(400, now);
-        gain.gain.setValueAtTime(0.04, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
-        osc.start(now);
-        osc.stop(now + 0.06);
-      } else if (type === 'flip') {
-        osc.frequency.setValueAtTime(500, now);
-        osc.frequency.exponentialRampToValueAtTime(700, now + 0.06);
-        gain.gain.setValueAtTime(0.04, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
-        osc.start(now);
-        osc.stop(now + 0.06);
-      } else if (type === 'click') {
-        osc.frequency.setValueAtTime(440, now);
-        gain.gain.setValueAtTime(0.03, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
-        osc.start(now);
-        osc.stop(now + 0.04);
-      } else if (type === 'win') {
-        const freqs = [392, 523.25, 659.25, 783.99, 1046.5];
-        freqs.forEach((f, i) => {
-          const o = ctx.createOscillator();
-          const g = ctx.createGain();
-          o.connect(g);
-          g.connect(ctx.destination);
-          o.frequency.setValueAtTime(f, now + i * 0.08);
-          g.gain.setValueAtTime(0.05, now + i * 0.08);
-          g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.25);
-          o.start(now + i * 0.08);
-          o.stop(now + i * 0.08 + 0.25);
-        });
-      }
-    } catch (e) {}
+    const engine = GameAudioEngine.getInstance();
+    if (type === 'deal') engine.playSFX('swish');
+    else if (type === 'move') engine.playSFX('step');
+    else if (type === 'flip') engine.playSFX('flip');
+    else if (type === 'click') engine.playSFX('click');
+    else if (type === 'win') engine.playSFX('win');
   }
 
   private tick() {
     if (!this.isRunning) return;
+    this.juice.update(1.0);
     this.render();
     this.animationFrameId = requestAnimationFrame(this.tick.bind(this));
   }
@@ -511,6 +508,9 @@ export class SolitairePlugin implements MiniGamePlugin {
     ctx.font = 'bold 12px "Space Grotesk", sans-serif';
     ctx.fillStyle = this.isWon ? '#10b981' : '#cda250';
     ctx.fillText(this.statusMessage, midX, this.startY - 6);
+
+    // Apply Camera Transforms
+    this.juice.applyCameraTransforms(ctx, canvas.width, canvas.height);
 
     // 1. Stock Pile
     const stockX = this.startX;
@@ -565,6 +565,12 @@ export class SolitairePlugin implements MiniGamePlugin {
         }
       }
     }
+
+    // Restore Camera Transforms
+    this.juice.restoreCameraTransforms(ctx);
+
+    // Draw visual juice particles on top of the card grids
+    this.juice.draw(ctx);
 
     // Bottom Controls
     const controlsY = canvas.height - 25;

@@ -3,6 +3,7 @@ import { GameLaunchContext } from '../core/GameLaunchContext';
 import { resetGameCanvas } from '../../game.js';
 import { GameOverlayManager } from '../core/GameOverlayManager';
 import { GameAudioEngine } from '../core/GameAudioEngine';
+import { GameJuice } from '../core/GameJuice';
 
 interface Asteroid {
   x: number;
@@ -54,6 +55,7 @@ export class AsteroidsPlugin implements MiniGamePlugin {
 
   private overlayManager: GameOverlayManager | null = null;
   private context: GameLaunchContext | null = null;
+  private juice = new GameJuice();
 
   // Key tracking state
   private keys: Record<string, boolean> = {};
@@ -160,6 +162,8 @@ export class AsteroidsPlugin implements MiniGamePlugin {
         ]);
         this.isPaused = false;
         this.resetGame();
+        this.juice.reset();
+        this.juice.startCountdown(() => {});
         GameAudioEngine.getInstance().playSFX('click');
       }
     });
@@ -173,7 +177,13 @@ export class AsteroidsPlugin implements MiniGamePlugin {
     this.resetGame();
   }
 
+  private boundTick = () => this.tick();
+
   private resetGame() {
+    if (this.animationFrameId) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
+    }
     if (!this.canvas) return;
     this.score = 0;
     this.lives = 3;
@@ -403,6 +413,10 @@ export class AsteroidsPlugin implements MiniGamePlugin {
 
           GameAudioEngine.getInstance().playSFX('explosion');
 
+          this.juice.spawnExplosion(a.x, a.y, { count: 10, color: '#38bdf8', sizeRange: [2, 5], speedRange: [2, 5] });
+          this.juice.spawnFloatingScore(a.x, a.y, points);
+          this.juice.shake(4);
+
           if (a.radius > 10) {
             this.spawnAsteroid(a.radius / 2, a.x, a.y);
             this.spawnAsteroid(a.radius / 2, a.x, a.y);
@@ -417,13 +431,18 @@ export class AsteroidsPlugin implements MiniGamePlugin {
       if (Math.hypot(a.x - this.ship.x, a.y - this.ship.y) < a.radius + 10) {
         this.lives--;
         GameAudioEngine.getInstance().playSFX('hit');
-        
+
+        this.juice.spawnExplosion(this.ship.x, this.ship.y, { count: 20, color: '#ef4444', sizeRange: [3, 7], speedRange: [3, 7] });
+        this.juice.shake(12);
+
         // Remove asteroid that hit us to avoid spawn death loop
         this.asteroids.splice(i, 1);
 
         if (this.lives <= 0) {
           this.isGameOver = true;
           this.ship.isThrusting = false;
+          this.juice.spawnConfetti(this.canvas?.width || 400, this.canvas?.height || 600);
+          this.juice.bounceZoom(1.12);
           GameAudioEngine.getInstance().playSFX('lose');
           this.overlayManager?.showResults({
             title: 'GAME OVER',
@@ -458,9 +477,10 @@ export class AsteroidsPlugin implements MiniGamePlugin {
 
   private tick() {
     if (!this.isRunning) return;
+    this.juice.update(1.0);
     this.update();
     this.render();
-    this.animationFrameId = requestAnimationFrame(this.tick.bind(this));
+    this.animationFrameId = requestAnimationFrame(this.boundTick);
   }
 
   private render() {
@@ -470,6 +490,8 @@ export class AsteroidsPlugin implements MiniGamePlugin {
 
     ctx.fillStyle = '#0a0915';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    this.juice.applyCameraTransforms(ctx, canvas.width, canvas.height);
 
     // Ship
     if (!this.isGameOver && !this.isPaused) {
@@ -548,6 +570,9 @@ export class AsteroidsPlugin implements MiniGamePlugin {
     
     ctx.fillStyle = '#ef4444';
     ctx.fillText('FIRE', midX + 100, ctrlY);
+
+    this.juice.restoreCameraTransforms(ctx);
+    this.juice.draw(ctx);
   }
 
   destroy(): void {

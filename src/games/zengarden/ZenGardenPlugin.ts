@@ -2,6 +2,7 @@ import { MiniGamePlugin } from '../core/GamePlugin';
 import { GameLaunchContext } from '../core/GameLaunchContext';
 import { GameOverlayManager } from '../core/GameOverlayManager';
 import { resetGameCanvas } from '../../game.js';
+import { GameJuice } from '../core/GameJuice';
 
 interface Rock {
   x: number; y: number; size: number;
@@ -32,6 +33,7 @@ export class ZenGardenPlugin implements MiniGamePlugin {
   private animationFrameId: number | null = null;
   private isRunning = false;
   private overlayManager: GameOverlayManager | null = null;
+  private juice = new GameJuice();
 
   private rocks: Rock[] = [];
   private tool: 'rake' | 'rock' = 'rake';
@@ -95,6 +97,8 @@ export class ZenGardenPlugin implements MiniGamePlugin {
           { id: 'stones', label: 'River Stones', value: '0' }
         ]);
         this.startGame();
+        this.juice.reset();
+        this.juice.startCountdown(() => {});
       }
     });
   }
@@ -187,6 +191,8 @@ export class ZenGardenPlugin implements MiniGamePlugin {
     }
     if (Math.abs(x - (midX + 70)) <= 40 && Math.abs(y - btnY) <= 15) {
       this.trails = []; this.rocks = [];
+      this.juice.spawnExplosion(midX + 70, btnY, { count: 12, color: '#ef4444', sizeRange: [2, 5], speedRange: [2, 5] });
+      this.juice.shake(5);
       const scoreVal = document.getElementById('bb-score-val');
       if (scoreVal) scoreVal.textContent = '0';
       return;
@@ -194,6 +200,9 @@ export class ZenGardenPlugin implements MiniGamePlugin {
 
     if (this.tool === 'rock') {
       this.rocks.push({ x, y, size: 16 + Math.random() * 12 });
+      this.juice.spawnExplosion(x, y, { count: 8, color: '#334155', sizeRange: [2, 5], speedRange: [1, 4] });
+      this.juice.shake(2);
+      this.juice.bounceZoom(1.02);
       this.overlayManager?.updateStat('stones', this.rocks.length);
       const scoreVal = document.getElementById('bb-score-val');
       if (scoreVal) scoreVal.textContent = String(this.rocks.length);
@@ -206,6 +215,9 @@ export class ZenGardenPlugin implements MiniGamePlugin {
   private moveDraw(x: number, y: number) {
     if (this.isDrawing && this.tool === 'rake') {
       this.currentTrail.push([x, y]);
+      if (Math.random() < 0.3) {
+        this.juice.spawnExplosion(x, y, { count: 2, color: '#cbd5e1', sizeRange: [1, 3], speedRange: [0.5, 2] });
+      }
     }
   }
 
@@ -221,6 +233,7 @@ export class ZenGardenPlugin implements MiniGamePlugin {
 
   private tick() {
     if (!this.isRunning) return;
+    this.juice.update(1.0);
     this.render();
     this.animationFrameId = requestAnimationFrame(this.tick.bind(this));
   }
@@ -233,6 +246,8 @@ export class ZenGardenPlugin implements MiniGamePlugin {
     // Fine white sand background
     ctx.fillStyle = '#f8fafc';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    this.juice.applyCameraTransforms(ctx, canvas.width, canvas.height);
 
     // Rake Trails
     ctx.strokeStyle = '#cbd5e1';
@@ -274,11 +289,14 @@ export class ZenGardenPlugin implements MiniGamePlugin {
 
     ctx.fillStyle = this.tool === 'rock' ? '#38bdf8' : '#64748b';
     ctx.beginPath(); ctx.roundRect(midX - 35, btnY - 14, 70, 28, 6); ctx.fill();
-    ctx.fillText('STONE', midX, btnY + 3);
+    ctx.fillStyle = '#fff'; ctx.fillText('STONE', midX, btnY + 3);
 
     ctx.fillStyle = '#ef4444';
     ctx.beginPath(); ctx.roundRect(midX + 35, btnY - 14, 70, 28, 6); ctx.fill();
-    ctx.fillText('CLEAR', midX + 70, btnY + 3);
+    ctx.fillStyle = '#fff'; ctx.fillText('CLEAR', midX + 70, btnY + 3);
+
+    this.juice.restoreCameraTransforms(ctx);
+    this.juice.draw(ctx);
   }
 
   destroy(): void {

@@ -3,6 +3,7 @@ import { GameLaunchContext } from '../core/GameLaunchContext';
 import { resetGameCanvas } from '../../game.js';
 import { GameOverlayManager } from '../core/GameOverlayManager';
 import { GameAudioEngine } from '../core/GameAudioEngine';
+import { GameJuice } from '../core/GameJuice';
 
 export class Game2048Plugin implements MiniGamePlugin {
   id = 'game_2048';
@@ -43,6 +44,10 @@ export class Game2048Plugin implements MiniGamePlugin {
 
   // Undo history
   private history: Array<{ board: number[][]; score: number }> = [];
+
+  // GameJuice and countdown
+  private juice = new GameJuice();
+  private countdownActive = false;
 
   // Tile slide animations state
   private tiles: Array<{
@@ -153,7 +158,7 @@ export class Game2048Plugin implements MiniGamePlugin {
       this.touchStartY = e.touches[0].clientY;
     };
     this.boundTouchEnd = (e: TouchEvent) => {
-      if (this.isGameOver || this.isPaused) return;
+      if (this.isGameOver || this.isPaused || this.countdownActive) return;
       if (e.changedTouches.length === 0) return;
       const dx = e.changedTouches[0].clientX - this.touchStartX;
       const dy = e.changedTouches[0].clientY - this.touchStartY;
@@ -204,6 +209,11 @@ export class Game2048Plugin implements MiniGamePlugin {
           { label: 'High Score', value: this.highScore, id: 'high' }
         ]);
         GameAudioEngine.getInstance().playSFX('click');
+        this.juice.reset();
+        this.countdownActive = true;
+        this.juice.startCountdown(() => {
+          this.countdownActive = false;
+        });
         this.isPaused = false;
       }
     });
@@ -217,6 +227,11 @@ export class Game2048Plugin implements MiniGamePlugin {
     this.hasWonTriggered = false;
     this.score = 0;
     this.history = [];
+    this.juice.reset();
+    this.countdownActive = true;
+    this.juice.startCountdown(() => {
+      this.countdownActive = false;
+    });
     this.initBoard();
     const scoreVal = document.getElementById('bb-score-val');
     if (scoreVal) scoreVal.textContent = '0';
@@ -282,7 +297,7 @@ export class Game2048Plugin implements MiniGamePlugin {
       return;
     }
 
-    if (this.isGameOver || this.isPaused) return;
+    if (this.isGameOver || this.isPaused || this.countdownActive) return;
 
     if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
       e.preventDefault();
@@ -328,6 +343,7 @@ export class Game2048Plugin implements MiniGamePlugin {
   private move(dir: 'up' | 'down' | 'left' | 'right') {
     let moved = false;
     let scoreGained = 0;
+    const mergesToAnimate: Array<{ r: number; c: number; val: number }> = [];
     
     // Save state before move
     this.saveState();
@@ -343,23 +359,30 @@ export class Game2048Plugin implements MiniGamePlugin {
 
         // Combine
         const newRow: number[] = [];
+        const mergedIndices: boolean[] = [];
         for (let i = 0; i < row.length; i++) {
           if (i < row.length - 1 && row[i] === row[i + 1]) {
             const mergedVal = row[i] * 2;
             newRow.push(mergedVal);
+            mergedIndices.push(true);
             scoreGained += mergedVal;
             i++; // skip next tile
           } else {
             newRow.push(row[i]);
+            mergedIndices.push(false);
           }
         }
 
         // Pad with zeros
         while (newRow.length < this.size) {
           newRow.push(0);
+          mergedIndices.push(false);
         }
 
-        if (dir === 'right') newRow.reverse();
+        if (dir === 'right') {
+          newRow.reverse();
+          mergedIndices.reverse();
+        }
 
         // Check if row changed
         for (let c = 0; c < this.size; c++) {
@@ -367,6 +390,9 @@ export class Game2048Plugin implements MiniGamePlugin {
             moved = true;
           }
           this.board[r][c] = newRow[c];
+          if (mergedIndices[c]) {
+            mergesToAnimate.push({ r, c, val: newRow[c] });
+          }
         }
       }
     } else { // UP or DOWN
@@ -379,28 +405,38 @@ export class Game2048Plugin implements MiniGamePlugin {
         if (dir === 'down') col.reverse();
 
         const newCol: number[] = [];
+        const mergedIndices: boolean[] = [];
         for (let i = 0; i < col.length; i++) {
           if (i < col.length - 1 && col[i] === col[i + 1]) {
             const mergedVal = col[i] * 2;
             newCol.push(mergedVal);
+            mergedIndices.push(true);
             scoreGained += mergedVal;
             i++;
           } else {
             newCol.push(col[i]);
+            mergedIndices.push(false);
           }
         }
 
         while (newCol.length < this.size) {
           newCol.push(0);
+          mergedIndices.push(false);
         }
 
-        if (dir === 'down') newCol.reverse();
+        if (dir === 'down') {
+          newCol.reverse();
+          mergedIndices.reverse();
+        }
 
         for (let r = 0; r < this.size; r++) {
           if (this.board[r][c] !== newCol[r]) {
             moved = true;
           }
           this.board[r][c] = newCol[r];
+          if (mergedIndices[r]) {
+            mergesToAnimate.push({ r, c, val: newCol[r] });
+          }
         }
       }
     }
@@ -416,11 +452,36 @@ export class Game2048Plugin implements MiniGamePlugin {
       this.overlayManager?.updateStat('score', this.score);
       this.overlayManager?.updateStat('high', this.highScore);
 
-      // Audio feedback
+      // Trigger visual juice for merges
+      mergesToAnimate.forEach(({ r, c, val }) => {
+        const cx = this.startX + this.cellGap + c * (this.cellSize + this.cellGap) + this.cellSize / 2;
+        const cy = this.startY + this.cellGap + r * (this.cellSize + this.cellGap) + this.cellSize / 2;
+        const color = this.getTileColor(val);
+
+        // Score floating text popup
+        this.juice.spawnText(cx, cy - 10, `+${val}`, {
+          color: color,
+          fontSize: 16,
+          scale: 1.2
+        });
+
+        // Burst explosion in tile's color
+        this.juice.spawnExplosion(cx, cy, {
+          color: [color, '#ffffff'],
+          count: 8,
+          sizeRange: [2, 4],
+          speedRange: [1, 3.5]
+        });
+      });
+
+      // Audio and camera feel feedback
       if (scoreGained > 0) {
         GameAudioEngine.getInstance().playSFX('powerup');
+        this.juice.shake(4);
+        this.juice.bounceZoom(1.03);
       } else {
         GameAudioEngine.getInstance().playSFX('step');
+        this.juice.bounceZoom(1.01);
       }
     } else {
       // Discard saved state if no movement actually happened
@@ -471,8 +532,10 @@ export class Game2048Plugin implements MiniGamePlugin {
   private triggerResults(won: boolean) {
     if (won) {
       GameAudioEngine.getInstance().playSFX('win');
+      this.juice.spawnConfetti(this.canvas?.width || 400, this.canvas?.height || 400);
     } else {
       GameAudioEngine.getInstance().playSFX('lose');
+      this.juice.shake(12);
     }
 
     this.overlayManager?.showResults({
@@ -569,6 +632,7 @@ export class Game2048Plugin implements MiniGamePlugin {
   private tick() {
     if (!this.isRunning) return;
 
+    this.juice.update(1.0);
     this.render();
 
     this.animationFrameId = requestAnimationFrame(this.tick.bind(this));
@@ -611,6 +675,8 @@ export class Game2048Plugin implements MiniGamePlugin {
     ctx.fillText('Press [U] to UNDO last move', this.startX, headerY + 4);
 
     // 2. Render Board Outer Grid Container
+    this.juice.applyCameraTransforms(ctx, canvas.width, canvas.height);
+
     ctx.fillStyle = '#14122d';
     ctx.beginPath();
     ctx.roundRect(this.startX, this.startY, this.boardSize, this.boardSize, 12);
@@ -657,6 +723,11 @@ export class Game2048Plugin implements MiniGamePlugin {
         }
       }
     }
+
+    this.juice.restoreCameraTransforms(ctx);
+
+    // Draw particles and floating text overlays on top of the board
+    this.juice.draw(ctx);
 
     // Overlays
     if (this.isPaused) {

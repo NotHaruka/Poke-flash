@@ -3,6 +3,7 @@ import { GameLaunchContext } from '../core/GameLaunchContext';
 import { resetGameCanvas } from '../../game.js';
 import { GameOverlayManager } from '../core/GameOverlayManager';
 import { GameAudioEngine } from '../core/GameAudioEngine';
+import { GameJuice } from '../core/GameJuice';
 
 interface SudokuCell {
   val: number; // 0 = empty, 1-9 = set
@@ -38,6 +39,9 @@ export class SudokuPlugin implements MiniGamePlugin {
   private isPaused = false;
   private overlayManager: GameOverlayManager | null = null;
   private context: GameLaunchContext | null = null;
+
+  private juice = new GameJuice();
+  private countdownActive = false;
 
   private grid: SudokuCell[][] = [];
   private selectedCell: { r: number; c: number } | null = null;
@@ -184,6 +188,11 @@ export class SudokuPlugin implements MiniGamePlugin {
     this.overlayManager?.hideResults();
     this.overlayManager?.resume();
     this.isPaused = false;
+    this.juice.reset();
+    this.countdownActive = true;
+    this.juice.startCountdown(() => {
+      this.countdownActive = false;
+    });
     this.startNewGame();
     this.overlayManager?.updateStat('errorsCount', this.errorsCount);
     this.overlayManager?.updateStat('timer', '00:00');
@@ -193,7 +202,7 @@ export class SudokuPlugin implements MiniGamePlugin {
     this.timerSeconds = 0;
     if (this.timerInterval) clearInterval(this.timerInterval);
     this.timerInterval = setInterval(() => {
-      if (!this.isSolved && this.isRunning && !this.isPaused) {
+      if (!this.isSolved && this.isRunning && !this.isPaused && !this.countdownActive) {
         this.timerSeconds++;
         const m = String(Math.floor(this.timerSeconds / 60)).padStart(2, '0');
         const s = String(this.timerSeconds % 60).padStart(2, '0');
@@ -208,6 +217,14 @@ export class SudokuPlugin implements MiniGamePlugin {
     this.selectedCell = null;
     this.pencilMode = false;
     this.statusMessage = "Select a cell and tap a number";
+
+    if (!this.countdownActive) {
+      this.juice.reset();
+      this.countdownActive = true;
+      this.juice.startCountdown(() => {
+        this.countdownActive = false;
+      });
+    }
 
     this.generateSudokuPuzzle();
   }
@@ -306,7 +323,7 @@ export class SudokuPlugin implements MiniGamePlugin {
       return;
     }
 
-    if (this.isSolved || !this.selectedCell || this.isPaused) return;
+    if (this.isSolved || !this.selectedCell || this.isPaused || this.countdownActive) return;
     const num = parseInt(e.key);
     if (!isNaN(num) && num >= 1 && num <= 9) {
       this.inputNumber(num);
@@ -334,7 +351,7 @@ export class SudokuPlugin implements MiniGamePlugin {
   }
 
   private processInputAt(mx: number, my: number) {
-    if (!this.canvas || this.isPaused) return;
+    if (!this.canvas || this.isPaused || this.countdownActive) return;
 
     const midX = this.canvas.width / 2;
     const numPadY = this.startY + this.boardSize + 32;
@@ -391,14 +408,39 @@ export class SudokuPlugin implements MiniGamePlugin {
 
     if (cell.given) return; // Cannot edit pre-given clue
 
+    const cx = this.startX + c * this.cellSize + this.cellSize / 2;
+    const cy = this.startY + r * this.cellSize + this.cellSize / 2;
+
     if (this.pencilMode && num > 0) {
       if (cell.notes.has(num)) cell.notes.delete(num);
       else cell.notes.add(num);
       cell.val = 0;
+      this.juice.spawnText(cx, cy - 10, `Draft ${num}`, { color: '#94a3b8', fontSize: 10, scale: 1.1 });
     } else {
       cell.val = num;
       cell.notes.clear();
+      
+      const beforeErrors = this.errorsCount;
       this.validateGrid();
+      
+      if (num > 0) {
+        if (this.errorsCount > beforeErrors) {
+          // Conflict introduced! High shake, red text
+          this.playSFX('error');
+          this.juice.shake(12);
+          this.juice.spawnText(cx, cy - 12, 'CONFLICT!', { color: '#ef4444', fontSize: 13, scale: 1.2 });
+          this.juice.spawnExplosion(cx, cy, { color: ['#ef4444', '#dc2626', '#f87171'], count: 12, sizeRange: [2, 4], speedRange: [1, 3] });
+        } else {
+          // Success! Bounce, light particles
+          this.juice.bounceZoom(1.012);
+          this.juice.spawnText(cx, cy - 12, String(num), { color: '#38bdf8', fontSize: 16, scale: 1.4 });
+          this.juice.spawnExplosion(cx, cy, { color: ['#38bdf8', '#0ea5e9', '#ffffff'], count: 10, sizeRange: [1.5, 3.5], speedRange: [1, 2.5] });
+        }
+      } else {
+        // Erase
+        this.juice.spawnText(cx, cy, 'ERASED', { color: '#94a3b8', fontSize: 11, scale: 1.1 });
+      }
+
       this.checkCompletion();
     }
 
@@ -491,6 +533,7 @@ export class SudokuPlugin implements MiniGamePlugin {
       this.isSolved = true;
       this.statusMessage = "PUZZLE SOLVED! EXCELLENT WORK!";
       this.playSFX('win');
+      this.juice.spawnConfetti(this.canvas?.width || 400, this.canvas?.height || 400);
 
       const minutes = String(Math.floor(this.timerSeconds / 60)).padStart(2, '0');
       const seconds = String(this.timerSeconds % 60).padStart(2, '0');
@@ -515,56 +558,18 @@ export class SudokuPlugin implements MiniGamePlugin {
     }
   }
 
-  private playSFX(type: 'select' | 'input' | 'win' | 'click') {
-    try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      const now = ctx.currentTime;
-
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      if (type === 'select') {
-        osc.frequency.setValueAtTime(480, now);
-        gain.gain.setValueAtTime(0.02, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
-        osc.start(now);
-        osc.stop(now + 0.04);
-      } else if (type === 'input') {
-        osc.frequency.setValueAtTime(350, now);
-        osc.frequency.exponentialRampToValueAtTime(550, now + 0.06);
-        gain.gain.setValueAtTime(0.04, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
-        osc.start(now);
-        osc.stop(now + 0.06);
-      } else if (type === 'click') {
-        osc.frequency.setValueAtTime(440, now);
-        gain.gain.setValueAtTime(0.03, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
-        osc.start(now);
-        osc.stop(now + 0.04);
-      } else if (type === 'win') {
-        const freqs = [392, 523.25, 659.25, 783.99];
-        freqs.forEach((f, i) => {
-          const o = ctx.createOscillator();
-          const g = ctx.createGain();
-          o.connect(g);
-          g.connect(ctx.destination);
-          o.frequency.setValueAtTime(f, now + i * 0.08);
-          g.gain.setValueAtTime(0.05, now + i * 0.08);
-          g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.2);
-          o.start(now + i * 0.08);
-          o.stop(now + i * 0.08 + 0.2);
-        });
-      }
-    } catch (e) {}
+  private playSFX(type: 'select' | 'input' | 'win' | 'click' | 'error') {
+    const engine = GameAudioEngine.getInstance();
+    if (type === 'select') engine.playSFX('select');
+    else if (type === 'input') engine.playSFX('step');
+    else if (type === 'click') engine.playSFX('click');
+    else if (type === 'error') engine.playSFX('invalid');
+    else if (type === 'win') engine.playSFX('win');
   }
 
   private tick() {
     if (!this.isRunning) return;
+    this.juice.update(1.0);
     this.render();
     this.animationFrameId = requestAnimationFrame(this.tick.bind(this));
   }
@@ -584,6 +589,9 @@ export class SudokuPlugin implements MiniGamePlugin {
     ctx.font = 'bold 12px "Space Grotesk", sans-serif';
     ctx.fillStyle = this.isSolved ? '#10b981' : '#cda250';
     ctx.fillText(this.statusMessage, midX, this.startY - 14);
+
+    // Apply Camera Transforms for Sudoku board grid
+    this.juice.applyCameraTransforms(ctx, canvas.width, canvas.height);
 
     // Render Grid Background
     ctx.fillStyle = '#1e1b2e';
@@ -658,6 +666,12 @@ export class SudokuPlugin implements MiniGamePlugin {
       ctx.lineTo(this.startX + this.boardSize, ly);
       ctx.stroke();
     }
+
+    // Restore Camera Transforms
+    this.juice.restoreCameraTransforms(ctx);
+
+    // Draw visual juice particles on top of the grid
+    this.juice.draw(ctx);
 
     // On-screen Number Pad (1-9)
     const numPadY = this.startY + this.boardSize + 32;
