@@ -206,6 +206,9 @@ export class AsteroidsPlugin implements MiniGamePlugin {
     }
 
     this.updateHUDAndHeader();
+    if (this.isRunning) {
+      this.tick();
+    }
   }
 
   private updateHUDAndHeader() {
