@@ -874,6 +874,51 @@
           </div>
         </div>
 
+        <!-- Background Music (BGM) Settings -->
+        <div class="settings-box">
+          <div class="settings-title" style="display:flex;align-items:center;justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:6px">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;color:var(--accent)"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+              <span>Background Music (BGM)</span>
+            </div>
+            <span id="bgm-status-badge" class="badge badge-gray" style="font-size:11px;padding:2px 8px;border-radius:10px">Paused</span>
+          </div>
+          <div class="settings-sub">Quiet study audio and focus atmosphere generator</div>
+          
+          <div class="lw-toggle-row">
+            <div>
+              <div style="font-size:13px;font-weight:500;color:var(--text)">Enable Background Music</div>
+              <div style="font-size:11px;color:var(--text3);margin-top:2px">Plays quiet focus study loops while using FlashTrainer</div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="bgm-toggle" onchange="window.setBGMEnabled(this.checked)">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:10px;display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+              <label for="bgm-track-select" style="font-size:12px;font-weight:600;color:var(--text)">Audio Atmosphere</label>
+              <select id="bgm-track-select" onchange="window.setBGMTrack(this.value)" style="background:var(--surface3);border:1px solid var(--border);color:var(--text);font-size:12px;padding:6px 10px;border-radius:var(--rs);outline:none;cursor:pointer">
+                <option value="focus">Quiet Focus</option>
+              </select>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px">
+                <span style="font-weight:600;color:var(--text)">Music Volume</span>
+                <span id="bgm-volume-val" style="color:var(--text3);font-family:monospace;font-weight:600">50%</span>
+              </div>
+              <input type="range" id="bgm-volume" min="0" max="100" value="50" oninput="window.setBGMVolume(parseInt(this.value,10))" style="width:100%;accent-color:var(--accent);cursor:pointer">
+            </div>
+
+            <div style="font-size:11px;color:var(--text3);line-height:1.4;background:var(--surface2);padding:8px 10px;border-radius:var(--rs);border:1px solid var(--border);display:flex;align-items:center;gap:6px">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;color:var(--accent);flex-shrink:0"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+              <span><b>Voice Command Control:</b> Say <i>"Turn off music"</i>, <i>"Stop music"</i>, or <i>"Play music"</i> anytime with Voice Commands!</span>
+            </div>
+          </div>
+        </div>
+
         <!-- Performance -->
         <div class="settings-box">
           <div class="settings-title" style="display:flex;align-items:center;gap:6px">

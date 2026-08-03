@@ -1,4 +1,5 @@
 import { App } from '@capacitor/app';
+import { initBGM } from './bgm.js';
 import { chatInit } from './chat.js';
 import { addCard, bindImportModalInput, bulkPasteImport, confirmExport, confirmImport, exportDeck, importDeck, resetAllSpaced, selectExportFormat } from './deck-manager.js';
 import { app } from './firebase.js';
@@ -26,6 +27,7 @@ import { toggleVoiceCommand } from './voice-command.js';
 
 
 function init() {
+  initBGM();
   notesInit();
   initLibrary();
   initGamesArcade();

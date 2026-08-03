@@ -1,3 +1,4 @@
+import { nextBGMTrack, setBGMEnabled } from './bgm.js';
 import { positionVoicePopup } from './chat.js';
 import { GAMES, triggerGameAction } from './games.js';
 import { showPanel } from './sidebar.js';
@@ -62,7 +63,37 @@ function routeVoiceCommand(rawText: string) {
   const command = normalize(stripped);
 
   if (!command) {
-    updateVoiceCmdPopup("Didn't catch that", 'Try saying "Go to Statistics" or "Start Tetris"');
+    updateVoiceCmdPopup("Didn't catch that", 'Try saying "Turn off music" or "Go to Statistics"');
+    return;
+  }
+
+  // 0. BGM / Music voice commands check
+  const musicOffMatches = [
+    'turn off music', 'stop music', 'pause music', 'mute music',
+    'turn off bgm', 'stop bgm', 'bgm off', 'pause bgm', 'disable music',
+    'turn off background music', 'stop background music', 'turn off the music',
+    'stop the music', 'silence', 'mute'
+  ];
+  const musicOnMatches = [
+    'turn on music', 'play music', 'start music', 'unmute music',
+    'turn on bgm', 'play bgm', 'bgm on', 'start bgm', 'enable music',
+    'turn on background music', 'play background music', 'turn on the music',
+    'play the music', 'resume music'
+  ];
+
+  if (musicOffMatches.some(k => command === k || command.includes(k))) {
+    hasRoutedCurrentSession = true;
+    setBGMEnabled(false);
+    updateVoiceCmdPopup('Music Paused', 'Background music turned off');
+    setTimeout(hideVoiceCmdPopup, 1200);
+    return;
+  }
+
+  if (musicOnMatches.some(k => command === k || command.includes(k))) {
+    hasRoutedCurrentSession = true;
+    setBGMEnabled(true);
+    updateVoiceCmdPopup('Music Playing', 'Background music turned on');
+    setTimeout(hideVoiceCmdPopup, 1200);
     return;
   }
 
