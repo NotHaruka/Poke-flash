@@ -29,6 +29,65 @@ interface ChatSession {
 let currentSession: ChatSession | null = null;
 let lastAIMessage: string = '';
 let selectedDeckId: string = ''; // Empty string = all decks
+let voiceRecognition: any = null;
+let isVoiceListening: boolean = false;
+
+// Voice input for the chat box. Uses the browser's built-in SpeechRecognition -
+// this only works while FlashTrainer is open and in the foreground (it does not
+// run in the background, and there's no wake-word/"Hey Trainer" listening here,
+// just press-the-mic-to-talk while you're using the app).
+function toggleChatVoiceInput() {
+  const SpeechRecognitionCtor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+  if (!SpeechRecognitionCtor) {
+    toast('Voice input isn\'t supported in this browser.');
+    return;
+  }
+
+  const micBtn = document.getElementById('chat-mic-btn');
+  const chatInput = document.getElementById('chat-input') as HTMLInputElement;
+
+  if (isVoiceListening) {
+    voiceRecognition?.stop();
+    return;
+  }
+
+  voiceRecognition = new SpeechRecognitionCtor();
+  voiceRecognition.lang = navigator.language || 'en-US';
+  voiceRecognition.interimResults = true;
+  voiceRecognition.continuous = false;
+
+  voiceRecognition.onstart = () => {
+    isVoiceListening = true;
+    micBtn?.classList.add('chat-mic-listening');
+    if (chatInput) chatInput.placeholder = 'Listening…';
+  };
+
+  voiceRecognition.onresult = (event: any) => {
+    let transcript = '';
+    for (let i = 0; i < event.results.length; i++) {
+      transcript += event.results[i][0].transcript;
+    }
+    if (chatInput) chatInput.value = transcript;
+  };
+
+  voiceRecognition.onerror = (event: any) => {
+    if (event.error !== 'no-speech' && event.error !== 'aborted') {
+      toast('Voice input error: ' + event.error);
+    }
+  };
+
+  voiceRecognition.onend = () => {
+    isVoiceListening = false;
+    micBtn?.classList.remove('chat-mic-listening');
+    if (chatInput) chatInput.placeholder = 'Ask about your decks, generate flashcards, or quiz...';
+  };
+
+  try {
+    voiceRecognition.start();
+  } catch (err) {
+    toast('Could not start voice input.');
+  }
+}
 
 // Initialize chat
 function chatInit() {
@@ -1366,7 +1425,7 @@ function toggleDevDockExpand() {
 
 
 // ─── ES module exports (auto-generated) ───
-export { addDevConsoleLog, addSingleSuggestedCard, bookmarkMessage, buildDeckContext, changeChatDeck, chatInit, clearChatHistoryConfirm, confirmClearChatHistory, confirmGenerateCards, copyCode, copyMessage, createNewSession, currentSession, extractDeckSources, formatMarkdown, generateCardsFromLastAIMessage, insertPrompt, lastAIMessage, loadChatHistory, loadChatSession, populateDeckSelector, renderChatMessages, renderDevUndoBar, renderInteractiveSuggestedCard, renderStateInspector, revertDevChange, saveChatSession, selectGenDeck, selectMainChatDeck, selectPersonaV2, selectedDeckId, sendChatMessage, showCardGenerationModal, showWelcomeIfEmpty, startNewChat, toggleChatHistory, toggleDevDockExpand, toggleDevMode, toggleDevModeForceOff, toggleGenDeckDropdown, toggleMainChatDeckDropdown, toggleMainChatPersonaDropdown, updateDeckStats };
+export { addDevConsoleLog, addSingleSuggestedCard, bookmarkMessage, buildDeckContext, changeChatDeck, chatInit, clearChatHistoryConfirm, confirmClearChatHistory, confirmGenerateCards, copyCode, copyMessage, createNewSession, currentSession, extractDeckSources, formatMarkdown, generateCardsFromLastAIMessage, insertPrompt, lastAIMessage, loadChatHistory, loadChatSession, populateDeckSelector, renderChatMessages, renderDevUndoBar, renderInteractiveSuggestedCard, renderStateInspector, revertDevChange, saveChatSession, selectGenDeck, selectMainChatDeck, selectPersonaV2, selectedDeckId, sendChatMessage, showCardGenerationModal, showWelcomeIfEmpty, startNewChat, toggleChatHistory, toggleChatVoiceInput, toggleDevDockExpand, toggleDevMode, toggleDevModeForceOff, toggleGenDeckDropdown, toggleMainChatDeckDropdown, toggleMainChatPersonaDropdown, updateDeckStats };
 
 // Expose API for inline onclick="" handlers (auto-generated)
-Object.assign(window, { addDevConsoleLog, addSingleSuggestedCard, bookmarkMessage, buildDeckContext, changeChatDeck, chatInit, clearChatHistoryConfirm, confirmClearChatHistory, confirmGenerateCards, copyCode, copyMessage, createNewSession, extractDeckSources, formatMarkdown, generateCardsFromLastAIMessage, insertPrompt, loadChatHistory, loadChatSession, populateDeckSelector, renderChatMessages, renderDevUndoBar, renderInteractiveSuggestedCard, renderStateInspector, revertDevChange, saveChatSession, selectGenDeck, selectMainChatDeck, selectPersonaV2, sendChatMessage, showCardGenerationModal, showWelcomeIfEmpty, startNewChat, toggleChatHistory, toggleDevDockExpand, toggleDevMode, toggleDevModeForceOff, toggleGenDeckDropdown, toggleMainChatDeckDropdown, toggleMainChatPersonaDropdown, updateDeckStats });
+Object.assign(window, { addDevConsoleLog, addSingleSuggestedCard, bookmarkMessage, buildDeckContext, changeChatDeck, chatInit, clearChatHistoryConfirm, confirmClearChatHistory, confirmGenerateCards, copyCode, copyMessage, createNewSession, extractDeckSources, formatMarkdown, generateCardsFromLastAIMessage, insertPrompt, loadChatHistory, loadChatSession, populateDeckSelector, renderChatMessages, renderDevUndoBar, renderInteractiveSuggestedCard, renderStateInspector, revertDevChange, saveChatSession, selectGenDeck, selectMainChatDeck, selectPersonaV2, sendChatMessage, showCardGenerationModal, showWelcomeIfEmpty, startNewChat, toggleChatHistory, toggleChatVoiceInput, toggleDevDockExpand, toggleDevMode, toggleDevModeForceOff, toggleGenDeckDropdown, toggleMainChatDeckDropdown, toggleMainChatPersonaDropdown, updateDeckStats });
