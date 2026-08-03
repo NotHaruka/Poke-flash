@@ -125,15 +125,16 @@ export class InputManager {
     this.wasPointerDown = pointer.isDown;
 
     // Check justDown state and buffer it
-    let isDodgeJustPressed = this.keySpace ? Phaser.Input.Keyboard.JustDown(this.keySpace) : false;
+    let isDodgeJustPressed = false;
     if (mobileInput && mobileInput.isDodgePressed) {
       isDodgeJustPressed = true;
       mobileInput.isDodgePressed = false; // consume trigger immediately
     }
 
+    const isSpaceJustPressed = this.keySpace ? Phaser.Input.Keyboard.JustDown(this.keySpace) : false;
     const isXJustPressed = this.keyX ? Phaser.Input.Keyboard.JustDown(this.keyX) : false;
     const isFJustPressed = this.keyF ? Phaser.Input.Keyboard.JustDown(this.keyF) : false;
-    let isAttackJustPressed = isPointerJustDown || isXJustPressed || isFJustPressed;
+    let isAttackJustPressed = isPointerJustDown || isXJustPressed || isFJustPressed || isSpaceJustPressed;
     if (mobileInput && mobileInput.isAttackJustPressed) {
       isAttackJustPressed = true;
       mobileInput.isAttackJustPressed = false; // consume trigger immediately

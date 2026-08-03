@@ -113,7 +113,16 @@ function init() {
  
   // Sidebar nav items — use data-panel attribute
   document.querySelectorAll('.nav-item[data-panel]').forEach(btn => {
-    btn.addEventListener('click', () => showPanel(btn.dataset.panel, btn));
+    btn.addEventListener('click', () => {
+      const b = btn as any;
+      if (b.dataset.panel === 'study') {
+        if (typeof (window as any).goHome === 'function') {
+          (window as any).goHome();
+          return;
+        }
+      }
+      showPanel(b.dataset.panel, btn);
+    });
   });
  
   // bottom nav removed — FAB opens sidebar
@@ -218,7 +227,27 @@ function init() {
       e.target.value = '';
     });
   }
- 
+
+  // Check for import hash on load
+  setTimeout(() => {
+    if (window.location.hash.includes('#import=')) {
+      if ((window as any).promptUrlImport) {
+        // Mock prompt behavior for auto-import by temporarily overriding prompt()
+        const _prompt = window.prompt;
+        window.prompt = () => window.location.hash.split('#import=')[1];
+        try {
+          (window as any).promptUrlImport();
+        } finally {
+          window.prompt = _prompt;
+        }
+        // Clear hash after import so it doesn't trigger again on refresh
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+    }
+  }, 500);
+
+  setTimeout(checkScheduledDecks, 1500);
+
   byId('btn-pdf-toggle')  ?.addEventListener('click', togglePdfPanel);
   byId('btn-preview-note')?.addEventListener('click', togglePreview);
   byId('note-editor')     ?.addEventListener('input',   onNoteInput);
@@ -388,3 +417,20 @@ export { init, saveProviderCfg, selectDropdownOption, testGemini, testOpenRouter
 
 // Expose API for inline onclick="" handlers (auto-generated)
 Object.assign(window, { init, saveProviderCfg, selectDropdownOption, testGemini, testOpenRouter, toggleDropdown, updateProviderUI });
+
+function checkScheduledDecks() {
+  const S = (window as any).S;
+  if (!S || !S.decks) return;
+  const today = new Date().toISOString().split('T')[0];
+  const due = [];
+  for (const id in S.decks) {
+    const d = S.decks[id];
+    if (d.scheduledDate && d.scheduledDate <= today) {
+      due.push(d.name);
+    }
+  }
+  if (due.length > 0) {
+    alert(`Reminder: It's time to study the following scheduled decks:\n\n` + due.join('\n'));
+  }
+}
+Object.assign(window, { checkScheduledDecks });

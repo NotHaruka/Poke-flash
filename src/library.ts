@@ -695,6 +695,10 @@ function renderLibraryDeckCard(d: any, folderOptionsHtml: string): string {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:11px; height:11px; fill:currentColor;"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
             <span>Study</span>
           </button>
+          <!-- Schedule button -->
+          <button class="btn" onclick="event.stopPropagation(); window.scheduleDeckLibrary('${d.id}')" style="width:32px; height:32px; padding:0; display:flex; align-items:center; justify-content:center; color:var(--text); border-color:var(--border);" title="Schedule Notification">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px; height:12px;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          </button>
           <!-- Delete button -->
           <button class="btn" onclick="window.deleteDeckLibrary('${d.id}', event)" style="width:32px; height:32px; padding:0; display:flex; align-items:center; justify-content:center; color:#f87171; border-color:rgba(239,68,68,0.2);" title="Delete Deck">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px; height:12px;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -748,3 +752,20 @@ export { activeLibFilter, confirmLibraryCreateDeck, confirmLibraryCreateFolder, 
 
 // Expose API for inline onclick="" handlers (auto-generated)
 Object.assign(window, { confirmLibraryCreateDeck, confirmLibraryCreateFolder, createDeckInsideFolder, deleteDeckLibrary, deleteFolderLibrary, initLibrary, manageDeckCardsLibrary, moveDeckToFolderLibrary, selectDeckFolderOption, onFolderDragLeave, onFolderDragOver, onFolderDrop, renameDeckLibrary, renameFolderLibrary, renderLibrary, renderLibraryDeckCard, setDeckColor, setLibraryFilter, startStudySessionLibrary, studyAllDueCards, toggleDeckFavorite, toggleLibraryCreateDeckForm, toggleLibraryCreateFolderForm, toggleLibraryFolderCollapse });
+
+function scheduleDeckLibrary(deckId: string) {
+  const d = (window as any).S.decks[deckId];
+  if (!d) return;
+  const dateStr = prompt("Enter a scheduled date to be reminded to study this deck (YYYY-MM-DD):", d.scheduledDate || "");
+  if (dateStr === null) return;
+  d.scheduledDate = dateStr.trim();
+  if (d.scheduledDate) {
+    (window as any).toast(`Deck scheduled for ${d.scheduledDate}!`);
+  } else {
+    (window as any).toast(`Schedule cleared.`);
+  }
+  (window as any).persist();
+  renderLibrary();
+}
+
+Object.assign(window, { scheduleDeckLibrary });

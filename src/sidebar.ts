@@ -1267,3 +1267,23 @@ export { _activeFolderPicker, _createPopoverOpen, _createTab, _updateSelectBar, 
 
 // Expose API for inline onclick="" handlers (auto-generated)
 Object.assign(window, { _updateSelectBar, addDeck, addFolder, cancelRename, closeCreatePopover, closeFolderPicker, closeFolderPickerOutside, closeSidebar, commitFolderRename, commitRename, cpopAddDeck, cpopAddFolder, deckSelectAll, deckSelectDelete, deckSelectNone, delDeck, delFolder, handleFolderRenameKey, handleRenameKey, loadQueue, moveDeckToFolder, moveSelectedToFolder, openCreatePopover, openFolderPicker, renderSidebar, renderTagFilterChips, renderWelcomeDashboard, selectDeck, setTagFilter, showPanel, startFolderRename, startRename, studyAllTag, switchCreateTab, toggleCreatePopover, toggleDeckCheck, toggleDeckSelectMode, toggleDesktopSidebar, toggleFolder, toggleSRS, toggleSelFolderPicker, toggleSidebar, toggleSidebarBottom, updateDueBadge, updateSRSButton, updateStats });
+
+function goHome() {
+  S.studyId = null;
+  S.selDeck = null;
+  S.activeTag = null;
+  
+  const noDeck = document.getElementById('no-deck');
+  if (noDeck) noDeck.style.display = 'block';
+  
+  const studyBody = document.getElementById('study-body');
+  if (studyBody) studyBody.style.display = 'none';
+  
+  renderSidebar();
+  renderWelcomeDashboard();
+  
+  const navStudy = document.getElementById('nav-study');
+  if (navStudy) showPanel('study', navStudy);
+}
+
+Object.assign(window, { goHome });

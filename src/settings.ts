@@ -1,3 +1,4 @@
+import LZString from "lz-string";
 import { app } from './firebase.js';
 import { S } from './main.js';
 import { QRCode } from './qr-engine.js';
@@ -455,14 +456,8 @@ function showQRShare(id?: string): void {
     };
   }
 
-  // Convert payload to base64
-  const payloadStr = JSON.stringify(payload);
-  const bytes = new TextEncoder().encode(payloadStr);
-  let binString = '';
-  bytes.forEach((b) => {
-    binString += String.fromCodePoint(b);
-  });
-  const base64 = btoa(binString);
+  // Compress payload to reduce QR code size
+  let base64 = LZString.compressToBase64(JSON.stringify(payload));
 
   // Generate our import URL
   const importUrl = window.location.origin + window.location.pathname + '#import=' + base64;

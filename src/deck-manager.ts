@@ -1,3 +1,4 @@
+import LZString from "lz-string";
 import { openRouterGenerate } from './ai-provider.js';
 import { selectedDeckId } from './chat.js';
 import { app } from './firebase.js';
@@ -496,9 +497,19 @@ function promptUrlImport() {
     if (base64.includes('#import=')) {
       base64 = base64.split('#import=')[1];
     }
-    const binString = atob(base64);
-    const bytes = Uint8Array.from(binString, (m) => m.codePointAt(0)!);
-    const payloadStr = new TextDecoder().decode(bytes);
+    
+    let payloadStr = '';
+    // Try LZString decompression first
+    const decompressed = LZString.decompressFromBase64(base64);
+    if (decompressed && decompressed.startsWith('{')) {
+      payloadStr = decompressed;
+    } else {
+      // Fallback to standard base64 decoding
+      const binString = atob(base64);
+      const bytes = Uint8Array.from(binString, (m) => m.codePointAt(0)!);
+      payloadStr = new TextDecoder().decode(bytes);
+    }
+    
     const data = JSON.parse(payloadStr);
     
     // Import single deck or folder
