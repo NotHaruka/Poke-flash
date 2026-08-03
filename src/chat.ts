@@ -7,6 +7,7 @@ import { renderSidebar, updateStats } from './sidebar.js';
 import { persist } from './storage.js';
 import { notes } from './study.js';
 import { escH, toast } from './utils.js';
+import { toggleVoiceCommand } from './voice-command.js';
 
 
 
@@ -34,7 +35,7 @@ let isVoiceListening: boolean = false;
 let wasVoiceFabDragged: boolean = false;
 
 // Dynamically position the voice transcript popup relative to the floating FAB
-function positionVoicePopup() {
+export function positionVoicePopup() {
   const fab = document.getElementById('voice-cmd-fab');
   const popup = document.getElementById('voice-cmd-popup');
   if (!fab || !popup || popup.classList.contains('hidden')) return;
@@ -68,11 +69,7 @@ function handleVoiceFabClick(e: Event) {
     e.stopPropagation();
     return;
   }
-  if (typeof (window as any).toggleVoiceCommand === 'function') {
-    (window as any).toggleVoiceCommand();
-  } else {
-    toggleChatVoiceInput();
-  }
+  toggleVoiceCommand();
 }
 
 function initVoiceFabDraggable() {
@@ -151,8 +148,7 @@ function initVoiceFabDraggable() {
   fab.addEventListener('pointercancel', onPointerUp);
 }
 
-// Voice input for the chat box & global floating mic. Uses the browser's built-in SpeechRecognition -
-// this only works while FlashTrainer is open and in the foreground.
+// Voice input for the chat box input bar (microphone inside chat).
 function toggleChatVoiceInput() {
   const SpeechRecognitionCtor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
   if (!SpeechRecognitionCtor) {
@@ -161,10 +157,6 @@ function toggleChatVoiceInput() {
   }
 
   const micBtn = document.getElementById('chat-mic-btn');
-  const fabBtn = document.getElementById('voice-cmd-fab');
-  const popup = document.getElementById('voice-cmd-popup');
-  const statusEl = document.getElementById('voice-cmd-status');
-  const transcriptEl = document.getElementById('voice-cmd-transcript');
   const chatInput = document.getElementById('chat-input') as HTMLInputElement;
 
   if (isVoiceListening) {
@@ -180,11 +172,6 @@ function toggleChatVoiceInput() {
   voiceRecognition.onstart = () => {
     isVoiceListening = true;
     micBtn?.classList.add('chat-mic-listening');
-    fabBtn?.classList.add('voice-cmd-fab-listening');
-    popup?.classList.remove('hidden');
-    positionVoicePopup();
-    if (statusEl) statusEl.textContent = 'LISTENING...';
-    if (transcriptEl) transcriptEl.textContent = 'Speak your message...';
     if (chatInput) chatInput.placeholder = 'Listening…';
   };
 
@@ -194,8 +181,6 @@ function toggleChatVoiceInput() {
       transcript += event.results[i][0].transcript;
     }
     if (chatInput) chatInput.value = transcript;
-    if (transcriptEl) transcriptEl.textContent = transcript || 'Listening...';
-    positionVoicePopup();
   };
 
   voiceRecognition.onerror = (event: any) => {
@@ -207,8 +192,6 @@ function toggleChatVoiceInput() {
   voiceRecognition.onend = () => {
     isVoiceListening = false;
     micBtn?.classList.remove('chat-mic-listening');
-    fabBtn?.classList.remove('voice-cmd-fab-listening');
-    popup?.classList.add('hidden');
     if (chatInput) chatInput.placeholder = 'Ask about your decks, generate flashcards, or quiz...';
   };
 

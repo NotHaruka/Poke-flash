@@ -1,3 +1,4 @@
+import { positionVoicePopup } from './chat.js';
 import { GAMES, triggerGameAction } from './games.js';
 import { showPanel } from './sidebar.js';
 import { toast } from './utils.js';
@@ -43,6 +44,7 @@ function updateVoiceCmdPopup(status: string, transcript: string) {
   const transcriptEl = document.getElementById('voice-cmd-transcript');
   if (statusEl) statusEl.textContent = status;
   if (transcriptEl) transcriptEl.textContent = transcript;
+  positionVoicePopup();
 }
 
 function showVoiceCmdPopup() {
