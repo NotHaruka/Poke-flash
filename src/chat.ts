@@ -31,11 +31,124 @@ let lastAIMessage: string = '';
 let selectedDeckId: string = ''; // Empty string = all decks
 let voiceRecognition: any = null;
 let isVoiceListening: boolean = false;
+let wasVoiceFabDragged: boolean = false;
 
-// Voice input for the chat box. Uses the browser's built-in SpeechRecognition -
-// this only works while FlashTrainer is open and in the foreground (it does not
-// run in the background, and there's no wake-word/"Hey Trainer" listening here,
-// just press-the-mic-to-talk while you're using the app).
+// Dynamically position the voice transcript popup relative to the floating FAB
+function positionVoicePopup() {
+  const fab = document.getElementById('voice-cmd-fab');
+  const popup = document.getElementById('voice-cmd-popup');
+  if (!fab || !popup || popup.classList.contains('hidden')) return;
+
+  const fabRect = fab.getBoundingClientRect();
+  const popupWidth = popup.offsetWidth || 240;
+  const popupHeight = popup.offsetHeight || 60;
+
+  // Position vertically: above FAB if enough space, else below
+  let top = fabRect.top - popupHeight - 10;
+  if (top < 10) {
+    top = fabRect.bottom + 10;
+  }
+
+  // Position horizontally: centered on FAB, clamped to screen margins
+  let left = fabRect.left + fabRect.width / 2 - popupWidth / 2;
+  const maxLeft = window.innerWidth - popupWidth - 10;
+  if (left < 10) left = 10;
+  if (left > maxLeft) left = maxLeft;
+
+  popup.style.top = `${top}px`;
+  popup.style.left = `${left}px`;
+  popup.style.bottom = 'auto';
+  popup.style.right = 'auto';
+}
+
+function handleVoiceFabClick(e: Event) {
+  if (wasVoiceFabDragged) {
+    wasVoiceFabDragged = false;
+    e.preventDefault();
+    e.stopPropagation();
+    return;
+  }
+  toggleChatVoiceInput();
+}
+
+function initVoiceFabDraggable() {
+  const fab = document.getElementById('voice-cmd-fab');
+  if (!fab || fab.dataset.draggableInited === 'true') return;
+  fab.dataset.draggableInited = 'true';
+
+  let isDragging = false;
+  let startX = 0;
+  let startY = 0;
+  let initialLeft = 0;
+  let initialTop = 0;
+
+  fab.addEventListener('pointerdown', (e: PointerEvent) => {
+    if (e.button !== 0) return;
+
+    const rect = fab.getBoundingClientRect();
+    fab.style.left = `${rect.left}px`;
+    fab.style.top = `${rect.top}px`;
+    fab.style.bottom = 'auto';
+    fab.style.right = 'auto';
+
+    startX = e.clientX;
+    startY = e.clientY;
+    initialLeft = rect.left;
+    initialTop = rect.top;
+    isDragging = false;
+
+    fab.setPointerCapture(e.pointerId);
+    fab.style.transition = 'none';
+    fab.classList.add('dragging');
+  });
+
+  fab.addEventListener('pointermove', (e: PointerEvent) => {
+    if (!fab.hasPointerCapture(e.pointerId)) return;
+
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+
+    if (!isDragging && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) {
+      isDragging = true;
+      wasVoiceFabDragged = true;
+    }
+
+    if (isDragging) {
+      let newLeft = initialLeft + dx;
+      let newTop = initialTop + dy;
+
+      const maxLeft = window.innerWidth - fab.offsetWidth - 8;
+      const maxTop = window.innerHeight - fab.offsetHeight - 8;
+      newLeft = Math.max(8, Math.min(newLeft, maxLeft));
+      newTop = Math.max(8, Math.min(newTop, maxTop));
+
+      fab.style.left = `${newLeft}px`;
+      fab.style.top = `${newTop}px`;
+
+      positionVoicePopup();
+    }
+  });
+
+  const onPointerUp = (e: PointerEvent) => {
+    if (!fab.hasPointerCapture(e.pointerId)) return;
+    fab.releasePointerCapture(e.pointerId);
+
+    fab.classList.remove('dragging');
+    fab.style.transition = '';
+
+    if (isDragging) {
+      setTimeout(() => {
+        wasVoiceFabDragged = false;
+      }, 50);
+    }
+  };
+
+  fab.addEventListener('pointerup', onPointerUp);
+  fab.addEventListener('pointercancel', onPointerUp);
+}
+
+// Voice input for the chat box & global floating mic. Uses the browser's built-in SpeechRecognition -
+// this only works while FlashTrainer is open and in the foreground.
 function toggleChatVoiceInput() {
   const SpeechRecognitionCtor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
   if (!SpeechRecognitionCtor) {
@@ -44,6 +157,10 @@ function toggleChatVoiceInput() {
   }
 
   const micBtn = document.getElementById('chat-mic-btn');
+  const fabBtn = document.getElementById('voice-cmd-fab');
+  const popup = document.getElementById('voice-cmd-popup');
+  const statusEl = document.getElementById('voice-cmd-status');
+  const transcriptEl = document.getElementById('voice-cmd-transcript');
   const chatInput = document.getElementById('chat-input') as HTMLInputElement;
 
   if (isVoiceListening) {
@@ -59,6 +176,11 @@ function toggleChatVoiceInput() {
   voiceRecognition.onstart = () => {
     isVoiceListening = true;
     micBtn?.classList.add('chat-mic-listening');
+    fabBtn?.classList.add('voice-cmd-fab-listening');
+    popup?.classList.remove('hidden');
+    positionVoicePopup();
+    if (statusEl) statusEl.textContent = 'LISTENING...';
+    if (transcriptEl) transcriptEl.textContent = 'Speak your message...';
     if (chatInput) chatInput.placeholder = 'Listening…';
   };
 
@@ -68,6 +190,8 @@ function toggleChatVoiceInput() {
       transcript += event.results[i][0].transcript;
     }
     if (chatInput) chatInput.value = transcript;
+    if (transcriptEl) transcriptEl.textContent = transcript || 'Listening...';
+    positionVoicePopup();
   };
 
   voiceRecognition.onerror = (event: any) => {
@@ -79,6 +203,8 @@ function toggleChatVoiceInput() {
   voiceRecognition.onend = () => {
     isVoiceListening = false;
     micBtn?.classList.remove('chat-mic-listening');
+    fabBtn?.classList.remove('voice-cmd-fab-listening');
+    popup?.classList.add('hidden');
     if (chatInput) chatInput.placeholder = 'Ask about your decks, generate flashcards, or quiz...';
   };
 
@@ -96,6 +222,7 @@ function chatInit() {
   updateDeckStats();
   renderChatMessages();
   showWelcomeIfEmpty();
+  initVoiceFabDraggable();
   
   // Handle Enter key
   const chatInput = document.getElementById('chat-input') as HTMLInputElement;
@@ -1424,8 +1551,16 @@ function toggleDevDockExpand() {
 (window as any).renderStateInspector = renderStateInspector;
 
 
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initVoiceFabDraggable);
+  } else {
+    initVoiceFabDraggable();
+  }
+}
+
 // ─── ES module exports (auto-generated) ───
-export { addDevConsoleLog, addSingleSuggestedCard, bookmarkMessage, buildDeckContext, changeChatDeck, chatInit, clearChatHistoryConfirm, confirmClearChatHistory, confirmGenerateCards, copyCode, copyMessage, createNewSession, currentSession, extractDeckSources, formatMarkdown, generateCardsFromLastAIMessage, insertPrompt, lastAIMessage, loadChatHistory, loadChatSession, populateDeckSelector, renderChatMessages, renderDevUndoBar, renderInteractiveSuggestedCard, renderStateInspector, revertDevChange, saveChatSession, selectGenDeck, selectMainChatDeck, selectPersonaV2, selectedDeckId, sendChatMessage, showCardGenerationModal, showWelcomeIfEmpty, startNewChat, toggleChatHistory, toggleChatVoiceInput, toggleDevDockExpand, toggleDevMode, toggleDevModeForceOff, toggleGenDeckDropdown, toggleMainChatDeckDropdown, toggleMainChatPersonaDropdown, updateDeckStats };
+export { addDevConsoleLog, addSingleSuggestedCard, bookmarkMessage, buildDeckContext, changeChatDeck, chatInit, clearChatHistoryConfirm, confirmClearChatHistory, confirmGenerateCards, copyCode, copyMessage, createNewSession, currentSession, extractDeckSources, formatMarkdown, generateCardsFromLastAIMessage, handleVoiceFabClick, initVoiceFabDraggable, insertPrompt, lastAIMessage, loadChatHistory, loadChatSession, populateDeckSelector, renderChatMessages, renderDevUndoBar, renderInteractiveSuggestedCard, renderStateInspector, revertDevChange, saveChatSession, selectGenDeck, selectMainChatDeck, selectPersonaV2, selectedDeckId, sendChatMessage, showCardGenerationModal, showWelcomeIfEmpty, startNewChat, toggleChatHistory, toggleChatVoiceInput, toggleDevDockExpand, toggleDevMode, toggleDevModeForceOff, toggleGenDeckDropdown, toggleMainChatDeckDropdown, toggleMainChatPersonaDropdown, updateDeckStats };
 
 // Expose API for inline onclick="" handlers (auto-generated)
-Object.assign(window, { addDevConsoleLog, addSingleSuggestedCard, bookmarkMessage, buildDeckContext, changeChatDeck, chatInit, clearChatHistoryConfirm, confirmClearChatHistory, confirmGenerateCards, copyCode, copyMessage, createNewSession, extractDeckSources, formatMarkdown, generateCardsFromLastAIMessage, insertPrompt, loadChatHistory, loadChatSession, populateDeckSelector, renderChatMessages, renderDevUndoBar, renderInteractiveSuggestedCard, renderStateInspector, revertDevChange, saveChatSession, selectGenDeck, selectMainChatDeck, selectPersonaV2, sendChatMessage, showCardGenerationModal, showWelcomeIfEmpty, startNewChat, toggleChatHistory, toggleChatVoiceInput, toggleDevDockExpand, toggleDevMode, toggleDevModeForceOff, toggleGenDeckDropdown, toggleMainChatDeckDropdown, toggleMainChatPersonaDropdown, updateDeckStats });
+Object.assign(window, { addDevConsoleLog, addSingleSuggestedCard, bookmarkMessage, buildDeckContext, changeChatDeck, chatInit, clearChatHistoryConfirm, confirmClearChatHistory, confirmGenerateCards, copyCode, copyMessage, createNewSession, extractDeckSources, formatMarkdown, generateCardsFromLastAIMessage, handleVoiceFabClick, initVoiceFabDraggable, insertPrompt, loadChatHistory, loadChatSession, populateDeckSelector, renderChatMessages, renderDevUndoBar, renderInteractiveSuggestedCard, renderStateInspector, revertDevChange, saveChatSession, selectGenDeck, selectMainChatDeck, selectPersonaV2, sendChatMessage, showCardGenerationModal, showWelcomeIfEmpty, startNewChat, toggleChatHistory, toggleChatVoiceInput, toggleDevDockExpand, toggleDevMode, toggleDevModeForceOff, toggleGenDeckDropdown, toggleMainChatDeckDropdown, toggleMainChatPersonaDropdown, updateDeckStats });

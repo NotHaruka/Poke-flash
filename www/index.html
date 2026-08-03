@@ -138,8 +138,8 @@
       <!-- Removed Spaced Repetition and Global search from sidebar per user request -->
     </div>
 
-    <!-- Zone 2: scrollable deck list -->
-    <div class="sidebar-mid" style="display:block; max-height:220px; overflow-y:auto; margin-top:8px; border-top:1px solid var(--border); padding-top:8px">
+    <!-- Zone 2: scrollable deck list (hidden - managed in Deck Library) -->
+    <div class="sidebar-mid" style="display:none !important;" aria-hidden="true">
       <div class="ssec" style="margin-bottom:6px">MY DECKS</div>
       <button id="btn-deck-select-toggle" onclick="toggleDeckSelectMode()"></button>
       <button id="btn-create-new" onclick="toggleCreatePopover()"></button>
@@ -2643,6 +2643,21 @@
   <span>Make Card from selection</span>
 </div>
 <div class="toast" id="toast"></div>
+
+<!-- GLOBAL VOICE COMMAND FAB & POPUP -->
+<div id="voice-cmd-popup" class="voice-cmd-popup hidden">
+  <div class="voice-cmd-status" id="voice-cmd-status">LISTENING...</div>
+  <div class="voice-cmd-transcript" id="voice-cmd-transcript">Speak your message...</div>
+</div>
+
+<button id="voice-cmd-fab" class="voice-cmd-fab" onclick="window.handleVoiceFabClick(event)" title="Voice input / Speak message (drag to reposition)">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;">
+    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+    <line x1="12" y1="19" x2="12" y2="23"/>
+    <line x1="8" y1="23" x2="16" y2="23"/>
+  </svg>
+</button>
 
 <!-- DATA LOSS WARNING BANNER (shown on first visit and every 30 days) -->
 <div class="data-warn-banner hidden" id="data-warn-banner">

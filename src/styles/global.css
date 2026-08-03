@@ -424,16 +424,11 @@ input, textarea, [contenteditable="true"] {
   overflow:hidden; /* no outer scroll */
 }
 /* Zone 1 — fixed top: logo + nav + search */
-.sidebar-top{flex-shrink:0;padding:20px 12px 8px}
-/* Zone 2 — scrollable deck list */
+.sidebar-top{flex:1;overflow-y:auto;padding:20px 12px 8px}
+/* Zone 2 — scrollable deck list (hidden per user request: decks managed exclusively in Deck Library) */
 .sidebar-mid{
-  flex:1;overflow-y:auto;padding:0 12px;
-  /* thin custom scrollbar */
-  scrollbar-width:thin;scrollbar-color:var(--surface3) transparent;
+  display: none !important;
 }
-.sidebar-mid::-webkit-scrollbar{width:4px}
-.sidebar-mid::-webkit-scrollbar-track{background:transparent}
-.sidebar-mid::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:4px}
 /* Zone 3 — fixed bottom: stats, streak, sync */
 .sidebar-bottom{flex-shrink:0;border-top:1px solid var(--border);overflow:hidden}
 .sidebar-bottom-toggle{
@@ -3366,6 +3361,22 @@ body.lightweight .card-wrap{transition:none!important}
   color: var(--text3) !important;
   cursor: not-allowed !important;
   box-shadow: none !important;
+}
+
+#chat-mic-btn {
+  background: var(--surface2) !important;
+  color: var(--text2) !important;
+}
+
+#chat-mic-btn.chat-mic-listening {
+  background: var(--red, #e5484d) !important;
+  color: #fff !important;
+  animation: chatMicPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes chatMicPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(229, 72, 77, 0.45); }
+  50% { box-shadow: 0 0 0 8px rgba(229, 72, 77, 0); }
 }
 
 /* ─── BENTO SUGGESTION WELCOME SCREEN ─────────────────────────── */
@@ -6579,4 +6590,95 @@ select:focus-visible,
 textarea:focus-visible {
   outline: 2px solid var(--accent) !important;
   outline-offset: 2px !important;
+}
+
+/* ─── GLOBAL VOICE COMMAND (floating mic, works from any panel, draggable) ─── */
+.voice-cmd-fab {
+  position: fixed;
+  bottom: 22px;
+  right: 22px;
+  z-index: 900;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--bg);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  box-shadow: var(--shadow-md), 0 0 0 1px rgba(var(--accent-rgb), 0.2);
+  transition: transform 0.15s ease, opacity 0.15s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+.voice-cmd-fab:hover {
+  transform: scale(1.06);
+}
+.voice-cmd-fab.dragging {
+  cursor: grabbing !important;
+  transform: scale(1.08) !important;
+  box-shadow: var(--shadow-lg), 0 0 0 2px var(--accent) !important;
+}
+.voice-cmd-fab.voice-cmd-fab-listening {
+  background: var(--red, #e5484d);
+  color: #fff;
+  animation: voiceCmdFabPulse 1.2s ease-in-out infinite;
+}
+@keyframes voiceCmdFabPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(229, 72, 77, 0.5); }
+  50% { box-shadow: 0 0 0 10px rgba(229, 72, 77, 0); }
+}
+
+.voice-cmd-popup {
+  position: fixed;
+  bottom: 86px;
+  right: 22px;
+  z-index: 899;
+  max-width: min(320px, calc(100vw - 44px));
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r, 10px);
+  box-shadow: var(--shadow-lg, var(--shadow-md));
+  padding: 12px 14px;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  pointer-events: none;
+}
+.voice-cmd-popup.hidden {
+  display: none;
+}
+.voice-cmd-status {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.voice-cmd-transcript {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+/* Keep the FAB from covering game panel controls / the chat input bar */
+body.game-panel-active .voice-cmd-fab,
+body.game-panel-active .voice-cmd-popup {
+  display: none;
+}
+
+@media (max-width: 480px) {
+  .voice-cmd-fab {
+    width: 46px;
+    height: 46px;
+    bottom: 16px;
+    right: 16px;
+  }
+  .voice-cmd-popup {
+    bottom: 72px;
+    right: 16px;
+  }
 }
