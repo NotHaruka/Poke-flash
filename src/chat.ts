@@ -68,7 +68,11 @@ function handleVoiceFabClick(e: Event) {
     e.stopPropagation();
     return;
   }
-  toggleChatVoiceInput();
+  if (typeof (window as any).toggleVoiceCommand === 'function') {
+    (window as any).toggleVoiceCommand();
+  } else {
+    toggleChatVoiceInput();
+  }
 }
 
 function initVoiceFabDraggable() {

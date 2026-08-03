@@ -12,6 +12,7 @@ import { addDeck, addFolder, closeSidebar, renderSidebar, renderWelcomeDashboard
 import { checkStorageQuota, initStorage, persist, renderBackupList, syncToDisk } from './storage.js';
 import { doReset, doShuffle, enterFocusMode, handleNoteKey, insertLine, insertMd, notes, notesInit, onFile, onNoteInput, renderNoteTabs, setMode, setNotes, shuffle, togglePreview } from './study.js';
 import { fetchWithTimeout, toast } from './utils.js';
+import { toggleVoiceCommand } from './voice-command.js';
 
 
 
