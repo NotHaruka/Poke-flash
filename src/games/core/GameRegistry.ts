@@ -7,6 +7,7 @@ export class GameRegistry {
   private games = new Map<string, MiniGamePlugin>();
   private activeGameId: string | null = null;
   private activeGame: MiniGamePlugin | null = null;
+  private isLaunching = false;
 
   private constructor() {}
 
@@ -30,40 +31,46 @@ export class GameRegistry {
   }
 
   public async launchGame(id: string, containerId: string, onExit: () => void): Promise<void> {
-    const game = this.games.get(id);
-    if (!game) {
-      throw new Error(`Game with ID "${id}" is not registered.`);
-    }
-
-    if (this.activeGame) {
-      await this.exitActiveGame();
-    }
-
-    // Prepare robust isolated launch context
-    const saveService = new LocalGameSaveService();
-    const settings = await this.getGameSettings(id);
-    const audioService = this.createAudioService();
-
-    const context: GameLaunchContext = {
-      userId: localStorage.getItem('ftp-user-id') || undefined,
-      settings,
-      audio: audioService,
-      save: saveService,
-      containerId,
-      onExit: async () => {
-        await this.exitActiveGame();
-        onExit();
+    if (this.isLaunching) return;
+    this.isLaunching = true;
+    try {
+      const game = this.games.get(id);
+      if (!game) {
+        throw new Error(`Game with ID "${id}" is not registered.`);
       }
-    };
 
-    this.activeGameId = id;
-    this.activeGame = game;
+      if (this.activeGame) {
+        await this.exitActiveGame();
+      }
 
-    // Add gameplay active classes to body
-    document.body.classList.add('gameplay-active');
-    document.body.classList.add('game-active');
+      // Prepare robust isolated launch context
+      const saveService = new LocalGameSaveService();
+      const settings = await this.getGameSettings(id);
+      const audioService = this.createAudioService();
 
-    await game.launch(context);
+      const context: GameLaunchContext = {
+        userId: localStorage.getItem('ftp-user-id') || undefined,
+        settings,
+        audio: audioService,
+        save: saveService,
+        containerId,
+        onExit: async () => {
+          await this.exitActiveGame();
+          onExit();
+        }
+      };
+
+      this.activeGameId = id;
+      this.activeGame = game;
+
+      // Add gameplay active classes to body
+      document.body.classList.add('gameplay-active');
+      document.body.classList.add('game-active');
+
+      await game.launch(context);
+    } finally {
+      this.isLaunching = false;
+    }
   }
 
   public async exitActiveGame(): Promise<void> {

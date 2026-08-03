@@ -189,6 +189,9 @@ export class AsteroidsPlugin implements MiniGamePlugin {
   private boundKeyUp: any;
 
   launch(context: GameLaunchContext): void {
+    if (this.isRunning) {
+      this.destroy();
+    }
     this.context = context;
     if (window.setPanel) window.setPanel('game');
     const overlay = document.getElementById('bb-menu-overlay');
@@ -322,10 +325,6 @@ export class AsteroidsPlugin implements MiniGamePlugin {
   private boundTick = () => this.tick();
 
   private resetGame() {
-    if (this.animationFrameId) {
-      cancelAnimationFrame(this.animationFrameId);
-      this.animationFrameId = null;
-    }
     if (!this.canvas) return;
 
     this.score = 0;
@@ -367,9 +366,6 @@ export class AsteroidsPlugin implements MiniGamePlugin {
     }
 
     this.startWaveTransition();
-    if (this.isRunning) {
-      this.tick();
-    }
   }
 
   private startWaveTransition() {
