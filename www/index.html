@@ -92,13 +92,21 @@
       </div>
       <div class="logo-sub">Intelligent Active Recall</div>
       <div class="ssec" style="margin-bottom:8px">LEARN</div>
-      <button class="nav-item active" data-panel="study" id="nav-study">
+      <button class="nav-item active" data-panel="home" id="nav-home">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-        <span>Study Dashboard</span>
+        <span>Home</span>
+      </button>
+      <button class="nav-item" data-panel="study" id="nav-study">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+        <span>Study Session</span>
       </button>
       <button class="nav-item" data-panel="library" id="nav-library">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5v-15z"/></svg>
         <span>Deck Library</span>
+      </button>
+      <button class="nav-item" data-panel="manage" id="nav-manage">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        <span>Manage Cards</span>
       </button>
       <button class="nav-item" data-panel="notes" id="nav-notes">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
@@ -130,8 +138,9 @@
       <!-- Removed Spaced Repetition and Global search from sidebar per user request -->
     </div>
 
-    <!-- Zone 2: scrollable deck list (Hidden in modernized sidebar, kept for DOM compatibility but display:none) -->
-    <div class="sidebar-mid" style="display:none">
+    <!-- Zone 2: scrollable deck list -->
+    <div class="sidebar-mid" style="display:block; max-height:220px; overflow-y:auto; margin-top:8px; border-top:1px solid var(--border); padding-top:8px">
+      <div class="ssec" style="margin-bottom:6px">MY DECKS</div>
       <button id="btn-deck-select-toggle" onclick="toggleDeckSelectMode()"></button>
       <button id="btn-create-new" onclick="toggleCreatePopover()"></button>
       <div id="create-backdrop"></div>
@@ -141,6 +150,10 @@
           <button id="cpop-tab-folder"></button>
         </div>
         <input id="cpop-deck-inp">
+        <div id="cpop-deck-date-wrap" style="margin-top:8px">
+          <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:2px">Scheduled Study Date (Optional)</label>
+          <input type="date" id="cpop-deck-date" style="width:100%;padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px">
+        </div>
         <input id="cpop-folder-inp">
       </div>
       <div class="sidebar-select-bar" id="sidebar-select-bar">
@@ -212,120 +225,144 @@
   <!-- MAIN -->
   <main class="main">
 
+    <!-- HOME PANEL -->
+    <div class="panel active" id="panel-home">
+      <div id="scholar-dashboard-container" style="display:flex; flex-direction:column; gap:24px; margin-top:10px;">
+        <!-- Top Welcome Message -->
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+          <div>
+            <h1 style="font-family:var(--font-serif); font-size:26px; font-weight:700; margin:0; color:var(--text)" id="scholar-greeting">Welcome back, Scholar</h1>
+            <p style="color:var(--text3); font-size:13px; margin:4px 0 0 0;">Here is your personal study progress and recommendations for today.</p>
+          </div>
+          <!-- Streak badge -->
+          <div style="display:flex; align-items:center; gap:8px; background:var(--surface2); border:1px solid var(--border); padding:6px 14px; border-radius:var(--rs);" id="dashboard-streak-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;color:var(--accent)"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 3.5z"/></svg>
+            <span style="font-family:var(--font-sans); font-size:12px; font-weight:600; color:var(--accent);" id="dashboard-streak-text">0 Day Streak</span>
+          </div>
+        </div>
+
+        <!-- Bento Grid Row 1: Metrics & Due Streamliner -->
+        <div class="bento-container" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap:16px;">
+          
+          <!-- Quick Review due card widget -->
+          <div style="background:var(--surface2); border:1.5px solid var(--border); border-radius:var(--rs); padding:20px; display:flex; flex-direction:column; justify-content:space-between;" class="dashboard-bento-card">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <span style="font-size:11px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:0.05em;">SM-2 Spaced Repetition</span>
+                <span style="background:rgba(239, 68, 68, 0.1); color:#f87171; font-size:10px; font-weight:800; padding:2px 8px; border-radius:10px;" id="dashboard-due-status-pill">Active</span>
+              </div>
+              <h3 style="margin:0 0 6px 0; font-family:'Fraunces', serif; font-size:20px;" id="dashboard-due-title">0 Cards Due</h3>
+              <p style="font-size:12px; color:var(--text3); margin:0 0 16px 0; line-height:1.5;">Cards are scheduled automatically based on your previous answer difficulties and the SM-2 scheduling algorithm.</p>
+            </div>
+            <button class="btn btn-g" id="btn-study-all-due" onclick="window.studyAllDueCards()" style="width:100%; justify-content:center; gap:8px; height:40px; font-weight:700;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:14px;height:14px;"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              <span>Study All Due Cards</span>
+            </button>
+          </div>
+
+          <!-- Today's Progress Card (Redesigned) -->
+          <div style="background:var(--surface2); border:1.5px solid var(--border); border-radius:var(--rs); padding:20px; display:flex; flex-direction:column; justify-content:space-between;" class="dashboard-bento-card" id="dashboard-todays-progress-card">
+            <!-- Dynamically populated from renderWelcomeDashboard() -->
+          </div>
+        </div>
+
+        <!-- Section: Recent Decks -->
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h2 style="font-family:'Fraunces', serif; font-size:18px; font-weight:700; margin:0;">Continue Studying</h2>
+            <button class="btn btn-b" onclick="showPanel('library', null)" style="font-size:12px; padding:6px 12px;">Explore Library →</button>
+          </div>
+          <!-- Recent Decks container -->
+          <div id="dashboard-recent-decks" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap:16px;">
+            <!-- Populated dynamically via renderWelcomeDashboard() -->
+          </div>
+        </div>
+
+        <!-- Section: Recent Activity -->
+        <div>
+          <h2 style="font-family:'Fraunces', serif; font-size:18px; font-weight:700; margin:0 0 12px 0;">Recent Activity</h2>
+          <div id="dashboard-recent-activity" style="background:var(--surface2); border:1.5px solid var(--border); border-radius:var(--rs); padding:16px; display:flex; flex-direction:column; gap:12px;">
+            <!-- Populated dynamically via renderWelcomeDashboard() -->
+          </div>
+        </div>
+
+        <!-- Section: Need a Break? (Mini Games Recommendation) -->
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+            <div>
+              <h2 style="font-family:'Fraunces', serif; font-size:18px; font-weight:700; margin:0;">Need a study break?</h2>
+              <div style="font-size:11px; color:var(--text3); margin-top:2px;">Scientific research shows taking micro-breaks restores focus and maintains high retention.</div>
+            </div>
+            <button class="btn btn-b" onclick="showPanel('flash-games', null)" style="font-size:12px; padding:6px 12px;">Open Games Lounge →</button>
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap:12px;">
+            <button class="welcome-action-btn" onclick="window.triggerGameAction('zengarden')" style="display:flex; align-items:center; gap:12px; background:var(--surface2); border:1.5px solid var(--border); padding:16px; border-radius:var(--rs); text-align:left; cursor:pointer; font-family:inherit; color:inherit; width:100%; transition:all .15s ease;">
+              <div style="font-size:18px; width:32px; height:32px; border-radius:6px; background:rgba(61,122,95,0.15); display:flex; align-items:center; justify-content:center; color:var(--sage)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/></svg>
+              </div>
+              <div>
+                <div style="font-size:13px; font-weight:600; color:var(--text);">Zen Garden Sandbox</div>
+                <div style="font-size:11px; color:var(--text3); margin-top:2px;">Relaxing procedural garden break (1-3m)</div>
+              </div>
+            </button>
+            <button class="welcome-action-btn" onclick="window.triggerGameAction('cyberflap')" style="display:flex; align-items:center; gap:12px; background:var(--surface2); border:1.5px solid var(--border); padding:16px; border-radius:var(--rs); text-align:left; cursor:pointer; font-family:inherit; color:inherit; width:100%; transition:all .15s ease;">
+              <div style="font-size:18px; width:32px; height:32px; border-radius:6px; background:rgba(196,97,58,0.15); display:flex; align-items:center; justify-content:center; color:var(--accent)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+              </div>
+              <div>
+                <div style="font-size:13px; font-weight:600; color:var(--text);">Cyberflap 2084</div>
+                <div style="font-size:11px; color:var(--text3); margin-top:2px;">Fast recognition recognition reflexes (2-5m)</div>
+              </div>
+            </button>
+            <button class="welcome-action-btn" onclick="window.triggerGameAction('sudoku')" style="display:flex; align-items:center; gap:12px; background:var(--surface2); border:1.5px solid var(--border); padding:16px; border-radius:var(--rs); text-align:left; cursor:pointer; font-family:inherit; color:inherit; width:100%; transition:all .15s ease;">
+              <div style="font-size:18px; width:32px; height:32px; border-radius:6px; background:rgba(196,148,58,0.15); display:flex; align-items:center; justify-content:center; color:var(--yellow)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>
+              </div>
+              <div>
+                <div style="font-size:13px; font-weight:600; color:var(--text);">Sudoku Puzzle</div>
+                <div style="font-size:11px; color:var(--text3); margin-top:2px;">Classic strategic logic logic test (5m+)</div>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <!-- SCHEDULED & FUTURE DECKS SECTION -->
+        <div id="dashboard-scheduled-decks" style="margin-top:20px;"></div>
+
+      </div>
+    </div>
+
     <!-- STUDY PANEL -->
-    <div class="panel active" id="panel-study">
+    <div class="panel" id="panel-study">
       <div class="study-header">
-        <h2 id="study-title">Select a Deck</h2>
-        <button class="btn" id="btn-shuffle">⇄ Shuffle</button>
-        <button class="btn" id="btn-reset">↺ All Cards</button>
+        <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:220px; flex-wrap:wrap;">
+          <h2 id="study-title" style="margin:0; font-size:22px; font-weight:700;">Select a Deck</h2>
+          
+          <!-- Quick Deck Selector Dropdown in Header -->
+          <div id="study-deck-picker-wrap">
+            <button id="study-deck-picker-btn" class="study-deck-picker-btn" onclick="window.toggleStudyDeckPopover(event)" title="Switch deck to study">
+              <span id="study-deck-picker-label">📖 Select a Deck...</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="study-picker-arrow"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <div id="study-deck-popover-menu" class="study-deck-popover">
+              <!-- Dynamically populated via updateStudyDeckPickerOptions() -->
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button class="btn" id="btn-shuffle">⇄ Shuffle</button>
+          <button class="btn" id="btn-reset">↺ All Cards</button>
+        </div>
       </div>
       <!-- Tag filter (shown when deck loaded) -->
-      <div id="tag-filter-bar" style="display:none;margin-bottom:16px;display:none">
+      <div id="tag-filter-bar" style="display:none;margin-bottom:16px;">
         <div style="font-size:11px;color:var(--text3);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Filter by tag</div>
         <div id="tag-filter-chips" style="display:flex;gap:6px;flex-wrap:wrap"></div>
       </div>
 
-      <div id="no-deck" class="no-deck" style="padding:0;background:transparent;border:none">
-        <div id="scholar-dashboard-container" style="display:flex; flex-direction:column; gap:24px; margin-top:10px;">
-          <!-- Top Welcome Message -->
-          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
-            <div>
-              <h1 style="font-family:var(--font-serif); font-size:26px; font-weight:700; margin:0; color:var(--text)" id="scholar-greeting">Welcome back, Scholar</h1>
-              <p style="color:var(--text3); font-size:13px; margin:4px 0 0 0;">Here is your personal study progress and recommendations for today.</p>
-            </div>
-            <!-- Streak badge -->
-            <div style="display:flex; align-items:center; gap:8px; background:var(--surface2); border:1px solid var(--border); padding:6px 14px; border-radius:var(--rs);" id="dashboard-streak-badge">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;color:var(--accent)"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 3.5z"/></svg>
-              <span style="font-family:var(--font-sans); font-size:12px; font-weight:600; color:var(--accent);" id="dashboard-streak-text">0 Day Streak</span>
-            </div>
-          </div>
-
-          <!-- Bento Grid Row 1: Metrics & Due Streamliner -->
-          <div class="bento-container" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap:16px;">
-            
-            <!-- Quick Review due card widget -->
-            <div style="background:var(--surface2); border:1.5px solid var(--border); border-radius:var(--rs); padding:20px; display:flex; flex-direction:column; justify-content:space-between;" class="dashboard-bento-card">
-              <div>
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                  <span style="font-size:11px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:0.05em;">SM-2 Spaced Repetition</span>
-                  <span style="background:rgba(239, 68, 68, 0.1); color:#f87171; font-size:10px; font-weight:800; padding:2px 8px; border-radius:10px;" id="dashboard-due-status-pill">Active</span>
-                </div>
-                <h3 style="margin:0 0 6px 0; font-family:'Fraunces', serif; font-size:20px;" id="dashboard-due-title">0 Cards Due</h3>
-                <p style="font-size:12px; color:var(--text3); margin:0 0 16px 0; line-height:1.5;">Cards are scheduled automatically based on your previous answer difficulties and the SM-2 scheduling algorithm.</p>
-              </div>
-              <button class="btn btn-g" id="btn-study-all-due" onclick="window.studyAllDueCards()" style="width:100%; justify-content:center; gap:8px; height:40px; font-weight:700;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:14px;height:14px;"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                <span>Study All Due Cards</span>
-              </button>
-            </div>
-
-            <!-- Today's Progress Card (Redesigned) -->
-            <div style="background:var(--surface2); border:1.5px solid var(--border); border-radius:var(--rs); padding:20px; display:flex; flex-direction:column; justify-content:space-between;" class="dashboard-bento-card" id="dashboard-todays-progress-card">
-              <!-- Dynamically populated from renderWelcomeDashboard() -->
-            </div>
-          </div>
-
-          <!-- Section: Recent Decks -->
-          <div>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-              <h2 style="font-family:'Fraunces', serif; font-size:18px; font-weight:700; margin:0;">Continue Studying</h2>
-              <button class="btn btn-b" onclick="showPanel('library', null)" style="font-size:12px; padding:6px 12px;">Explore Library →</button>
-            </div>
-            <!-- Recent Decks container -->
-            <div id="dashboard-recent-decks" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap:16px;">
-              <!-- Populated dynamically via renderWelcomeDashboard() -->
-            </div>
-          </div>
-
-          <!-- Section: Recent Activity -->
-          <div>
-            <h2 style="font-family:'Fraunces', serif; font-size:18px; font-weight:700; margin:0 0 12px 0;">Recent Activity</h2>
-            <div id="dashboard-recent-activity" style="background:var(--surface2); border:1.5px solid var(--border); border-radius:var(--rs); padding:16px; display:flex; flex-direction:column; gap:12px;">
-              <!-- Populated dynamically via renderWelcomeDashboard() -->
-            </div>
-          </div>
-
-          <!-- Section: Need a Break? (Mini Games Recommendation) -->
-          <div>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
-              <div>
-                <h2 style="font-family:'Fraunces', serif; font-size:18px; font-weight:700; margin:0;">Need a study break?</h2>
-                <div style="font-size:11px; color:var(--text3); margin-top:2px;">Scientific research shows taking micro-breaks restores focus and maintains high retention.</div>
-              </div>
-              <button class="btn btn-b" onclick="showPanel('flash-games', null)" style="font-size:12px; padding:6px 12px;">Open Games Lounge →</button>
-            </div>
-            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap:12px;">
-              <button class="welcome-action-btn" onclick="window.triggerGameAction('zengarden')" style="display:flex; align-items:center; gap:12px; background:var(--surface2); border:1.5px solid var(--border); padding:16px; border-radius:var(--rs); text-align:left; cursor:pointer; font-family:inherit; color:inherit; width:100%; transition:all .15s ease;">
-                <div style="font-size:18px; width:32px; height:32px; border-radius:6px; background:rgba(61,122,95,0.15); display:flex; align-items:center; justify-content:center; color:var(--sage)">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/></svg>
-                </div>
-                <div>
-                  <div style="font-size:13px; font-weight:600; color:var(--text);">Zen Garden Sandbox</div>
-                  <div style="font-size:11px; color:var(--text3); margin-top:2px;">Relaxing procedural garden break (1-3m)</div>
-                </div>
-              </button>
-              <button class="welcome-action-btn" onclick="window.triggerGameAction('cyberflap')" style="display:flex; align-items:center; gap:12px; background:var(--surface2); border:1.5px solid var(--border); padding:16px; border-radius:var(--rs); text-align:left; cursor:pointer; font-family:inherit; color:inherit; width:100%; transition:all .15s ease;">
-                <div style="font-size:18px; width:32px; height:32px; border-radius:6px; background:rgba(196,97,58,0.15); display:flex; align-items:center; justify-content:center; color:var(--accent)">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-                </div>
-                <div>
-                  <div style="font-size:13px; font-weight:600; color:var(--text);">Cyberflap 2084</div>
-                  <div style="font-size:11px; color:var(--text3); margin-top:2px;">Fast recognition recognition reflexes (2-5m)</div>
-                </div>
-              </button>
-              <button class="welcome-action-btn" onclick="window.triggerGameAction('sudoku')" style="display:flex; align-items:center; gap:12px; background:var(--surface2); border:1.5px solid var(--border); padding:16px; border-radius:var(--rs); text-align:left; cursor:pointer; font-family:inherit; color:inherit; width:100%; transition:all .15s ease;">
-                <div style="font-size:18px; width:32px; height:32px; border-radius:6px; background:rgba(196,148,58,0.15); display:flex; align-items:center; justify-content:center; color:var(--yellow)">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>
-                </div>
-                <div>
-                  <div style="font-size:13px; font-weight:600; color:var(--text);">Sudoku Puzzle</div>
-                  <div style="font-size:11px; color:var(--text3); margin-top:2px;">Classic strategic logic logic test (5m+)</div>
-                </div>
-              </button>
-            </div>
-          </div>
-
-        </div>
+      <div id="no-deck" class="no-deck" style="padding:12px 0;background:transparent;border:none">
+        <!-- Rendered dynamically by renderNoDeckView() -->
       </div>
       <div id="study-body" style="display:none">
         <!-- Scratchpad -->
@@ -2344,6 +2381,14 @@
           </div>
         </div>
 
+<!-- FLOATING GAME PAUSE / MENU BUTTON -->
+<button id="bb-floating-pause-btn" onclick="window.safeCall('togglePauseGame')"
+  style="position: fixed; top: 12px; right: 12px; z-index: 100; background: rgba(15, 23, 42, 0.88); border: 1.5px solid rgba(255,255,255,0.25); color: #ffffff; font-family: 'Space Grotesk', sans-serif; font-size: 12px; font-weight: 700; padding: 8px 16px; border-radius: 20px; cursor: pointer; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: none; align-items: center; gap: 6px; box-shadow: 0 4px 15px rgba(0,0,0,0.4);"
+  onmouseover="this.style.background='rgba(30,41,59,0.95)';" onmouseout="this.style.background='rgba(15,23,42,0.88)';">
+  <span>⏸️</span>
+  <span>Menu / Pause</span>
+</button>
+
 <!-- PAUSE OVERLAY -->
 <div id="bb-pause-overlay" style="position: fixed; inset: 0; background: rgba(10, 11, 20, 0.94); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 50; padding: clamp(12px, 4vw, 24px); font-family: 'Space Grotesk', sans-serif; overflow-y: auto; touch-action: auto; pointer-events: auto;">
   <div style="background: rgba(18, 20, 38, 0.95); border: 2px solid rgba(0, 243, 255, 0.3); border-radius: 16px; padding: clamp(16px, 5vw, 32px); width: 100%; max-width: min(calc(100vw - 24px), 440px); text-align: center; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); display: flex; flex-direction: column; gap: 20px; margin: auto; pointer-events: auto; touch-action: auto;">
@@ -2563,6 +2608,29 @@
     <div class="modal-footer">
       <button class="btn" onclick="closeImportModal()">Cancel</button>
       <button class="btn btn-g" id="modal-confirm-btn" onclick="confirmImport()" disabled>Import →</button>
+    </div>
+  </div>
+</div>
+
+<!-- QUICK DECK PICKER MODAL FOR STUDY SESSION -->
+<div class="modal-overlay" id="quick-deck-picker-modal" style="display:none;" onclick="if(event.target===this)window.closeQuickDeckPickerModal()">
+  <div class="modal" style="max-width:560px; width:92%;">
+    <div class="modal-title" style="display:flex; align-items:center; justify-content:space-between;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:18px;height:18px;color:var(--accent)"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+        <span>Select Deck to Study</span>
+      </div>
+      <button onclick="window.closeQuickDeckPickerModal()" style="background:none; border:none; color:var(--text3); cursor:pointer; font-size:18px; font-weight:700;">✕</button>
+    </div>
+    <div class="modal-sub">Choose any deck below to switch study focus instantly without leaving your study session.</div>
+    
+    <div id="quick-deck-modal-list" style="max-height:360px; overflow-y:auto; display:grid; grid-template-columns:repeat(auto-fill, minmax(min(100%, 230px), 1fr)); gap:12px; margin-top:14px; padding-right:4px;">
+      <!-- Populated dynamically via renderQuickDeckPickerModalList() -->
+    </div>
+
+    <div class="modal-footer" style="margin-top:18px; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+      <button class="btn btn-g" onclick="window.studyAllDueCards(); window.closeQuickDeckPickerModal();" style="font-weight:700; font-size:12px;">⚡ Study All Due Cards</button>
+      <button class="btn" onclick="window.closeQuickDeckPickerModal()">Close</button>
     </div>
   </div>
 </div>

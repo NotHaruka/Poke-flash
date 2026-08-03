@@ -109,13 +109,28 @@ function showPanel(name, btn) {
     if (typeof (window as any).renderNoteTabs === 'function') (window as any).renderNoteTabs();
   }
   if (name === 'stats') renderStats();
+  if (name === 'home') {
+    renderWelcomeDashboard();
+  }
   if (name === 'study') {
+    updateStudyDeckPickerOptions();
     if (S.examActive) {
       if (typeof (window as any).examStartTimer === 'function') {
         (window as any).examStartTimer();
       }
     } else if (S.studyId === null) {
-      renderWelcomeDashboard();
+      const noDeck = document.getElementById('no-deck');
+      if (noDeck) {
+        noDeck.style.display = 'block';
+        renderNoDeckView();
+      }
+      const studyBody = document.getElementById('study-body');
+      if (studyBody) studyBody.style.display = 'none';
+    } else {
+      const noDeck = document.getElementById('no-deck');
+      if (noDeck) noDeck.style.display = 'none';
+      const studyBody = document.getElementById('study-body');
+      if (studyBody) studyBody.style.display = 'block';
     }
   }
   if (name === 'library') {
@@ -391,7 +406,7 @@ async function deckSelectDelete() {
       const studyBody = document.getElementById('study-body');
       const noDeck    = document.getElementById('no-deck');
       if (studyBody) studyBody.style.display = 'none';
-      if (noDeck)    { noDeck.style.display    = 'block'; renderWelcomeDashboard(); }
+      if (noDeck)    { noDeck.style.display    = 'block'; renderNoDeckView(); }
       // Also reset the queue so no ghost cards remain
       S.queue = []; S.idx = 0; S.flipped = false;
     }
@@ -564,8 +579,10 @@ function switchCreateTab(tab) {
 }
 
 function cpopAddDeck() {
-  const inp  = document.getElementById('cpop-deck-inp');
+  const inp  = document.getElementById('cpop-deck-inp') as HTMLInputElement;
   const name = inp?.value.trim();
+  const dateInp = document.getElementById('cpop-deck-date') as HTMLInputElement;
+  const scheduledDate = dateInp?.value ? dateInp.value.trim() : '';
   if (!name) {
     inp?.classList.remove('shake');
     inp?.offsetWidth; // reflow
@@ -574,12 +591,13 @@ function cpopAddDeck() {
     inp?.focus(); return;
   }
   const id = uid();
-  S.decks[id] = { name, cards: [], ai: false };
+  S.decks[id] = { name, cards: [], ai: false, scheduledDate };
   if (inp) inp.value = '';
+  if (dateInp) dateInp.value = '';
   persist(); renderSidebar(); updateStats();
   selectDeck(id);
   closeCreatePopover();
-  toast(`"${name}" created!`);
+  toast(scheduledDate ? `"${name}" scheduled for ${scheduledDate}!` : `"${name}" created!`);
 }
 
 function cpopAddFolder() {
@@ -795,7 +813,7 @@ async function delDeck(id) {
   if(S.selDeck===id){S.selDeck=null;const form=document.getElementById('ed-form'); if(form) form.style.display='none'; const placeholder=document.getElementById('ed-placeholder'); if(placeholder) placeholder.style.display='block';}
   if(S.studyId===id){S.studyId=null;const noDeck=document.getElementById('no-deck'); if(noDeck) noDeck.style.display='block'; const studyBody=document.getElementById('study-body'); if(studyBody) studyBody.style.display='none';}
   if(S.studyId===null){
-    renderWelcomeDashboard();
+    renderNoDeckView();
   }
   persist(); renderSidebar(); updateStats(); toast('Deck deleted.');
 }
@@ -847,22 +865,231 @@ function cancelRename(_id?: any) {
   renderSidebar();
 }
 
+function updateStudyDeckPickerOptions() {
+  const picker = document.getElementById('study-deck-picker') as HTMLSelectElement | null;
+  const label = document.getElementById('study-deck-picker-label');
+  const popover = document.getElementById('study-deck-popover-menu');
+
+  const deckEntries = Object.entries(S.decks || {});
+  const midnight = getLocalMidnightTonight();
+
+  let totalDueAll = 0;
+  deckEntries.forEach(([_id, d]: [string, any]) => {
+    const dueCount = S.srsEnabled ? (d.cards?.filter((c: any) => c.due <= midnight).length || 0) : 0;
+    totalDueAll += dueCount;
+  });
+
+  // 1. Update <select> element options
+  if (picker) {
+    let selectHtml = `<option value="" disabled ${!S.studyId ? 'selected' : ''}>▾ Switch Deck...</option>`;
+    if (totalDueAll > 0) {
+      const isDueSelected = S.studyId === '__cross_deck__';
+      selectHtml += `<option value="__all_due__" ${isDueSelected ? 'selected' : ''}>⚡ All Due Cards (${totalDueAll})</option>`;
+    }
+    deckEntries.forEach(([id, d]: [string, any]) => {
+      const cardCount = d.cards?.length || 0;
+      const dueCount = S.srsEnabled ? (d.cards?.filter((c: any) => c.due <= midnight).length || 0) : 0;
+      const isSelected = S.studyId === id;
+      const dueTxt = dueCount > 0 ? ` · ${dueCount} due` : '';
+      selectHtml += `<option value="${id}" ${isSelected ? 'selected' : ''}>📖 ${escH(d.name)} (${cardCount} card${cardCount !== 1 ? 's' : ''}${dueTxt})</option>`;
+    });
+    picker.innerHTML = selectHtml;
+  }
+
+  // 2. Update trigger button label
+  if (label) {
+    if (S.studyId === '__cross_deck__') {
+      label.innerHTML = `⚡ All Due Cards (${totalDueAll})`;
+    } else if (S.studyId && S.decks[S.studyId]) {
+      const curDeck = S.decks[S.studyId];
+      const dueCount = S.srsEnabled ? (curDeck.cards?.filter((c: any) => c.due <= midnight).length || 0) : 0;
+      const dueBadge = dueCount > 0 ? `<span style="background:rgba(239,68,68,0.18); color:#f87171; font-size:10px; font-weight:800; padding:1px 6px; border-radius:10px; margin-left:4px;">${dueCount} due</span>` : '';
+      label.innerHTML = `<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${curDeck.color || 'var(--accent)'}; margin-right:6px; vertical-align:middle;"></span><span style="max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:inline-block; vertical-align:middle;">${escH(curDeck.name)}</span>${dueBadge}`;
+    } else {
+      label.innerHTML = `📖 Select a Deck...`;
+    }
+  }
+
+  // 3. Update Popover Dropdown Items
+  if (popover) {
+    let popoverHtml = '';
+
+    if (totalDueAll > 0) {
+      const isDueSelected = S.studyId === '__cross_deck__';
+      popoverHtml += `
+        <div class="study-deck-popover-item ${isDueSelected ? 'active' : ''}"
+             onclick="window.onStudyDeckPickerChange('__all_due__'); window.closeStudyDeckPopover();"
+             style="border-bottom:1px solid var(--border); padding-bottom:8px; margin-bottom:4px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:13px;">⚡</span>
+            <span style="font-weight:700;">All Due Cards</span>
+          </div>
+          <span style="background:rgba(239,68,68,0.15); color:#f87171; font-size:10px; font-weight:800; padding:2px 8px; border-radius:12px;">${totalDueAll} due</span>
+        </div>
+      `;
+    }
+
+    if (deckEntries.length === 0) {
+      popoverHtml += `<div style="padding:12px; text-align:center; font-size:12px; color:var(--text3);">No decks available</div>`;
+    } else {
+      deckEntries.forEach(([id, d]: [string, any]) => {
+        const cardCount = d.cards?.length || 0;
+        const dueCount = S.srsEnabled ? (d.cards?.filter((c: any) => c.due <= midnight).length || 0) : 0;
+        const isSelected = S.studyId === id;
+        const color = d.color || 'var(--accent)';
+
+        popoverHtml += `
+          <div class="study-deck-popover-item ${isSelected ? 'active' : ''}"
+               onclick="window.onStudyDeckPickerChange('${id}'); window.closeStudyDeckPopover();">
+            <div style="display:flex; align-items:center; gap:8px; min-width:0; flex:1;">
+              <span style="width:7px; height:7px; border-radius:50%; background:${color}; flex-shrink:0;"></span>
+              <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px;">${escH(d.name)}</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+              ${dueCount > 0 ? `<span style="background:rgba(239,68,68,0.15); color:#f87171; font-size:10px; font-weight:800; padding:2px 6px; border-radius:6px;">${dueCount} due</span>` : `<span style="font-size:11px; color:var(--text3); font-weight:500;">${cardCount}</span>`}
+              ${isSelected ? `<span style="color:var(--accent); font-weight:800; font-size:12px;">✓</span>` : ''}
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    popover.innerHTML = popoverHtml;
+  }
+}
+
+function toggleStudyDeckPopover(e?: Event) {
+  if (e) e.stopPropagation();
+  const popover = document.getElementById('study-deck-popover-menu');
+  const btn = document.getElementById('study-deck-picker-btn');
+  if (!popover || !btn) return;
+
+  const isOpen = popover.classList.contains('open');
+  if (isOpen) {
+    closeStudyDeckPopover();
+  } else {
+    updateStudyDeckPickerOptions();
+    popover.classList.add('open');
+    btn.classList.add('open');
+  }
+}
+
+function closeStudyDeckPopover() {
+  const popover = document.getElementById('study-deck-popover-menu');
+  const btn = document.getElementById('study-deck-picker-btn');
+  if (popover) popover.classList.remove('open');
+  if (btn) btn.classList.remove('open');
+}
+
+// Click outside popover listener
+if (typeof document !== 'undefined') {
+  document.addEventListener('click', (event) => {
+    const wrap = document.getElementById('study-deck-picker-wrap');
+    if (wrap && !wrap.contains(event.target as Node)) {
+      closeStudyDeckPopover();
+    }
+  });
+}
+
+function onStudyDeckPickerChange(val: string) {
+  if (val === '__all_due__') {
+    if (typeof (window as any).studyAllDueCards === 'function') {
+      (window as any).studyAllDueCards();
+    }
+  } else if (val && S.decks[val]) {
+    selectDeck(val);
+  }
+  updateStudyDeckPickerOptions();
+
+  // Add subtle pulse animation on selection
+  const title = document.getElementById('study-title');
+  const btn = document.getElementById('study-deck-picker-btn');
+  if (title) {
+    title.classList.remove('deck-switch-pulse');
+    void title.offsetWidth;
+    title.classList.add('deck-switch-pulse');
+  }
+  if (btn) {
+    btn.classList.remove('deck-switch-pulse');
+    void btn.offsetWidth;
+    btn.classList.add('deck-switch-pulse');
+  }
+}
+
+function openDeckQuickPickerModal() {
+  const modal = document.getElementById('quick-deck-picker-modal');
+  if (!modal) return;
+  renderQuickDeckPickerModalList();
+  modal.style.display = 'flex';
+}
+
+function closeQuickDeckPickerModal() {
+  const modal = document.getElementById('quick-deck-picker-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+function renderQuickDeckPickerModalList() {
+  const container = document.getElementById('quick-deck-modal-list');
+  if (!container) return;
+
+  const deckEntries = Object.entries(S.decks || {});
+  if (deckEntries.length === 0) {
+    container.innerHTML = `
+      <div style="grid-column:1/-1; padding:24px; text-align:center; color:var(--text3); font-size:13px;">
+        No decks available yet. Create one in the Deck Library!
+      </div>
+    `;
+    return;
+  }
+
+  const midnight = getLocalMidnightTonight();
+
+  container.innerHTML = deckEntries.map(([id, d]: [string, any]) => {
+    const cardCount = d.cards?.length || 0;
+    const dueCount = S.srsEnabled ? (d.cards?.filter((c: any) => c.due <= midnight).length || 0) : 0;
+    const isCurrent = S.studyId === id;
+    const color = d.color || '#3D7A5F';
+
+    return `
+      <div style="background:var(--surface2); border:1.5px solid ${isCurrent ? 'var(--accent)' : 'var(--border)'}; border-radius:var(--rs); padding:14px; display:flex; flex-direction:column; justify-content:space-between; position:relative; cursor:pointer; transition:all 0.15s ease;"
+           onclick="selectDeck('${id}'); closeQuickDeckPickerModal();"
+           onmouseover="this.style.borderColor='var(--accent)'"
+           onmouseout="this.style.borderColor='${isCurrent ? 'var(--accent)' : 'var(--border)'}'">
+        <div style="position:absolute; top:0; left:10px; right:10px; height:3px; background:${color}; border-radius:0 0 2px 2px;"></div>
+        <div style="margin-top:4px;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:6px;">
+            <div style="font-weight:700; font-size:14px; color:var(--text); word-break:break-word;">${escH(d.name)}</div>
+            ${dueCount > 0 ? `<span style="background:rgba(239,68,68,0.12); color:#f87171; font-size:10px; font-weight:800; padding:2px 6px; border-radius:6px; flex-shrink:0;">${dueCount} due</span>` : ''}
+          </div>
+          <div style="font-size:12px; color:var(--text3); margin-top:4px; margin-bottom:12px;">${cardCount} card${cardCount !== 1 ? 's' : ''}</div>
+        </div>
+        <button class="btn ${isCurrent ? 'btn-b' : 'btn-g'}" onclick="event.stopPropagation(); selectDeck('${id}'); closeQuickDeckPickerModal();" style="font-size:11px; height:30px; width:100%; justify-content:center; font-weight:700;">
+          ${isCurrent ? '✓ Currently Studying' : '▶ Study Deck'}
+        </button>
+      </div>
+    `;
+  }).join('');
+}
+
 function selectDeck(id) {
   S.selDeck   = id;
   S.activeTag = null;
   renderSidebar();
   S.studyId = id;
   const d = S.decks[id];
-  document.getElementById('study-title').textContent = d.name;
-  document.getElementById('no-deck').style.display   = 'none';
-  document.getElementById('study-body').style.display = 'block';
-  loadQueue(d.cards);
-  renderTagFilterChips(d);
-  document.getElementById('ed-placeholder').style.display = 'none';
-  document.getElementById('ed-form').style.display         = 'block';
-  renderCardsList();
-  updateDueBadge(d);
-  updateSRSButton();
+  if (d) {
+    document.getElementById('study-title').textContent = d.name;
+    document.getElementById('no-deck').style.display   = 'none';
+    document.getElementById('study-body').style.display = 'block';
+    loadQueue(d.cards);
+    renderTagFilterChips(d);
+    document.getElementById('ed-placeholder').style.display = 'none';
+    document.getElementById('ed-form').style.display         = 'block';
+    renderCardsList();
+    updateDueBadge(d);
+    updateSRSButton();
+  }
+  updateStudyDeckPickerOptions();
   showPanel('study', null);
 }
 
@@ -969,8 +1196,77 @@ function loadQueue(cards, dueOnly=false) {
   renderStudy();
 }
 
-async function renderWelcomeDashboard() {
+function renderNoDeckView() {
   const container = document.getElementById('no-deck');
+  if (!container) return;
+
+  const deckEntries = Object.entries(S.decks || {});
+  if (deckEntries.length === 0) {
+    container.innerHTML = `
+      <div style="padding:48px 24px; text-align:center; max-width:480px; margin:0 auto; display:flex; flex-direction:column; align-items:center; gap:16px;">
+        <div style="width:64px; height:64px; border-radius:16px; background:var(--surface2); border:1.5px solid var(--border); display:flex; align-items:center; justify-content:center; color:var(--text3);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:32px;height:32px"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5v-15z"/></svg>
+        </div>
+        <div>
+          <h2 style="font-family:var(--font-serif); font-size:22px; font-weight:700; margin:0 0 8px 0; color:var(--text);">No Decks Available</h2>
+          <p style="font-size:13px; color:var(--text3); margin:0; line-height:1.5;">You haven't created any flashcard decks yet. Create or import your first deck to start studying!</p>
+        </div>
+        <div style="display:flex; gap:12px; margin-top:8px;">
+          <button class="btn btn-g" onclick="showPanel('library', null)" style="font-weight:700; padding:10px 20px;">📂 Open Deck Library</button>
+          <button class="btn btn-b" onclick="showPanel('home', null)" style="font-weight:600; padding:10px 16px;">🏠 Go to Home</button>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  const midnight = getLocalMidnightTonight();
+
+  container.innerHTML = `
+    <div style="padding:16px 0; max-width:900px; margin:0 auto; display:flex; flex-direction:column; gap:20px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; background:var(--surface2); border:1.5px solid var(--border); border-radius:var(--rs); padding:20px;">
+        <div>
+          <h2 style="font-family:var(--font-serif); font-size:20px; font-weight:700; margin:0; color:var(--text);">Select a Deck to Study</h2>
+          <p style="font-size:12px; color:var(--text3); margin:4px 0 0 0;">Choose one of your active decks below to launch your active recall study session.</p>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-b" onclick="showPanel('home', null)" style="font-size:12px; padding:6px 12px;">🏠 Home</button>
+          <button class="btn btn-b" onclick="showPanel('library', null)" style="font-size:12px; padding:6px 12px;">📚 Library →</button>
+        </div>
+      </div>
+
+      <div>
+        <h3 style="font-family:'Space Grotesk', sans-serif; font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:var(--text3); margin:0 0 12px 0;">Available Decks (${deckEntries.length})</h3>
+        <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap:14px;">
+          ${deckEntries.map(([id, d]: [string, any]) => {
+            const cardCount = d.cards?.length || 0;
+            const dueCount = S.srsEnabled ? (d.cards?.filter((c: any) => c.due <= midnight).length || 0) : 0;
+            const color = d.color || '#3D7A5F';
+            return `
+              <div style="background:var(--surface2); border:1.5px solid var(--border); border-radius:var(--rs); padding:16px; display:flex; flex-direction:column; justify-content:space-between; position:relative; cursor:pointer;"
+                   onclick="selectDeck('${id}')"
+                   onmouseover="this.style.borderColor='var(--accent)'"
+                   onmouseout="this.style.borderColor='var(--border)'">
+                <div style="position:absolute; top:0; left:12px; right:12px; height:3px; background:${color}; border-radius:0 0 2px 2px;"></div>
+                <div style="margin-top:6px; margin-bottom:12px;">
+                  <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+                    <h4 style="margin:0; font-family:'Space Grotesk', sans-serif; font-size:15px; font-weight:700; color:var(--text);">${escH(d.name)}</h4>
+                    ${dueCount > 0 ? `<span style="background:rgba(239,68,68,0.12); color:#f87171; font-size:10px; font-weight:800; padding:2px 6px; border-radius:6px;">${dueCount} due</span>` : ''}
+                  </div>
+                  <div style="font-size:12px; color:var(--text3); margin-top:6px;">${cardCount} card${cardCount !== 1 ? 's' : ''}</div>
+                </div>
+                <button class="btn btn-g" onclick="selectDeck('${id}')" style="width:100%; justify-content:center; font-size:12px; height:32px; font-weight:700;">▶ Study Deck</button>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function renderWelcomeDashboard() {
+  const container = document.getElementById('scholar-dashboard-container') || document.getElementById('panel-home');
   if (!container) return;
 
   // Fetch stats telemetry
@@ -1259,31 +1555,63 @@ async function renderWelcomeDashboard() {
       }).join('');
     }
   }
+
+  // Render Scheduled & Future Decks
+  const schedContainer = document.getElementById('dashboard-scheduled-decks');
+  if (schedContainer) {
+    const scheduledDecks = Object.entries(S.decks)
+      .map(([id, d]: [string, any]) => ({ id, ...d }))
+      .filter((d: any) => d.scheduledDate);
+
+    if (scheduledDecks.length > 0) {
+      schedContainer.innerHTML = `
+        <div style="background:var(--surface2); border:1.5px solid var(--border); border-radius:var(--rs); padding:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <div style="font-size:14px; font-weight:700; color:var(--text); display:flex; align-items:center; gap:6px;">
+              <span>📅 Scheduled Future Decks</span>
+              <span style="font-size:11px; font-weight:700; background:var(--accent-dim); color:var(--accent); padding:2px 8px; border-radius:12px;">${scheduledDecks.length}</span>
+            </div>
+            <button class="btn btn-b" onclick="showPanel('library', null)" style="font-size:11px; padding:4px 10px;">Manage All →</button>
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap:10px;">
+            ${scheduledDecks.map((d: any) => {
+              const isToday = d.scheduledDate <= new Date().toISOString().split('T')[0];
+              const dateTagColor = isToday ? 'var(--red)' : 'var(--accent)';
+              const dateTagBg = isToday ? 'rgba(239,68,68,0.12)' : 'var(--accent-dim)';
+              return `
+                <div style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:12px; display:flex; flex-direction:column; justify-content:space-between; gap:8px;">
+                  <div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                      <span style="font-size:10px; font-weight:700; color:${dateTagColor}; background:${dateTagBg}; padding:2px 6px; border-radius:4px;">
+                        ${isToday ? '🔔 DUE TODAY' : 'Scheduled: ' + d.scheduledDate}
+                      </span>
+                      <span style="font-size:11px; color:var(--text3);">${d.cards?.length || 0} cards</span>
+                    </div>
+                    <div style="font-size:13px; font-weight:700; color:var(--text);">${escH(d.name)}</div>
+                  </div>
+                  <button class="btn btn-g" onclick="selectDeck('${d.id}')" style="width:100%; font-size:11px; height:28px; justify-content:center;">▶ Study Deck</button>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    } else {
+      schedContainer.innerHTML = '';
+    }
+  }
 }
 
 
 // ─── ES module exports (auto-generated) ───
-export { _activeFolderPicker, _createPopoverOpen, _createTab, _updateSelectBar, addDeck, addFolder, cancelRename, closeCreatePopover, closeFolderPicker, closeFolderPickerOutside, closeSidebar, commitFolderRename, commitRename, cpopAddDeck, cpopAddFolder, deckSelectAll, deckSelectDelete, deckSelectNone, delDeck, delFolder, handleFolderRenameKey, handleRenameKey, loadQueue, moveDeckToFolder, moveSelectedToFolder, openCreatePopover, openFolderPicker, renderSidebar, renderTagFilterChips, renderWelcomeDashboard, selectDeck, setTagFilter, showPanel, startFolderRename, startRename, studyAllTag, switchCreateTab, toggleCreatePopover, toggleDeckCheck, toggleDeckSelectMode, toggleDesktopSidebar, toggleFolder, toggleSRS, toggleSelFolderPicker, toggleSidebar, toggleSidebarBottom, updateDueBadge, updateSRSButton, updateStats };
+export { _activeFolderPicker, _createPopoverOpen, _createTab, _updateSelectBar, addDeck, addFolder, cancelRename, closeCreatePopover, closeFolderPicker, closeFolderPickerOutside, closeQuickDeckPickerModal, closeSidebar, closeStudyDeckPopover, commitFolderRename, commitRename, cpopAddDeck, cpopAddFolder, deckSelectAll, deckSelectDelete, deckSelectNone, delDeck, delFolder, handleFolderRenameKey, handleRenameKey, loadQueue, moveDeckToFolder, moveSelectedToFolder, onStudyDeckPickerChange, openCreatePopover, openDeckQuickPickerModal, openFolderPicker, renderNoDeckView, renderQuickDeckPickerModalList, renderSidebar, renderTagFilterChips, renderWelcomeDashboard, selectDeck, setTagFilter, showPanel, startFolderRename, startRename, studyAllTag, switchCreateTab, toggleCreatePopover, toggleDeckCheck, toggleDeckSelectMode, toggleDesktopSidebar, toggleFolder, toggleSRS, toggleSelFolderPicker, toggleSidebar, toggleSidebarBottom, toggleStudyDeckPopover, updateDueBadge, updateSRSButton, updateStats, updateStudyDeckPickerOptions };
 
 // Expose API for inline onclick="" handlers (auto-generated)
-Object.assign(window, { _updateSelectBar, addDeck, addFolder, cancelRename, closeCreatePopover, closeFolderPicker, closeFolderPickerOutside, closeSidebar, commitFolderRename, commitRename, cpopAddDeck, cpopAddFolder, deckSelectAll, deckSelectDelete, deckSelectNone, delDeck, delFolder, handleFolderRenameKey, handleRenameKey, loadQueue, moveDeckToFolder, moveSelectedToFolder, openCreatePopover, openFolderPicker, renderSidebar, renderTagFilterChips, renderWelcomeDashboard, selectDeck, setTagFilter, showPanel, startFolderRename, startRename, studyAllTag, switchCreateTab, toggleCreatePopover, toggleDeckCheck, toggleDeckSelectMode, toggleDesktopSidebar, toggleFolder, toggleSRS, toggleSelFolderPicker, toggleSidebar, toggleSidebarBottom, updateDueBadge, updateSRSButton, updateStats });
+Object.assign(window, { _updateSelectBar, addDeck, addFolder, cancelRename, closeCreatePopover, closeFolderPicker, closeFolderPickerOutside, closeQuickDeckPickerModal, closeSidebar, closeStudyDeckPopover, commitFolderRename, commitRename, cpopAddDeck, cpopAddFolder, deckSelectAll, deckSelectDelete, deckSelectNone, delDeck, delFolder, handleFolderRenameKey, handleRenameKey, loadQueue, moveDeckToFolder, moveSelectedToFolder, onStudyDeckPickerChange, openCreatePopover, openDeckQuickPickerModal, openFolderPicker, renderNoDeckView, renderQuickDeckPickerModalList, renderSidebar, renderTagFilterChips, renderWelcomeDashboard, selectDeck, setTagFilter, showPanel, startFolderRename, startRename, studyAllTag, switchCreateTab, toggleCreatePopover, toggleDeckCheck, toggleDeckSelectMode, toggleDesktopSidebar, toggleFolder, toggleSRS, toggleSelFolderPicker, toggleSidebar, toggleSidebarBottom, toggleStudyDeckPopover, updateDueBadge, updateSRSButton, updateStats, updateStudyDeckPickerOptions });
 
 function goHome() {
-  S.studyId = null;
-  S.selDeck = null;
-  S.activeTag = null;
-  
-  const noDeck = document.getElementById('no-deck');
-  if (noDeck) noDeck.style.display = 'block';
-  
-  const studyBody = document.getElementById('study-body');
-  if (studyBody) studyBody.style.display = 'none';
-  
-  renderSidebar();
-  renderWelcomeDashboard();
-  
-  const navStudy = document.getElementById('nav-study');
-  if (navStudy) showPanel('study', navStudy);
+  const navHome = document.getElementById('nav-home');
+  showPanel('home', navHome);
 }
 
 Object.assign(window, { goHome });

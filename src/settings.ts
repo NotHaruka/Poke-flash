@@ -428,21 +428,21 @@ function showQRShare(id?: string): void {
     const folder = S.folders[targetId];
     if (!folder) return;
     title = folder.name;
-    const folderDecks: Record<string, any> = {};
-    Object.entries(S.decks || {}).forEach(([deckId, d]: any) => {
+    const folderDecks: any[] = [];
+    Object.entries(S.decks || {}).forEach(([_deckId, d]: any) => {
       if (d.folderId === targetId) {
-        folderDecks[deckId] = {
-          name: d.name,
-          cards: (d.cards || []).map((c: any) => ({ q: c.q, a: c.a }))
-        };
+        folderDecks.push({
+          n: d.name,
+          c: (d.cards || []).map((c: any) => [c.q || '', c.a || ''])
+        });
         count += (d.cards || []).length;
       }
     });
 
     payload = {
-      ftp_qr_folder: true,
-      folder: { name: folder.name },
-      decks: folderDecks
+      v: 1,
+      f: folder.name,
+      d: folderDecks
     };
   } else {
     const deck = S.decks[targetId];
@@ -450,19 +450,19 @@ function showQRShare(id?: string): void {
     title = deck.name;
     count = (deck.cards || []).length;
     payload = {
-      ftp_qr: true,
-      name: deck.name,
-      cards: (deck.cards || []).map((c: any) => ({ q: c.q, a: c.a }))
+      v: 1,
+      n: deck.name,
+      c: (deck.cards || []).map((c: any) => [c.q || '', c.a || ''])
     };
   }
 
-  // Compress payload to reduce QR code size
+  // Compress payload using LZString
   let base64 = LZString.compressToBase64(JSON.stringify(payload));
 
-  // Generate our import URL
+  // Generate import URL
   const importUrl = window.location.origin + window.location.pathname + '#import=' + base64;
 
-  // Show the modal
+  // Show modal
   const modal = document.getElementById('qr-modal-overlay');
   if (modal) modal.classList.add('show');
 
@@ -479,6 +479,7 @@ function showQRShare(id?: string): void {
   const wrap = document.getElementById('qr-canvas-wrap');
   if (wrap) {
     wrap.innerHTML = '';
+    let success = false;
     try {
       // Use the QRCode engine
       new (QRCode as any)(wrap, {
@@ -488,9 +489,25 @@ function showQRShare(id?: string): void {
         colorDark: '#0f172a',
         colorLight: '#ffffff'
       });
+      success = true;
     } catch (err) {
-      console.error(err);
-      wrap.textContent = 'Failed to generate QR Code: data too large.';
+      console.warn('QR Code generation overflow:', err);
+    }
+
+    if (!success) {
+      wrap.innerHTML = `
+        <div style="padding:16px;text-align:center;font-size:12px;color:var(--text2);display:flex;flex-direction:column;align-items:center;gap:10px">
+          <div>Deck payload exceeds single QR code density limits (${count} cards).</div>
+          <button class="btn btn-p" id="btn-copy-share-payload" style="font-size:12px;padding:8px 16px;width:100%">📋 Copy Share Link / Code</button>
+        </div>
+      `;
+      const copyBtn = document.getElementById('btn-copy-share-payload');
+      if (copyBtn) {
+        copyBtn.onclick = () => {
+          navigator.clipboard?.writeText?.(importUrl);
+          (window as any).toast?.('✓ Share link copied to clipboard!');
+        };
+      }
     }
   }
 }

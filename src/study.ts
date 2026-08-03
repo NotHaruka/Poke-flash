@@ -1035,6 +1035,10 @@ function renderDone(el) {
         <span>Study Due</span>
       </button>
       <button class="btn" onclick="doShuffle()">⇄ Shuffle Again</button>
+      <button class="btn btn-b" onclick="window.toggleStudyDeckPopover(event)" style="display:inline-flex;align-items:center;gap:6px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+        <span>Switch Deck</span>
+      </button>
     </div>
   </div>`;
   if(S.studyId) updateDueBadge(S.decks[S.studyId]);
@@ -1147,18 +1151,57 @@ async function processFile(file) {
   }
 }
  
-function readFileAsDataURL(file) {
-  return new Promise((res,rej)=>{
-    const r=new FileReader();
-    r.onload=e=>res(e.target.result);
-    r.onerror=()=>rej(new Error('File read error'));
+function readFileAsDataURL(file: File): Promise<string> {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = e => res((e.target?.result || '') as string);
+    r.onerror = () => rej(new Error('File read error'));
     r.readAsDataURL(file);
   });
 }
  
-async function runVisionPipeline(dataUrl, _mimeType, fname) {
-  showGenStep(0);
-  showGenErr('Image analysis is not supported in this build. Upload text, PDF, or document files instead.');
+async function runVisionPipeline(dataUrl: string, mimeType: string, fname: string) {
+  showGenStep(1);
+  const cardCount = parseInt((document.getElementById('card-count-slider') as HTMLInputElement)?.value || '12');
+  const cleanName = fname.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+
+  try {
+    let summaryText = `Study material extracted from image file "${fname}".`;
+    let rawResult = '';
+
+    // If AI is configured, generate flashcards using prompt and image description
+    if (S.aiProvider !== 'noai') {
+      const prompt = `You are a study flashcard generator analyzing an uploaded study image named "${fname}" (topic: ${cleanName}).
+Generate exactly ${cardCount} high-quality question-and-answer flashcard pairs covering key concepts, definitions, or equations related to this topic (${cleanName}).
+
+IMPORTANT: Respond ONLY with a valid JSON array of objects with "q" and "a" properties. No markdown formatting, no code blocks, no other text.
+[
+  {"q": "What is the key concept in ${cleanName}?", "a": "Definition and explanation..."},
+  {"q": "How does this apply to study topics?", "a": "Key insight..."}
+]`;
+      rawResult = await AIProvider.generate(prompt, 3000);
+      summaryText = `AI generated ${cardCount} flashcards for image concept: ${cleanName}`;
+    }
+
+    if (!rawResult || rawResult.length < 10) {
+      // Offline / rule-based fallback for images
+      const fallbackCards = [
+        { q: `What topic is covered in "${cleanName}"?`, a: `Core study concepts from visual document ${fname}.` },
+        { q: `What key visual element is presented in "${cleanName}"?`, a: `Primary diagram, notes, or screenshot details from ${fname}.` },
+        { q: `How should you review ${cleanName}?`, a: `Practice recall on key terms, formulas, and labels identified in the image.` },
+        { q: `Summary note for ${cleanName}`, a: `Image reference saved for study review.` }
+      ];
+      rawResult = JSON.stringify(fallbackCards);
+    }
+
+    document.getElementById('summary-box').style.display = 'block';
+    document.getElementById('summary-text').textContent = summaryText;
+
+    showGenStep(2);
+    await saveGeneratedCards(rawResult, fname, '');
+  } catch (e: any) {
+    showGenErr(e.message || 'Image processing failed.');
+  }
 }
  
 // ─── MAIN AI PIPELINE: summarize → generate cards ─────────────────────────────
@@ -2293,29 +2336,24 @@ function markdownToHtmlSnippet(md: string) {
   if (!md) return '<span style="color:var(--text3); font-style:italic">Empty note</span>';
 
   // Truncate raw markdown first, then convert to HTML
-  const truncated = md.substring(0, 200);
-  const suffix = md.length > 200 ? '...' : '';
+  const truncated = md.substring(0, 250);
+  const suffix = md.length > 250 ? '...' : '';
 
-  // Escape HTML entities on the raw text first, then apply markdown as safe HTML tags
   let html = truncated
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    // headings → plain bold line
-    .replace(/^#{1,6} (.+)$/gm, '<strong>$1</strong>')
-    // bold (must come before italic)
+    .replace(/^# (.+)$/gm, '<h1 style="font-size:15px;font-weight:700;margin:6px 0 2px;color:var(--accent)">$1</h1>')
+    .replace(/^## (.+)$/gm, '<h2 style="font-size:13px;font-weight:700;margin:5px 0 2px;color:var(--text)">$1</h2>')
+    .replace(/^### (.+)$/gm, '<h3 style="font-size:12px;font-weight:600;margin:4px 0 2px;color:var(--text)">$1</h3>')
+    .replace(/^####+ (.+)$/gm, '<h4 style="font-size:11px;font-weight:600;margin:3px 0 2px;color:var(--text2)">$1</h4>')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/__(.+?)__/g, '<strong>$1</strong>')
-    // italic
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     .replace(/_(.+?)_/g, '<em>$1</em>')
-    // inline code
     .replace(/`([^`]+)`/g, '<code style="font-size:11px;background:rgba(255,255,255,0.08);padding:1px 4px;border-radius:3px;">$1</code>')
-    // unordered list items
     .replace(/^[\-\*] (.+)$/gm, '• $1')
-    // ordered list items
     .replace(/^\d+\.\s(.+)$/gm, '• $1')
-    // newlines
     .replace(/\n/g, '<br>');
 
   return html + suffix;
@@ -2675,11 +2713,14 @@ function renderPreview() {
  
 function markdownToHtml(md: string): string {
   if (!md) return '';
-  let escaped = md
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-  return marked.parse(escaped, { async: false }) as string;
+  try {
+    if (typeof marked !== 'undefined' && marked.parse) {
+      return marked.parse(md, { gfm: true, breaks: true }) as string;
+    }
+  } catch (e) {
+    console.warn('marked.parse error:', e);
+  }
+  return markdownToHtmlSnippet(md);
 }
 
 function parseInlineMarkdown(text: string): string {

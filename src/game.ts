@@ -274,6 +274,9 @@ function resetOverlaysAndCards(): void {
   const pauseOverlay = document.getElementById('bb-pause-overlay');
   if (pauseOverlay) pauseOverlay.style.display = 'none';
 
+  const floatPauseBtn = document.getElementById('bb-floating-pause-btn');
+  if (floatPauseBtn) floatPauseBtn.style.display = 'none';
+
   const gameOverOverlay = document.getElementById('bb-gameover-overlay');
   if (gameOverOverlay) gameOverOverlay.style.display = 'none';
 
@@ -335,6 +338,9 @@ function resetOverlaysAndCards(): void {
 function startGame(): void {
   logger.info(`Starting game run with gladiator index: ${selectedGladiatorIndex}, Weapon: ${selectedWeaponId}`);
   document.body.classList.add('bb-gameplay-active');
+
+  const floatPauseBtn = document.getElementById('bb-floating-pause-btn');
+  if (floatPauseBtn) floatPauseBtn.style.display = 'flex';
 
   // Hide UI overlays
   const menuOverlay = document.getElementById('bb-menu-overlay');

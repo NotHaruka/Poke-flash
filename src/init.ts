@@ -115,12 +115,6 @@ function init() {
   document.querySelectorAll('.nav-item[data-panel]').forEach(btn => {
     btn.addEventListener('click', () => {
       const b = btn as any;
-      if (b.dataset.panel === 'study') {
-        if (typeof (window as any).goHome === 'function') {
-          (window as any).goHome();
-          return;
-        }
-      }
       showPanel(b.dataset.panel, btn);
     });
   });

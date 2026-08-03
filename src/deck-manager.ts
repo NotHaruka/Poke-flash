@@ -512,8 +512,55 @@ function promptUrlImport() {
     
     const data = JSON.parse(payloadStr);
     
-    // Import single deck or folder
-    if (data.ftp_qr) {
+    // Support compact format (v: 1) or legacy format (ftp_qr / ftp_qr_folder)
+    if (data.v === 1 && data.n) {
+      // Compact single deck
+      const id = uid();
+      const cards = (data.c || []).map((pair: any) => 
+        Array.isArray(pair) ? makeCard(pair[0] || '', pair[1] || '') : makeCard(pair.q || '', pair.a || '')
+      );
+      S.decks[id] = {
+        name: data.n,
+        ai: false,
+        cards
+      };
+      S.deckOrder.push(id);
+      persist();
+      renderSidebar();
+      updateStats();
+      selectDeck(id);
+      toast(`✓ Successfully imported deck "${data.n}"!`);
+      import('./firebase-sync.js').then(({ syncCreateDeck, syncAddCardsBatch }) => {
+        syncCreateDeck(id, data.n).catch(e => console.warn(e));
+        syncAddCardsBatch(id, S.decks[id].cards).catch(e => console.warn(e));
+      }).catch(e => console.warn(e));
+    } else if (data.v === 1 && data.f) {
+      // Compact folder
+      const folderId = uid();
+      S.folders[folderId] = { name: data.f, collapsed: false };
+      S.folderOrder.push(folderId);
+      
+      let firstDeckId = '';
+      (data.d || []).forEach((deckAny: any) => {
+        const deckId = uid();
+        const cards = (deckAny.c || []).map((pair: any) => 
+          Array.isArray(pair) ? makeCard(pair[0] || '', pair[1] || '') : makeCard(pair.q || '', pair.a || '')
+        );
+        S.decks[deckId] = {
+          name: deckAny.n || 'Imported Deck',
+          ai: false,
+          folderId: folderId,
+          cards
+        };
+        S.deckOrder.push(deckId);
+        if (!firstDeckId) firstDeckId = deckId;
+      });
+      persist();
+      renderSidebar();
+      updateStats();
+      if (firstDeckId) selectDeck(firstDeckId);
+      toast(`✓ Imported folder "${data.f}"!`);
+    } else if (data.ftp_qr) {
       const id = uid();
       S.decks[id] = {
         name: data.name,

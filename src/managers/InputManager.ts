@@ -124,17 +124,20 @@ export class InputManager {
     const isPointerJustDown = pointer.isDown && !this.wasPointerDown;
     this.wasPointerDown = pointer.isDown;
 
-    // Check justDown state and buffer it
-    let isDodgeJustPressed = false;
+    const isSpaceJustPressed = this.keySpace ? Phaser.Input.Keyboard.JustDown(this.keySpace) : false;
+    const isXJustPressed = this.keyX ? Phaser.Input.Keyboard.JustDown(this.keyX) : false;
+    const isFJustPressed = this.keyF ? Phaser.Input.Keyboard.JustDown(this.keyF) : false;
+    const isShiftJustPressed = this.keyShift ? Phaser.Input.Keyboard.JustDown(this.keyShift) : false;
+
+    // Dodge is mapped to SPACEBAR or SHIFT or Mobile Dodge button
+    let isDodgeJustPressed = isSpaceJustPressed || isShiftJustPressed;
     if (mobileInput && mobileInput.isDodgePressed) {
       isDodgeJustPressed = true;
       mobileInput.isDodgePressed = false; // consume trigger immediately
     }
 
-    const isSpaceJustPressed = this.keySpace ? Phaser.Input.Keyboard.JustDown(this.keySpace) : false;
-    const isXJustPressed = this.keyX ? Phaser.Input.Keyboard.JustDown(this.keyX) : false;
-    const isFJustPressed = this.keyF ? Phaser.Input.Keyboard.JustDown(this.keyF) : false;
-    let isAttackJustPressed = isPointerJustDown || isXJustPressed || isFJustPressed || isSpaceJustPressed;
+    // Attack is mapped to Pointer Click, X, or F
+    let isAttackJustPressed = isPointerJustDown || isXJustPressed || isFJustPressed;
     if (mobileInput && mobileInput.isAttackJustPressed) {
       isAttackJustPressed = true;
       mobileInput.isAttackJustPressed = false; // consume trigger immediately
