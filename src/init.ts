@@ -32,6 +32,56 @@ function init() {
   initLibrary();
   initGamesArcade();
   
+  // Create Smart Sidebar edge handle element
+  const appContainer = document.getElementById('app-container');
+  if (appContainer && !document.getElementById('smart-sidebar-handle')) {
+    const handle = document.createElement('div');
+    handle.id = 'smart-sidebar-handle';
+    handle.title = 'Open Menu';
+    handle.setAttribute('role', 'button');
+    handle.setAttribute('aria-label', 'Open Menu');
+    handle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleSidebar();
+    });
+    handle.addEventListener('touchstart', (e) => {
+      e.stopPropagation();
+      toggleSidebar();
+    }, { passive: true });
+    appContainer.appendChild(handle);
+  }
+
+  // Set up swipe gestures to open and close sidebar
+  let touchStartX = 0;
+  let touchStartY = 0;
+  window.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) return;
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+
+  window.addEventListener('touchend', (e) => {
+    if (e.changedTouches.length !== 1) return;
+    const endX = e.changedTouches[0].clientX;
+    const endY = e.changedTouches[0].clientY;
+    const deltaX = endX - touchStartX;
+    const deltaY = endY - touchStartY;
+
+    const isSidebarOpen = document.getElementById('sidebar')?.classList.contains('open');
+
+    // Swipe right starting near left edge (clientX < 40) opens sidebar
+    if (!isSidebarOpen) {
+      if (touchStartX < 40 && deltaX > 50 && Math.abs(deltaY) < 30) {
+        toggleSidebar();
+      }
+    } else {
+      // Swipe left anywhere closes sidebar
+      if (deltaX < -50 && Math.abs(deltaY) < 30) {
+        closeSidebar();
+      }
+    }
+  }, { passive: true });
+  
   // Restore sidebar state
   if (localStorage.getItem('ftp-sidebar-collapsed') === 'true') {
     document.getElementById('sidebar')?.classList.add('collapsed');

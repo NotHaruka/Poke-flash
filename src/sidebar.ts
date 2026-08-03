@@ -27,6 +27,7 @@ function closeSidebar() {
   document.getElementById('sidebar-overlay')?.classList.remove('show');
   const fab = document.getElementById('fab');
   if (fab) fab.textContent = '☰';
+  document.body.classList.remove('sidebar-open');
 }
 
 function toggleDesktopSidebar() {
@@ -48,6 +49,12 @@ function toggleSidebar() {
   document.getElementById('sidebar-overlay')?.classList.toggle('show', !isOpen);
   const fab = document.getElementById('fab');
   if (fab) fab.textContent = !isOpen ? '✕' : '☰';
+  
+  if (!isOpen) {
+    document.body.classList.add('sidebar-open');
+  } else {
+    document.body.classList.remove('sidebar-open');
+  }
 }
 
 function toggleSidebarBottom() {

@@ -1738,10 +1738,10 @@
       }
 
       /* Full Viewport / Gameplay Layout Override */
-      body.bb-gameplay-active .sidebar,
-      body.bb-gameplay-active .fab,
-      body.bb-gameplay-active .fab-desktop,
-      body.bb-gameplay-active .sidebar-overlay {
+      body.bb-gameplay-active:not(.sidebar-open) .sidebar,
+      body.bb-gameplay-active:not(.sidebar-open) .fab,
+      body.bb-gameplay-active:not(.sidebar-open) .fab-desktop,
+      body.bb-gameplay-active:not(.sidebar-open) .sidebar-overlay {
         display: none !important;
       }
 

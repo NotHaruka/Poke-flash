@@ -6420,15 +6420,92 @@ div#app-container:nth-of-type(1) > main:nth-of-type(1) > div#panel-library:nth-o
 }
 
 /* ─── CYBERFLAP 2084 FULLSCREEN / THEATER MODE ──────────────────────── */
-body.cyberflap-active .sidebar,
-body.cyberflap-active .fab,
-body.cyberflap-active .fab-desktop,
-body.cyberflap-active .sidebar-overlay,
-body.void-survivor-active .sidebar,
-body.void-survivor-active .fab,
-body.void-survivor-active .fab-desktop,
-body.void-survivor-active .sidebar-overlay {
+body.cyberflap-active:not(.sidebar-open) .sidebar,
+body.cyberflap-active:not(.sidebar-open) .fab,
+body.cyberflap-active:not(.sidebar-open) .fab-desktop,
+body.cyberflap-active:not(.sidebar-open) .sidebar-overlay,
+body.void-survivor-active:not(.sidebar-open) .sidebar,
+body.void-survivor-active:not(.sidebar-open) .fab,
+body.void-survivor-active:not(.sidebar-open) .fab-desktop,
+body.void-survivor-active:not(.sidebar-open) .sidebar-overlay,
+body.gameplay-active:not(.sidebar-open) .sidebar,
+body.gameplay-active:not(.sidebar-open) .fab,
+body.gameplay-active:not(.sidebar-open) .fab-desktop,
+body.gameplay-active:not(.sidebar-open) .sidebar-overlay,
+body.game-active:not(.sidebar-open) .sidebar,
+body.game-active:not(.sidebar-open) .fab,
+body.game-active:not(.sidebar-open) .fab-desktop,
+body.game-active:not(.sidebar-open) .sidebar-overlay {
   display: none !important;
+}
+
+/* Smart Sidebar Handle */
+#smart-sidebar-handle {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  body.cyberflap-active:not(.sidebar-open) #smart-sidebar-handle,
+  body.void-survivor-active:not(.sidebar-open) #smart-sidebar-handle,
+  body.bb-gameplay-active:not(.sidebar-open) #smart-sidebar-handle,
+  body.gameplay-active:not(.sidebar-open) #smart-sidebar-handle,
+  body.game-active:not(.sidebar-open) #smart-sidebar-handle {
+    display: block;
+    position: fixed;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 8px;
+    height: 60px;
+    background: var(--accent);
+    opacity: 0.35;
+    border-radius: 0 8px 8px 0;
+    z-index: 199;
+    transition: width 0.15s ease, opacity 0.15s ease, background-color 0.15s ease;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  }
+
+  body.cyberflap-active:not(.sidebar-open) #smart-sidebar-handle:active,
+  body.void-survivor-active:not(.sidebar-open) #smart-sidebar-handle:active,
+  body.bb-gameplay-active:not(.sidebar-open) #smart-sidebar-handle:active,
+  body.gameplay-active:not(.sidebar-open) #smart-sidebar-handle:active,
+  body.game-active:not(.sidebar-open) #smart-sidebar-handle:active {
+    width: 16px;
+    opacity: 0.9;
+    background: var(--accent);
+  }
+}
+
+@media (min-width: 769px) {
+  body.cyberflap-active:not(.sidebar-open) #smart-sidebar-handle,
+  body.void-survivor-active:not(.sidebar-open) #smart-sidebar-handle,
+  body.bb-gameplay-active:not(.sidebar-open) #smart-sidebar-handle,
+  body.gameplay-active:not(.sidebar-open) #smart-sidebar-handle,
+  body.game-active:not(.sidebar-open) #smart-sidebar-handle {
+    display: block;
+    position: fixed;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 6px;
+    height: 60px;
+    background: var(--accent);
+    opacity: 0.25;
+    border-radius: 0 6px 6px 0;
+    z-index: 199;
+    transition: width 0.15s ease, opacity 0.15s ease;
+    cursor: pointer;
+  }
+
+  body.cyberflap-active:not(.sidebar-open) #smart-sidebar-handle:hover,
+  body.void-survivor-active:not(.sidebar-open) #smart-sidebar-handle:hover,
+  body.bb-gameplay-active:not(.sidebar-open) #smart-sidebar-handle:hover,
+  body.gameplay-active:not(.sidebar-open) #smart-sidebar-handle:hover,
+  body.game-active:not(.sidebar-open) #smart-sidebar-handle:hover {
+    width: 14px;
+    opacity: 0.85;
+  }
 }
 
 body.cyberflap-active .main,

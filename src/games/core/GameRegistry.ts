@@ -59,6 +59,10 @@ export class GameRegistry {
     this.activeGameId = id;
     this.activeGame = game;
 
+    // Add gameplay active classes to body
+    document.body.classList.add('gameplay-active');
+    document.body.classList.add('game-active');
+
     await game.launch(context);
   }
 
@@ -69,6 +73,10 @@ export class GameRegistry {
       }
       this.activeGame = null;
       this.activeGameId = null;
+
+      // Remove gameplay active classes from body
+      document.body.classList.remove('gameplay-active');
+      document.body.classList.remove('game-active');
     }
   }
 

@@ -463,6 +463,7 @@ export class GameJuice {
     // Render Countdown Overlay
     if (this.countdownValue && this.countdownAlpha > 0) {
       ctx.save();
+      ctx.resetTransform();
       ctx.globalAlpha = Math.max(0, Math.min(1, this.countdownAlpha));
       
       const cx = ctx.canvas.width / 2;
